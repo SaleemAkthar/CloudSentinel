@@ -9,6 +9,7 @@ This is the initial implementation of an **Online Learning Anomaly Detection Sys
 ```
 serverless_anomaly_detector/
 ├── backend/
+│   ├── api.py                  # FastAPI server with threat detection endpoints
 │   ├── online_detector.py      # Core detection logic (Welford's Algorithm)
 │   ├── data_generator.py       # Test data generator
 │   └── __init__.py
