@@ -16,6 +16,8 @@ serverless_anomaly_detector/
 ├── frontend/
 │   ├── dashboard.py            # Streamlit dashboard
 │   └── __init__.py
+├── tests/
+│   └── test_api.py             # API integration and learning phase test
 ├── data/                        # Data storage (future)
 ├── logs/                        # Log files (future)
 └── README.md
