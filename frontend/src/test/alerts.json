@@ -1,0 +1,58 @@
+[
+  {
+    "id": "ALERT-1001",
+    "timestamp": "2026-02-07T08:12:00Z",
+    "function": "paymentHandler",
+    "severity": "CRITICAL",
+    "status": "OPEN",
+    "anomaly_score": 0.92,
+    "features": {
+      "duration_ms": 980,
+      "outbound_calls": 4,
+      "unique_destinations": 2,
+      "error_count": 1
+    }
+  },
+  {
+    "id": "ALERT-1002",
+    "timestamp": "2026-02-07T08:30:00Z",
+    "function": "imageResize",
+    "severity": "WARNING",
+    "status": "OPEN",
+    "anomaly_score": 0.71,
+    "features": {
+      "duration_ms": 520,
+      "outbound_calls": 1,
+      "unique_destinations": 1,
+      "error_count": 0
+    }
+  },
+  {
+    "id": "ALERT-1003",
+    "timestamp": "2026-02-07T09:05:00Z",
+    "function": "authCallback",
+    "severity": "INFO",
+    "status": "CLOSED",
+    "anomaly_score": 0.44,
+    "features": {
+      "duration_ms": 210,
+      "outbound_calls": 0,
+      "unique_destinations": 0,
+      "error_count": 0
+    }
+  },
+  {
+    "id": "ALERT-1004",
+    "timestamp": "2026-02-07T10:02:00Z",
+    "function": "paymentHandler",
+    "severity": "WARNING",
+    "status": "OPEN",
+    "anomaly_score": 0.63,
+    "features": {
+      "duration_ms": 640,
+      "outbound_calls": 2,
+      "unique_destinations": 1,
+      "error_count": 0
+    }
+  }
+]
