@@ -1,14 +1,26 @@
 import { createBrowserRouter } from "react-router-dom";
-import Appshell from "./components/Appshell";
-import Dashboard from "./pages/dashboard";
+import AppShell from "./components/Appshell";
+import Dashboard from "./pages/Dashboard";
+
+const Placeholder = ({ title }) => (
+  <div className="text-slate-200">
+    <h2 className="text-2xl font-semibold">{title}</h2>
+    <p className="mt-2 text-slate-400 text-lime-600">Page coming soon…</p>
+  </div>
+);
 
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <Appshell />,
+    element: <AppShell />,
     children: [
       { index: true, element: <Dashboard /> },
-    //   { path: "pathname", element: <filename /> }
-    ]
+      { path: "alerts", element: <Placeholder title="Real-Time Alerts" /> },
+      { path: "logs", element: <Placeholder title="Behaviour Logs" /> },
+      { path: "lambda", element: <Placeholder title="AWS Lambda Monitor" /> },
+      { path: "insights", element: <Placeholder title="AI Insights" /> },
+      { path: "team", element: <Placeholder title="Team" /> },
+      { path: "settings", element: <Placeholder title="Settings" /> },
+    ],
   },
 ]);

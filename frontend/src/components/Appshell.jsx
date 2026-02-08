@@ -1,66 +1,123 @@
-import { NavLink, Outlet } from "react-router-dom";
-import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
-import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
-import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 
-function NavItem({ to, icon, label }) {
+// MUI Icons
+import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
+import GridViewRoundedIcon from "@mui/icons-material/GridViewRounded";
+import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
+import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
+import ShowChartRoundedIcon from "@mui/icons-material/ShowChartRounded";
+import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
+import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import NotificationsNoneRoundedIcon from '@mui/icons-material/NotificationsNoneRounded';
+import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
+
+function SideItem({ to, icon, label }) {
   return (
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium ${
-          isActive ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"
-        }`
+        [
+          "flex items-center gap-3 rounded-xl px-3 py-2 text-sm",
+          "transition-colors",
+          isActive
+            ? "bg-white/10 text-white ring-1 ring-white/15"
+            : "text-slate-300 hover:bg-white/5 hover:text-white",
+        ].join(" ")
       }
     >
-      {icon}
-      {label}
+      <span className="opacity-90">{icon}</span>
+      <span className="font-medium">{label}</span>
     </NavLink>
   );
 }
 
-export default function Appshell() {
+export default function AppShell() {
+  const navigate = useNavigate();
   return (
-    <div >
-      <header >
-        <div >
-          <div >
-            <div >
+    <div className="min-h-screen bg-[#050B1A] text-white">
+      <div className="mx-auto flex min-h-screen w-full">
+        {/* Sidebar */}
+        <aside className="w-[260px] shrink-0 border-r border-white/10 bg-gradient-to-b from-[#071A3A] via-[#06122B] to-[#050B1A]">
+          {/* Brand */}
+          <div className="flex items-center gap-3 px-5 py-5">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white/10 ring-1 ring-white/15">
               <ShieldOutlinedIcon />
             </div>
-            <div>
-              <div >Cloud Sentinel</div>
-              <div >Runtime Security Dashboard</div>
+            <div className="leading-tight">
+              <div className="text-base font-semibold">Cloud Sentinel</div>
+              <div className="text-xs text-slate-300">Security Platform</div>
             </div>
           </div>
 
-          <div >
-            MVP UI · React + MUI + Tailwind
-          </div>
-        </div>
-      </header>
-
-      <div >
-        <aside>
-          <div >
-            <div >Navigation</div>
-            <div >
-              <NavItem to="/" icon={<DashboardOutlinedIcon fontSize="small" />} label="Dashboard" />
-              <NavItem to="/alerts" icon={<WarningAmberOutlinedIcon fontSize="small" />} label="Alerts" />
+          {/* Nav */}
+          <nav className="px-3 pt-2">
+            <div className="space-y-1">
+              <SideItem to="/" icon={<GridViewRoundedIcon fontSize="small" />} label="Overview" />
+              <SideItem to="/alerts" icon={<WarningAmberRoundedIcon fontSize="small" />} label="Real-Time Alerts" />
+              <SideItem to="/logs" icon={<DescriptionOutlinedIcon fontSize="small" />} label="Behaviour Logs" />
+              <SideItem to="/lambda" icon={<ShowChartRoundedIcon fontSize="small" />} label="AWS Lambda Monitor" />
+              <SideItem to="/insights" icon={<AutoAwesomeRoundedIcon fontSize="small" />} label="AI Insights" />
+              <SideItem to="/team" icon={<GroupOutlinedIcon fontSize="small" />} label="Team" />
             </div>
-          </div>
 
-          <div >
-            <div >What this shows</div>
-            <p >
-              Alerts detected from runtime behaviour. Replace mock data with backend API later.
-            </p>
+            <div className="mt-5 border-t border-white/10 pt-4">
+              <SideItem to="/settings" icon={<SettingsOutlinedIcon fontSize="small" />} label="Settings" />
+            </div>
+          </nav>
+
+          {/* Status Card */}
+          <div className="mt-auto px-4 pb-5 pt-6">
+            <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                <div className="text-sm font-semibold text-white">System Online</div>
+              </div>
+              <div className="mt-1 text-xs text-slate-300">All services operational</div>
+            </div>
           </div>
         </aside>
 
-        <main >
-          <Outlet />
-        </main>
+        {/* Main */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Top bar */}
+          <header className="flex h-16 items-center justify-between border-b border-white/10 bg-gradient-to-r from-[#071A3A] via-[#071534] to-[#050B1A] px-6">
+            <h1 className="text-xl font-semibold tracking-wide">Cloud Sentinel Dashboard</h1>
+
+            <div className="flex items-center gap-3">
+              {/* Top bar btns */}
+              <button
+                className="relative grid h-10 w-10 place-items-center rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10"
+                title="Notifications"
+                onClick={() => navigate("/notification")}
+              >
+                <NotificationsNoneRoundedIcon />
+                
+              </button>
+
+              <button
+                className="grid h-10 w-10 place-items-center rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10"
+                title="Settings"
+                onClick={() => navigate("/settings")}
+              >
+                <SettingsOutlinedIcon />
+              </button>
+
+              <button
+                className="grid h-10 w-10 place-items-center rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10"
+                title="Profile"
+                onClick={() => navigate("/profile")}
+              >
+                <PersonOutlineRoundedIcon />
+              </button>
+            </div>
+          </header>
+
+          {/* Page content */}
+          <main className="min-w-0 flex-1 p-6">
+            <Outlet />
+          </main>
+        </div>
       </div>
     </div>
   );

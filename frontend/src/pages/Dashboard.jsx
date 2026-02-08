@@ -4,7 +4,10 @@ export default function Dashboard() {
       <div >
         <h1 >This is Dashboard</h1>
         <h2 >Now on testing</h2>
-        <p >Tailwind is working.</p>
+        <div className="text-red-500 text-3xl font-bold">
+  Tailwind Working
+</div>
+
       </div>
     </div>
   );
