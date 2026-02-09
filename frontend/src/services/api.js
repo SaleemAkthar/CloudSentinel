@@ -1,5 +1,5 @@
 import axios from "axios";
-import mockAlerts from "../mock/alerts.json";
+import mockAlerts from "../test/alerts.json";
 
 // Toggle this when backend is ready:
 const USE_MOCK = true;
@@ -25,5 +25,21 @@ export async function getAlertById(id) {
     return found;
   }
   const res = await axios.get(`/api/alerts/${id}`);
+  return res.data;
+}
+
+// model health hardcoded
+export async function getModelHealth() {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 100));
+    return {
+      accuracy: 94.7,
+      precision: 96.2,
+      recall: 40,
+      trainingActive: true,
+      delta: 2.3,
+    };
+  }
+  const res = await axios.get("/api/model/health");
   return res.data;
 }
