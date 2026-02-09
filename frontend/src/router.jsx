@@ -1,7 +1,7 @@
 import { createBrowserRouter } from "react-router-dom";
 import AppShell from "./components/Appshell";
 import Dashboard from "./pages/Dashboard";
-import RealTimeAlerts from "./pages/RealTimeAlerts";
+
 
 const Placeholder = ({ title }) => (
   <div className="text-slate-200">
@@ -16,7 +16,7 @@ export const router = createBrowserRouter([
     element: <AppShell />,
     children: [
       { index: true, element: <Dashboard /> },
-      { path: "alerts", element: <RealTimeAlerts /> },
+      { path: "alerts", element: <Placeholder title="Real-Time Alerts" /> },
       { path: "logs", element: <Placeholder title="Behaviour Logs" /> },
       { path: "lambda", element: <Placeholder title="AWS Lambda Monitor" /> },
       { path: "insights", element: <Placeholder title="AI Insights" /> },
