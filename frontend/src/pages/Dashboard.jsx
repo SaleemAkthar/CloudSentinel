@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import GlassCard from "../components/GlassCard";
-import SeverityPill from "../components/SeverityPill";
 import StatusDot from "../components/StatusDot";
 import MetricBar from "../components/MetricBar";
 import { getAlerts, getModelHealth } from "../services/api";
