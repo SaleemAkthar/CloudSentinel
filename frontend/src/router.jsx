@@ -7,7 +7,7 @@ import RealTimeAlerts from "./components/Real-Time-Alerts";
 const Placeholder = ({ title }) => (
   <div className="text-slate-200">
     <h2 className="text-2xl font-semibold">{title}</h2>
-    <p className="mt-2 text-slate-400 text-lime-600">Page coming soon…</p>
+    <p className="mt-2 text-lime-600">Page coming soon…</p>
   </div>
 );
 
