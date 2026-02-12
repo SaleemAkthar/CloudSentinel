@@ -16,8 +16,6 @@ export default function AlertItem({ alert }) {
   const timeAgo = alert.timestamp ? new Date(alert.timestamp).toLocaleString() : "N/A";
   const colorClass = severityColors[alert.severity] || severityColors.INFO;
 
-  console.log("Rendering alert:", alert);
-
   return (
     <div className={`p-5 border-l-4 flex justify-between items-start gap-4 min-h-24 ${colorClass}`}>
       {/* LEFT CONTENT */}
