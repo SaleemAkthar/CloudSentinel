@@ -560,9 +560,8 @@ class EnhancedLogGenerator:
         print("=" * 60)
 
 
-# ============================================================================
-# BACKWARDS COMPATIBLE FUNCTION
-# ============================================================================
+
+# BACKWARDS COMPATIBLE FUNCTION        
 
 def generate_test_data(num_logs: int = 100, attack_rate: float = 0.08) -> List[Dict]:
     """
@@ -599,7 +598,7 @@ if __name__ == "__main__":
     print("\nFirst 5 logs:")
     for i, log in enumerate(logs[:5]):
         print(f"\nLog {i+1}:")
-        print(f"  Type: {'🔴 ATTACK' if 'attack_type' in log else 'Normal'}")
+        print(f"  Type: {'ATTACK' if 'attack_type' in log else 'Normal'}")
         if 'attack_type' in log:
             print(f"  Attack: {log['attack_type']}")
         elif 'variation' in log:
@@ -628,7 +627,7 @@ if __name__ == "__main__":
     
     # Test 3: Show one of each attack type
     print("\n" + "=" * 70)
-    print("🔴 Test 3: Sample of Each Attack Type")
+    print("Test 3: Sample of Each Attack Type")
     print("-" * 70)
     
     timestamp = datetime.now()
