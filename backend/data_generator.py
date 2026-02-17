@@ -561,7 +561,7 @@ class EnhancedLogGenerator:
 
 
 
-# BACKWARDS COMPATIBLE FUNCTION 
+# BACKWARDS COMPATIBLE FUNCTION        
 
 def generate_test_data(num_logs: int = 100, attack_rate: float = 0.08) -> List[Dict]:
     """
