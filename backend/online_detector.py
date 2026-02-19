@@ -1,8 +1,3 @@
-"""
-Online Learning Anomaly Detector for Serverless Applications
-Core Module: Implements Welford's Algorithm for streaming anomaly detection
-"""
-
 from datetime import datetime
 from typing import Dict, List, Tuple
 
