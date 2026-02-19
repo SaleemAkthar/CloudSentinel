@@ -4,6 +4,8 @@ import Dashboard from "./pages/Dashboard";
 import RealTimeAlerts from "./pages/RealTimeAlerts";
 import AIInsights from "./pages/AIInsights";
 import Team from "./pages/Team";
+import BehaviourLogs from "./components/BehaviourLogs";
+import AWSLambdaMonitorPage from "./pages/AWSLambdaMonitorPage";
 
 
 const Placeholder = ({ title }) => (
@@ -20,8 +22,8 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Dashboard /> },
       { path: "alerts", element: <RealTimeAlerts /> },
-      { path: "logs", element: <Placeholder title="Behaviour Logs" /> },
-      { path: "lambda", element: <Placeholder title="AWS Lambda Monitor" /> },
+      { path: "logs", element: <BehaviourLogs /> },
+      { path: "lambda", element: <AWSLambdaMonitorPage /> },
       { path: "insights", element: <AIInsights /> },
       { path: "team", element: <Team /> },
       { path: "settings", element: <Placeholder title="Settings" /> },
