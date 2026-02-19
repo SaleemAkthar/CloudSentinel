@@ -1,5 +1,5 @@
 """
-Saleem's Component: Severity & Threat Classifier
+Severity & Threat Classifier
 Classifies anomalies into specific threat types and assigns severity levels.
 """
 
