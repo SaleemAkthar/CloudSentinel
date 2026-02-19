@@ -1,0 +1,438 @@
+{
+  "info": {
+    "_postman_id": "cb79ce9c-98c9-418b-ba1a-2575c060649f",
+    "name": "Cloud Sentinel API Tests",
+    "description": "Tests for serverless security anomaly detection API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "52144046",
+    "_collection_link": "https://go.postman.co/collection/52144046-cb79ce9c-98c9-418b-ba1a-2575c060649f?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Test 1 - Health Check",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var template = `",
+              "<style>",
+              "    .container {",
+              "        font-family: Arial, sans-serif;",
+              "        padding: 20px;",
+              "        max-width: 800px;",
+              "        margin: 0 auto;",
+              "    }",
+              "    .header {",
+              "        text-align: center;",
+              "        margin-bottom: 20px;",
+              "    }",
+              "    .header h2 {",
+              "        color: #333;",
+              "        margin-bottom: 5px;",
+              "    }",
+              "    .status-badge {",
+              "        display: inline-block;",
+              "        padding: 5px 15px;",
+              "        border-radius: 20px;",
+              "        font-weight: bold;",
+              "        margin: 10px 0;",
+              "    }",
+              "    .status-running {",
+              "        background-color: #4CAF50;",
+              "        color: white;",
+              "    }",
+              "    .learning-indicator {",
+              "        background-color: #FF9800;",
+              "        color: white;",
+              "        padding: 5px 15px;",
+              "        border-radius: 20px;",
+              "        font-size: 12px;",
+              "        margin-left: 10px;",
+              "    }",
+              "    .chart-container {",
+              "        margin: 20px 0;",
+              "    }",
+              "    .metrics-grid {",
+              "        display: grid;",
+              "        grid-template-columns: repeat(2, 1fr);",
+              "        gap: 15px;",
+              "        margin-top: 20px;",
+              "    }",
+              "    .metric-card {",
+              "        background: #f5f5f5;",
+              "        padding: 15px;",
+              "        border-radius: 8px;",
+              "        text-align: center;",
+              "    }",
+              "    .metric-value {",
+              "        font-size: 28px;",
+              "        font-weight: bold;",
+              "        color: #2196F3;",
+              "    }",
+              "    .metric-label {",
+              "        font-size: 12px;",
+              "        color: #666;",
+              "        margin-top: 5px;",
+              "    }",
+              "    .timestamp {",
+              "        text-align: center;",
+              "        color: #999;",
+              "        font-size: 11px;",
+              "        margin-top: 20px;",
+              "    }",
+              "</style>",
+              "",
+              "<div class=\"container\">",
+              "    <div class=\"header\">",
+              "        <h2>Cloud Sentinel Detector Statistics</h2>",
+              "        <span class=\"status-badge status-running\">{{status}}</span>",
+              "        {{#if learningPhase}}",
+              "        <span class=\"learning-indicator\">🔄 Learning Phase Active</span>",
+              "        {{/if}}",
+              "    </div>",
+              "    ",
+              "    <div class=\"chart-container\">",
+              "        <canvas id=\"metricsChart\" height=\"200\"></canvas>",
+              "    </div>",
+              "    ",
+              "    <div class=\"metrics-grid\">",
+              "        <div class=\"metric-card\">",
+              "            <div class=\"metric-value\">{{requestsSeen}}</div>",
+              "            <div class=\"metric-label\">Requests Seen</div>",
+              "        </div>",
+              "        <div class=\"metric-card\">",
+              "            <div class=\"metric-value\">{{anomaliesDetected}}</div>",
+              "            <div class=\"metric-label\">Anomalies Detected</div>",
+              "        </div>",
+              "        <div class=\"metric-card\">",
+              "            <div class=\"metric-value\">{{learningProgress}}%</div>",
+              "            <div class=\"metric-label\">Learning Progress</div>",
+              "        </div>",
+              "        <div class=\"metric-card\">",
+              "            <div class=\"metric-value\">{{meanDuration}}</div>",
+              "            <div class=\"metric-label\">Mean Duration (ms)</div>",
+              "        </div>",
+              "    </div>",
+              "    ",
+              "    <div class=\"timestamp\">Last updated: {{timestamp}}</div>",
+              "</div>",
+              "",
+              "<script src=\"https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.5.0/Chart.min.js\"></script>",
+              "<script>",
+              "    pm.getData(function (err, value) {",
+              "        var ctx = document.getElementById(\"metricsChart\");",
+              "        new Chart(ctx, {",
+              "            type: \"bar\",",
+              "            data: {",
+              "                labels: [\"Requests Seen\", \"Anomalies Detected\", \"Learning Progress (%)\"],",
+              "                datasets: [{",
+              "                    label: \"Metrics\",",
+              "                    data: [value.requestsSeen, value.anomaliesDetected, value.learningProgress],",
+              "                    backgroundColor: [\"#2196F3\", \"#f44336\", \"#FF9800\"]",
+              "                }]",
+              "            },",
+              "            options: {",
+              "                legend: { display: false },",
+              "                title: { display: true, text: \"Detector Metrics Overview\" },",
+              "                scales: {",
+              "                    yAxes: [{ ticks: { beginAtZero: true } }]",
+              "                }",
+              "            }",
+              "        });",
+              "    });",
+              "</script>",
+              "`;",
+              "",
+              "function constructVisualizerPayload() {",
+              "    var response = pm.response.json();",
+              "    var stats = response.detector_stats;",
+              "    return {",
+              "        status: response.status,",
+              "        learningPhase: stats.learning_phase,",
+              "        requestsSeen: stats.requests_seen,",
+              "        anomaliesDetected: stats.anomalies_detected,",
+              "        learningProgress: stats.learning_progress,",
+              "        meanDuration: stats.baseline.duration.mean.toFixed(2),",
+              "        timestamp: response.timestamp",
+              "    };",
+              "}",
+              "",
+              "pm.visualizer.set(template, constructVisualizerPayload());",
+              "",
+              "// Tests",
+              "pm.test(\"Status is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"API is running\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.status).to.eql(\"running\");",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "packages": {},
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/status",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "status"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Test 2- Process Normal logs",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"duration\": 450.0,\r\n    \"memory_used\": 128.0,\r\n    \"num_api_calls\": 3\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8000/process_log",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "process_log"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Test 3- Send 100 Normal logs",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// checking to see if we've already done learning\r",
+              "var completedLearning = pm.environment.get(\"learning_completed\");\r",
+              "\r",
+              "if (!completedLearning) {\r",
+              "    // Send this request 99 more times\r",
+              "    var count = pm.environment.get(\"learning_count\") || 1;\r",
+              "    \r",
+              "    if (count < 100) {\r",
+              "        pm.environment.set(\"learning_count\", count + 1);\r",
+              "        postman.setNextRequest(\"Test 3 - Complete Learning Phase\");\r",
+              "    } else {\r",
+              "        pm.environment.set(\"learning_completed\", \"true\");\r",
+              "        pm.test(\"Learning phase complete\", function() {\r",
+              "            var jsonData = pm.response.json();\r",
+              "            pm.expect(jsonData.phase).to.eql(\"detection\");\r",
+              "        });\r",
+              "        postman.setNextRequest(null);\r",
+              "    }\r",
+              "}"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "prerequest",
+          "script": {
+            "exec": [
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"duration\": 500.0,\r\n    \"memory_used\": 130.0,\r\n    \"num_api_calls\": 3\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8000/process_log",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "process_log"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Test 4 - Crypto Mining attack",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Anomaly detected\", function () {\r",
+              "    var jsonData = pm.response.json();\r",
+              "    pm.expect(jsonData.is_anomaly).to.eql(true);\r",
+              "});\r",
+              "\r",
+              "pm.test(\"Threat type is crypto_mining\", function () {\r",
+              "    var jsonData = pm.response.json();\r",
+              "    pm.expect(jsonData.threat_type).to.eql(\"crypto_mining\");\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"duration\": 10000.0,\r\n    \"memory_used\": 450.0,\r\n    \"num_api_calls\": 2\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8000/process_log",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "process_log"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "Test 4 - Crypto Mining attack",
+          "originalRequest": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"duration\": 10000.0,\r\n    \"memory_used\": 450.0,\r\n    \"num_api_calls\": 2\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "http://localhost:8000/process_log",
+              "protocol": "http",
+              "host": [
+                "localhost"
+              ],
+              "port": "8000",
+              "path": [
+                "process_log"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": null,
+          "header": [
+            {
+              "key": "date",
+              "value": "Sun, 15 Feb 2026 19:16:50 GMT"
+            },
+            {
+              "key": "server",
+              "value": "uvicorn"
+            },
+            {
+              "key": "content-length",
+              "value": "636"
+            },
+            {
+              "key": "content-type",
+              "value": "application/json"
+            }
+          ],
+          "cookie": [],
+          "body": "{\n    \"phase\": \"detection\",\n    \"is_anomaly\": true,\n    \"anomaly_score\": 1,\n    \"z_scores\": {\n        \"duration\": 2687.0764791869906,\n        \"memory_used\": 2262.8124104749936,\n        \"num_api_calls\": 0\n    },\n    \"features\": {\n        \"duration\": 10000,\n        \"memory_used\": 450,\n        \"num_api_calls\": 2\n    },\n    \"baseline\": {\n        \"duration\": {\n            \"n\": 200,\n            \"mean\": 499.7499999999999,\n            \"std\": 3.535533905932749,\n            \"variance\": 12.500000000000078\n        },\n        \"memory_used\": {\n            \"n\": 200,\n            \"mean\": 129.9899999999998,\n            \"std\": 0.14142135623731442,\n            \"variance\": 0.020000000000001388\n        },\n        \"num_api_calls\": {\n            \"n\": 200,\n            \"mean\": 3,\n            \"std\": 0,\n            \"variance\": 0\n        }\n    },\n    \"message\": \"ANOMALY DETECTED (Score: 1.00)\",\n    \"timestamp\": \"2026-02-16T00:46:50.957398\",\n    \"requests_seen\": 201,\n    \"anomalies_detected\": 1\n}"
+        }
+      ]
+    },
+    {
+      "name": "Test 5 - Data Exfiltration",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"duration\": 600.0,\r\n    \"memory_used\": 150.0,\r\n    \"num_api_calls\": 25\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8000/process_log",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "process_log"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Test 6 - Memory Attacks",
+      "request": {
+        "method": "GET",
+        "header": []
+      },
+      "response": []
+    }
+  ]
+}

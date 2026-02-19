@@ -599,7 +599,7 @@ if __name__ == "__main__":
     print("\nFirst 5 logs:")
     for i, log in enumerate(logs[:5]):
         print(f"\nLog {i+1}:")
-        print(f"  Type: {'🔴 ATTACK' if 'attack_type' in log else 'Normal'}")
+        print(f"  Type: {'ATTACK' if 'attack_type' in log else 'Normal'}")
         if 'attack_type' in log:
             print(f"  Attack: {log['attack_type']}")
         elif 'variation' in log:
@@ -656,3 +656,4 @@ if __name__ == "__main__":
     print("\n" + "=" * 70)
     print(" ALL TESTS COMPLETE!")
     print("=" * 70)
+    

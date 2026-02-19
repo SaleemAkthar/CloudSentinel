@@ -5,3 +5,8 @@ __pycache__/
 .vscode/
 .idea/
 reproduce_issue.py
+
+# Virtual Environment
+venv/
+env/
+ENV/
