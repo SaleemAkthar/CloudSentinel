@@ -2,6 +2,7 @@ import random
 from datetime import datetime, timedelta
 import numpy as np
 from typing import Dict, List, Optional
+from .severity_classifier import SeverityClassifier
 
 
 # what healthy traffic looks like
