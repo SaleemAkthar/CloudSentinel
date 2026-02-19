@@ -628,7 +628,7 @@ if __name__ == "__main__":
     
     # Test 3: Show one of each attack type
     print("\n" + "=" * 70)
-    print("🔴 Test 3: Sample of Each Attack Type")
+    print("Test 3: Sample of Each Attack Type")
     print("-" * 70)
     
     timestamp = datetime.now()
