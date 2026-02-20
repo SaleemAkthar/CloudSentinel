@@ -89,8 +89,32 @@ def process_log(request: LogRequest):
     # During the learning phase the detector just returns progress —
     # there's no baseline yet, so we can't classify anything.
     if result.get("phase") == "learning":
+        # Store as normal log even during learning
+        log_entry = {
+            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "function": request.function_name,
+            "event": f"Learning: {result.get('learning_progress', 'N/A')}",
+            "user": "system",
+            "ip_address": "10.0.0.1",
+            "status": "success",
+            "duration": f"{int(request.duration)}ms"
+        }
+        log_storage.append(log_entry)
         return result
 
+    # Store ALL logs (not just anomalies)
+    log_entry = {
+        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+        "function": request.function_name,
+        "event": "Anomaly Detected" if result.get('is_anomaly') else "Normal Request",
+        "user": "system",
+        "ip_address": "10.0.0.1",
+        "status": "blocked" if (result.get('is_anomaly') and result.get('severity') == 'CRITICAL') else "success",
+        "duration": f"{int(request.duration)}ms"
+    }
+    log_storage.append(log_entry)
+
+    # Store anomalies separately
     if result.get("is_anomaly"):
         alert_store.add(_build_alert(request, result))
 
