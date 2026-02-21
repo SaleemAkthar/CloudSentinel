@@ -88,7 +88,6 @@ export default function Dashboard() {
     const open = alerts.filter(a => a.status === "OPEN");
     const critical = open.filter(a => a.severity === "CRITICAL").length;
 
-    // "High" and "Medium" like your screenshot:
     // High: WARNING with anomaly_score >= 0.70
     // Medium: WARNING with anomaly_score < 0.70
     const high = open.filter(a => a.severity === "WARNING" && a.anomaly_score >= 0.7).length;
@@ -132,7 +131,7 @@ export default function Dashboard() {
           className="bg-gradient-to-b from-white/5 to-white/0"
         >
           <div className="space-y-3">
-            <div className="flex items-center justify-between rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-4">
+            <div className="flex items-center justify-between rounded-xl border border-red-500/100 bg-red-500/30 px-4 py-4">
               <div>
                 <div className="text-sm font-semibold text-slate-100">Critical</div>
                 <div className="text-xs text-red-200/80">Active threats</div>
@@ -140,7 +139,7 @@ export default function Dashboard() {
               <div className="text-2xl font-semibold text-red-200">{stats.critical}</div>
             </div>
 
-            <div className="flex items-center justify-between rounded-xl border border-orange-500/25 bg-orange-500/10 px-4 py-4">
+            <div className="flex items-center justify-between rounded-xl border border-orange-500/100 bg-orange-500/30 px-4 py-4">
               <div>
                 <div className="text-sm font-semibold text-slate-100">High</div>
                 <div className="text-xs text-orange-200/80">Active threats</div>
@@ -148,7 +147,7 @@ export default function Dashboard() {
               <div className="text-2xl font-semibold text-orange-200">{stats.high}</div>
             </div>
 
-            <div className="flex items-center justify-between rounded-xl border border-yellow-500/25 bg-yellow-500/10 px-4 py-4">
+            <div className="flex items-center justify-between rounded-xl border border-yellow-500/100 bg-yellow-500/30 px-4 py-4">
               <div>
                 <div className="text-sm font-semibold text-slate-100">Medium</div>
                 <div className="text-xs text-yellow-200/80">Active threats</div>
@@ -241,12 +240,12 @@ export default function Dashboard() {
       {/* Big chart */}
       <GlassCard
         title="Risk Summary - Last 24 Hours"
-        right={<div className="text-xs text-emerald-300">↘ Threats decreasing by 18%</div>}
+        right={<div className="text-xs text-emerald-300">comparing to the yesterday</div>}
         className="p-0 overflow-hidden"
       >
         <div className="px-5 pt-5 pb-2">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-semibold text-slate-100">Risk Summary - Last 24 Hours</div>
+            
             <div className="text-xs text-slate-300">Threats • Anomalies</div>
           </div>
         </div>

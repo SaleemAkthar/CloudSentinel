@@ -2,9 +2,15 @@ export default function AlertItem({ alert }) {
   if (!alert) return null;
 
   const severityColors = {
-    CRITICAL: "text-red-400 border-red-500 bg-red-500/10",
-    WARNING: "text-orange-400 border-orange-400 bg-orange-400/10",
-    INFO: "text-yellow-400 border-yellow-400 bg-yellow-400/10",
+    CRITICAL: "border-l-4 border-red-500 border-red-500/40",
+    WARNING: "border-l-4 border-orange-400 border-orange-400/40",
+    INFO: "border-l-4 border-yellow-400 border-yellow-400/40",
+  };
+
+  const badgeStyles = {
+  CRITICAL: "bg-red-500/15 text-red-400 border border-red-500/40",
+  WARNING: "bg-orange-500/15 text-orange-400 border border-orange-500/40",
+  INFO: "bg-yellow-500/15 text-yellow-400 border border-yellow-500/40",
   };
 
   const statusColors = {
@@ -25,8 +31,10 @@ export default function AlertItem({ alert }) {
             {alert.function || "Unknown Alert"}
           </h3>
 
-          <span className={`text-xs px-2 py-1 rounded-full border whitespace-nowrap ${colorClass}`}>
-            {alert.severity || "UNKNOWN"}
+          <span   className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                badgeStyles[alert.severity]
+              }`}>
+                {alert.severity}
           </span>
 
           <span className={`text-xs font-semibold whitespace-nowrap ${statusColors[alert.status] || "text-slate-400"}`}>
