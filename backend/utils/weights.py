@@ -8,6 +8,4 @@ These weights are based on:
 3. Empirical testing on simulated attacks
 4. Statistical theory (3-sigma rule)
 
-Last Updated: 2026-03-03
-Validated By: Backend Team
 """
