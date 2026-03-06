@@ -293,3 +293,55 @@ def calculate_packet_anomaly(
     }
     
     return A_packet, details
+# ============================================================================
+# SECTION 5: TEMPORAL ANOMALY (SARIMA-based)
+# ============================================================================
+
+def calculate_temporal_anomaly(
+    actual_value: float,
+    predicted_value: float,
+    prediction_std: float
+) -> float:
+    """
+    Calculate temporal anomaly using SARIMA prediction
+    
+    Formula:
+        A_temporal = |x_actual - x_predicted| / σ_residual
+    
+    Where:
+        x_actual = observed value
+        x_predicted = SARIMA forecast
+        σ_residual = std of prediction errors
+    
+    Args:
+        actual_value: Actual observed value
+        predicted_value: SARIMA predicted value
+        prediction_std: Standard deviation of SARIMA residuals
+    
+    Returns:
+        Temporal anomaly score (0-1)
+    
+    Example:
+        >>> # Monday 9am, SARIMA predicts 800ms, actual is 850ms
+        >>> calculate_temporal_anomaly(850, 800, 50)
+        0.333  # Within 1 std, not very anomalous
+        
+        >>> # But if actual is 5000ms
+        >>> calculate_temporal_anomaly(5000, 800, 50)
+        1.0  # Way beyond prediction
+    """
+    if prediction_std == 0 or prediction_std < 1e-10:
+        return 0.0
+    
+    # Calculate deviation from prediction
+    deviation = abs(actual_value - predicted_value)
+    
+    # Normalize by prediction uncertainty
+    temporal_z = deviation / prediction_std
+    
+    # Convert to 0-1 scale (3-sigma rule)
+    temporal_anomaly = min(temporal_z / 3.0, 1.0)
+    
+    return temporal_anomaly
+
+
