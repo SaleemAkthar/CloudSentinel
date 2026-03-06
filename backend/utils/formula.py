@@ -343,5 +343,88 @@ def calculate_temporal_anomaly(
     temporal_anomaly = min(temporal_z / 3.0, 1.0)
     
     return temporal_anomaly
+# ============================================================================
+# SECTION 6: BEHAVIORAL ANOMALY (Attack Signatures)
+# ============================================================================
+
+def calculate_behavioral_anomaly(
+    features: Dict[str, float],
+    baseline_stats: Dict[str, Dict],
+    ip_history: Optional[Dict] = None
+) -> Tuple[float, str]:
+    """
+    Calculate behavioral anomaly based on attack signatures
+    
+    Checks for:
+    1. Crypto-mining (high duration + high memory)
+    2. Data exfiltration (excessive API calls)
+    3. DDoS (high request rate, low entropy)
+    4. SQL injection (high DB queries + errors)
+    5. Memory attack (memory near limit)
+    
+    Args:
+        features: Current request features
+        baseline_stats: Statistical baselines
+        ip_history: Historical behavior of this IP
+    
+    Returns:
+        (behavioral_score, attack_type)
+    """
+    duration = features.get('duration', 0)
+    memory = features.get('memory_used', 0)
+    api_calls = features.get('num_api_calls', 0)
+    errors = features.get('error_count', 0)
+    
+    # Get baseline means
+    mean_duration = baseline_stats.get('duration', {}).get('mean', 500)
+    mean_memory = baseline_stats.get('memory_used', {}).get('mean', 130)
+    
+    # Initialize attack scores
+    attack_scores = {}
+    
+    # 1. CRYPTO MINING SIGNATURE
+    # High duration (>5x normal) + high memory
+    if duration > mean_duration * 5 and memory > mean_memory * 2:
+        S_crypto = min((duration / mean_duration) / 20, 1.0)  # Normalize
+        attack_scores['crypto_mining'] = S_crypto
+    
+    # 2. DATA EXFILTRATION SIGNATURE
+    # Excessive API calls (>10)
+    if api_calls > 10:
+        S_exfil = min(api_calls / 30, 1.0)  # Normalize (30 = max expected)
+        attack_scores['data_exfiltration'] = S_exfil
+    
+    # 3. SQL INJECTION SIGNATURE
+    # High DB calls + errors
+    db_calls = features.get('db_queries', 0)
+    if db_calls > 10 and errors > 0:
+        S_injection = min((db_calls * errors) / 100, 1.0)
+        attack_scores['sql_injection'] = S_injection
+    
+    # 4. MEMORY ATTACK SIGNATURE
+    # Memory near limit (>90% of max)
+    memory_limit = features.get('memory_limit', 512)
+    if memory > memory_limit * 0.9:
+        S_memory = memory / memory_limit
+        attack_scores['memory_attack'] = S_memory
+    
+    # 5. DDoS SIGNATURE (if IP history available)
+    if ip_history:
+        request_rate = ip_history.get('request_rate', 0)
+        entropy = ip_history.get('entropy', 1.0)  # Diversity of requests
+        
+        if request_rate > 100:  # More than 100 req/min from same IP
+            S_ddos = min(request_rate / 500, 1.0) * (1 - entropy)
+            attack_scores['ddos'] = S_ddos
+    
+    # Return highest scoring attack
+    if attack_scores:
+        attack_type = max(attack_scores, key=attack_scores.get)
+        behavioral_score = attack_scores[attack_type]
+    else:
+        attack_type = 'unknown'
+        behavioral_score = 0.0
+    
+    return behavioral_score, attack_type
 
 
