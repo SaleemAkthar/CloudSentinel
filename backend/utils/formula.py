@@ -215,3 +215,81 @@ def calculate_feature_anomaly(
     }
     
     return normalized_score, details
+
+# ============================================================================
+# SECTION 4: PACKET-BASED ANOMALY SCORING
+# ============================================================================
+
+def calculate_packet_anomaly(
+    features: Dict[str, float],
+    packet_stats: Dict[str, Dict]
+) -> Tuple[float, Dict]:
+    """
+    Calculate packet-level anomaly score
+    
+    Formula:
+        A_packet = √[(P_latency)² + (P_size)² + (P_fragmentation)²]
+    
+    Components:
+        P_latency = latency Z-score
+        P_size = packet size anomaly
+        P_fragmentation = fragmentation indicator (0-1)
+    
+    Args:
+        features: Request features including packet metrics
+        packet_stats: Baseline packet statistics
+    
+    Returns:
+        (anomaly_score, details_dict)
+    """
+    # Extract packet features
+    latency = features.get('latency', 0)
+    packet_size_in = features.get('packet_size_in', 0)
+    packet_size_out = features.get('packet_size_out', 0)
+    fragment_count = features.get('fragment_count', 0)
+    
+    # Component 1: Latency anomaly
+    if 'latency' in packet_stats:
+        latency_mean = packet_stats['latency'].get('mean', latency)
+        latency_std = packet_stats['latency'].get('std', 1)
+        P_latency = calculate_z_score(latency, latency_mean, latency_std) / 3.0
+    else:
+        P_latency = 0.0
+    
+    # Component 2: Packet size anomaly
+    # Check for data exfiltration (large outbound vs inbound)
+    size_ratio = packet_size_out / max(packet_size_in, 1)
+    
+    if size_ratio > 10:  # Suspicious: sending 10x more than receiving
+        P_size = 0.9
+    elif size_ratio > 5:
+        P_size = 0.6
+    elif size_ratio > 2:
+        P_size = 0.3
+    else:
+        P_size = 0.0
+    
+    # Component 3: Fragmentation anomaly
+    if fragment_count > 10:  # Highly fragmented (DDoS indicator)
+        P_fragmentation = 1.0
+    elif fragment_count > 5:
+        P_fragmentation = 0.7
+    elif fragment_count > 2:
+        P_fragmentation = 0.3
+    else:
+        P_fragmentation = 0.0
+    
+    # Combine components (Euclidean norm, then normalize)
+    A_packet = math.sqrt(P_latency**2 + P_size**2 + P_fragmentation**2) / math.sqrt(3)
+    A_packet = min(A_packet, 1.0)
+    
+    details = {
+        'latency_component': P_latency,
+        'size_component': P_size,
+        'size_ratio': size_ratio,
+        'fragmentation_component': P_fragmentation,
+        'fragment_count': fragment_count,
+        'packet_anomaly_score': A_packet
+    }
+    
+    return A_packet, details
