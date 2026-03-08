@@ -140,6 +140,19 @@ export default function Profile() {
                         <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-medium mb-4">
                             ✦ {user.plan} Plan    
                         </div>
+                        {/* member info rows */}
+                        <div className="w-full border-t border-white/5 pt-4 flex flex-col gap-2 text-xs text-slate-400">
+                          <div className="flex items-center justify-between">
+                            <span>Member since</span>
+                            <span className="text-slate-200">{user.joined}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span>2FA Security</span>
+                            <span className={user.twoFA ? "text-emerald-400" : "text-red-400"}>
+                              {user.twoFA ? "Enabled" : "Disabled"}
+                            </span>
+                          </div>
+                        </div>
                 </div>
             </div>
         {/* right column - scrollable */}
