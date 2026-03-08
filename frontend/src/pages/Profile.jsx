@@ -125,8 +125,16 @@ export default function Profile() {
 
         {/* left column - stays in place while right scrolls */}
         <div className="sticky top-6 shrink-0">
-        </div>
-
+            {/* avatar card */}
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-6 flex flex-col items-center text-center">
+                <div className="relative mb-4">
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-blue-500/20">
+                        {user.avatar}
+                    </div>
+                    <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-emerald-400 border-2 border-[#050B1A]" />
+                    </div>
+                </div>
+            </div>
         {/* right column - scrollable */}
         <div className="lg:col-span-2 space-y-4 overflow-y-auto max-h-[80vh] pr-2">
         </div>
