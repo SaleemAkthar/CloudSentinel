@@ -60,6 +60,12 @@ export default function Notifications() {
   const markAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
+  // mark a single notification as read
+  const markRead = (id) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
+  };
   return (
     <div>
     </div>
