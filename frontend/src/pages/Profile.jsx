@@ -133,6 +133,13 @@ export default function Profile() {
                     </div>
                     <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-emerald-400 border-2 border-[#050B1A]" />
                     </div>
+                        <div className="text-lg font-semibold">{user.name}</div>
+                        <div className="text-sm text-slate-400 mb-3">{user.role}</div>
+
+                        {/* plan badge */}
+                        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-medium mb-4">
+                            ✦ {user.plan} Plan    
+                        </div>
                 </div>
             </div>
         {/* right column - scrollable */}
