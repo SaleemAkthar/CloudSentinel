@@ -20,6 +20,28 @@ const chartData = [
   { day: "Sun", notifications: 4 },
 ];
 
+// styles for each notification type
+const typeStyles = {
+  CRITICAL: {
+    icon: <WarningAmberRoundedIcon fontSize="small" />,
+    badge: "bg-red-500/15 text-red-400 border border-red-500/30",
+    dot: "bg-red-400",
+    border: "border-l-red-500",
+  },
+  WARNING: {
+    icon: <WarningAmberRoundedIcon fontSize="small" />,
+    badge: "bg-orange-500/15 text-orange-400 border border-orange-500/30",
+    dot: "bg-orange-400",
+    border: "border-l-orange-400",
+  },
+  INFO: {
+    icon: <InfoOutlinedIcon fontSize="small" />,
+    badge: "bg-blue-500/15 text-blue-400 border border-blue-500/30",
+    dot: "bg-blue-400",
+    border: "border-l-blue-400",
+  },
+};
+
 // mock notification data
 const mockNotifications = [
   { id: 1, type: "CRITICAL", title: "Critical alert triggered", message: "paymentHandler exceeded anomaly threshold", time: "5 minutes ago", read: false, pinned: false },
