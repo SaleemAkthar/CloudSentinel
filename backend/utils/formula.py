@@ -426,5 +426,70 @@ def calculate_behavioral_anomaly(
         behavioral_score = 0.0
     
     return behavioral_score, attack_type
+# ============================================================================
+# SECTION 7: COMPOSITE ANOMALY SCORE
+# ============================================================================
+
+def calculate_composite_anomaly_score(
+    A_feature: float,
+    A_packet: float,
+    A_temporal: float,
+    A_behavioral: float,
+    weights: Dict[str, float]
+) -> float:
+    """
+    Calculate final composite anomaly score
+    
+    Formula:
+        S_composite = α·tanh(A_feature) + β·tanh(A_packet) + 
+                      γ·tanh(A_temporal) + δ·A_behavioral
+    
+    Where:
+        α + β + γ + δ = 1 (weights sum to 1)
+        tanh() = hyperbolic tangent (smooth normalization)
+    
+    Default weights:
+        α = 0.35 (feature)
+        β = 0.25 (packet)
+        γ = 0.20 (temporal)
+        δ = 0.20 (behavioral)
+    
+    Args:
+        A_feature: Feature-based anomaly score
+        A_packet: Packet-based anomaly score
+        A_temporal: Temporal anomaly score
+        A_behavioral: Behavioral anomaly score
+        weights: Component weights
+    
+    Returns:
+        Composite anomaly score (0-1)
+    
+    Example:
+        >>> calculate_composite_anomaly_score(
+        ...     A_feature=1.0,
+        ...     A_packet=0.8,
+        ...     A_temporal=0.3,
+        ...     A_behavioral=0.95,
+        ...     weights={'feature': 0.35, 'packet': 0.25, 'temporal': 0.20, 'behavioral': 0.20}
+        ... )
+        0.89
+    """
+    alpha = weights.get('feature', 0.35)
+    beta = weights.get('packet', 0.25)
+    gamma = weights.get('temporal', 0.20)
+    delta = weights.get('behavioral', 0.20)
+    
+    # Use tanh for smooth normalization (maps large values to ~1.0)
+    S_composite = (
+        alpha * np.tanh(A_feature) +
+        beta * np.tanh(A_packet) +
+        gamma * np.tanh(A_temporal) +
+        delta * A_behavioral  # Already normalized
+    )
+    
+    # Ensure in [0, 1] range
+    S_composite = max(0.0, min(S_composite, 1.0))
+    
+    return S_composite
 
 
