@@ -491,5 +491,236 @@ def calculate_composite_anomaly_score(
     S_composite = max(0.0, min(S_composite, 1.0))
     
     return S_composite
+# ============================================================================
+# SECTION 8: CONFIDENCE CALCULATION
+# ============================================================================
+
+def calculate_confidence_score(
+    A_feature: float,
+    A_packet: float,
+    A_temporal: float,
+    A_behavioral: float
+) -> float:
+    """
+    Calculate confidence in the anomaly detection
+    
+    High confidence when:
+    - Multiple components agree (low variance)
+    - Scores are extreme (very high or very low)
+    
+    Formula:
+        confidence = 1 / (1 + σ_components) × agreement_factor
+    
+    Where:
+        σ_components = std deviation of component scores
+        agreement_factor = how many components agree
+    
+    Args:
+        Component scores
+    
+    Returns:
+        Confidence (0-1)
+    """
+    components = [A_feature, A_packet, A_temporal, A_behavioral]
+    
+    # Calculate standard deviation (measure of disagreement)
+    std_components = np.std(components)
+    
+    # Calculate mean (overall severity)
+    mean_score = np.mean(components)
+    
+    # Agreement factor: how many components are > 0.5
+    agreement = sum(1 for c in components if c > 0.5) / len(components)
+    
+    # Confidence inversely related to disagreement
+    base_confidence = 1.0 / (1.0 + std_components)
+    
+    # Boost confidence if components agree on high/low
+    if agreement > 0.75 or agreement < 0.25:  # Strong agreement
+        confidence = base_confidence * 1.2
+    else:
+        confidence = base_confidence
+    
+    # Boost confidence for extreme scores
+    if mean_score > 0.9 or mean_score < 0.1:
+        confidence *= 1.1
+    
+    return min(confidence, 1.0)
+# ============================================================================
+# SECTION 9: NORMALIZATION FUNCTIONS
+# ============================================================================
+
+def sigmoid(x: float, k: float = 1.0) -> float:
+    """
+    Sigmoid normalization
+    
+    Formula:
+        σ(x) = 1 / (1 + e^(-kx))
+    
+    Maps (-∞, ∞) → (0, 1)
+    """
+    return 1.0 / (1.0 + np.exp(-k * x))
 
 
+def tanh_normalization(x: float) -> float:
+    """
+    Hyperbolic tangent normalization
+    
+    Formula:
+        tanh(x) = (e^x - e^(-x)) / (e^x + e^(-x))
+    
+    Maps (-∞, ∞) → (-1, 1)
+    But we shift to (0, 1)
+    """
+    return (np.tanh(x) + 1.0) / 2.0
+
+
+def min_max_normalize(x: float, min_val: float, max_val: float) -> float:
+    """
+    Min-max normalization
+    
+    Formula:
+        x_norm = (x - min) / (max - min)
+    
+    Maps [min, max] → [0, 1]
+    """
+    if max_val == min_val:
+        return 0.5
+    return (x - min_val) / (max_val - min_val)
+
+
+def clip_normalize(x: float, threshold: float = 3.0) -> float:
+    """
+    Clip and normalize
+    
+    Anything above threshold is clipped to 1.0
+    
+    Formula:
+        x_norm = min(x / threshold, 1.0)
+    """
+    return min(x / threshold, 1.0)
+
+
+# ============================================================================
+# SECTION 10: DISTANCE METRICS
+# ============================================================================
+
+def euclidean_distance(point1: List[float], point2: List[float]) -> float:
+    """
+    Euclidean distance between two points
+    
+    Formula:
+        d = √(Σ(x_i - y_i)²)
+    
+    Example:
+        >>> euclidean_distance([1, 2, 3], [4, 5, 6])
+        5.196
+    """
+    return np.sqrt(sum((a - b) ** 2 for a, b in zip(point1, point2)))
+
+
+def manhattan_distance(point1: List[float], point2: List[float]) -> float:
+    """
+    Manhattan distance (L1 norm)
+    
+    Formula:
+        d = Σ|x_i - y_i|
+    """
+    return sum(abs(a - b) for a, b in zip(point1, point2))
+
+
+def mahalanobis_distance(
+    point: np.ndarray,
+    mean: np.ndarray,
+    cov_matrix: np.ndarray
+) -> float:
+    """
+    Mahalanobis distance (accounts for feature correlations)
+    
+    Formula:
+        D_M = √((x - μ)ᵀ Σ⁻¹ (x - μ))
+    
+    Where:
+        x = data point
+        μ = mean vector
+        Σ = covariance matrix
+        Σ⁻¹ = inverse covariance matrix
+    
+    Use for multi-feature anomaly detection considering correlations
+    """
+    diff = point - mean
+    
+    try:
+        inv_cov = np.linalg.inv(cov_matrix)
+        distance = np.sqrt(diff.T @ inv_cov @ diff)
+        return float(distance)
+    except np.linalg.LinAlgError:
+        # Covariance matrix is singular, fall back to Euclidean
+        return euclidean_distance(point, mean)
+# ============================================================================
+# SECTION 11: SEVERITY CLASSIFICATION
+# ============================================================================
+
+def classify_severity(
+    anomaly_score: float,
+    attack_type: str,
+    confidence: float
+) -> str:
+    """
+    Classify severity level based on score, attack type, and confidence
+    
+    Dashboard supports 3 severity levels: CRITICAL, HIGH, MEDIUM┘
+    
+    Dangerous attacks: crypto_mining, data_exfiltration, ddos, 
+                       ransomware, sql_injection
+    
+    Args:
+        anomaly_score: Composite anomaly score (0-1)
+        attack_type: Detected attack type or 'unknown'
+        confidence: Confidence in detection (0-1)
+    
+    Returns:
+        Severity level: 'CRITICAL', 'HIGH', or 'MEDIUM' (3 levels only)
+    
+    Examples:
+        >>> classify_severity(0.95, 'crypto_mining', 0.98)
+        'CRITICAL'
+        
+        >>> classify_severity(0.65, 'unknown', 0.80)
+        'HIGH'
+        
+        >>> classify_severity(0.35, 'unknown', 0.70)
+        'MEDIUM'
+    """
+    # Known dangerous attack types
+    dangerous_attacks = [
+        'crypto_mining',
+        'data_exfiltration',
+        'ddos',
+        'ransomware',
+        'sql_injection',
+        'memory_attack'
+    ]
+    
+    is_dangerous = attack_type in dangerous_attacks
+    
+    # Adjust score based on confidence
+    # Lower confidence reduces effective severity
+    adjusted_score = anomaly_score * confidence
+    
+    # 3-tier classification
+    if adjusted_score >= 0.8:
+        # Very high score = always critical
+        return 'CRITICAL'
+    
+    elif adjusted_score >= 0.6:
+        # High score = critical if dangerous, otherwise high
+        return 'CRITICAL' if is_dangerous else 'HIGH'
+    
+    elif adjusted_score >= 0.4:
+        # Medium score = high if dangerous, otherwise medium
+        return 'HIGH' if is_dangerous else 'MEDIUM'
+    
+    else:
+        # Low score = always medium (catch-all)
+        return 'MEDIUM'
