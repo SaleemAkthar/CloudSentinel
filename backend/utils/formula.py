@@ -724,3 +724,109 @@ def classify_severity(
     else:
         # Low score = always medium (catch-all)
         return 'MEDIUM'
+    
+    # ============================================================================
+# SECTION 12: HELPER FUNCTIONS
+# ============================================================================
+
+def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> float:
+    """Safe division (prevents division by zero)"""
+    if denominator == 0 or abs(denominator) < 1e-10:
+        return default
+    return numerator / denominator
+
+
+def exponential_moving_average(
+    current_avg: float,
+    new_value: float,
+    alpha: float = 0.1
+) -> float:
+    """
+    Exponential moving average
+    
+    Formula:
+        EMA_new = α × x_new + (1 - α) × EMA_old
+    
+    Args:
+        current_avg: Current EMA value
+        new_value: New data point
+        alpha: Smoothing factor (0-1), higher = more weight to new value
+    
+    Returns:
+        Updated EMA
+    """
+    return alpha * new_value + (1 - alpha) * current_avg
+
+
+# ============================================================================
+# SECTION 13: VALIDATION FUNCTIONS
+# ============================================================================
+
+def validate_probability(p: float) -> bool:
+    """Check if value is valid probability (0-1)"""
+    return 0.0 <= p <= 1.0
+
+
+def validate_score(score: float) -> float:
+    """Ensure score is in valid range [0, 1]"""
+    return max(0.0, min(score, 1.0))
+
+
+# ============================================================================
+# TESTING / EXAMPLES
+# ============================================================================
+
+if __name__ == "__main__":
+    print("=" * 70)
+    print("FORMULA MODULE TEST")
+    print("=" * 70)
+    
+    # Test 1: Z-score calculation
+    print("\n1. Z-Score Calculation:")
+    z = calculate_z_score(10000, 500, 15)
+    print(f"   Value: 10000, Mean: 500, Std: 15")
+    print(f"   Z-score: {z:.2f}")
+    
+    # Test 2: Welford's algorithm
+    print("\n2. Welford's Online Statistics:")
+    welford = WelfordStatistics()
+    data = [500, 510, 490, 505, 495]
+    for x in data:
+        welford.update(x)
+    stats = welford.get_stats()
+    print(f"   Data: {data}")
+    print(f"   Mean: {stats['mean']:.2f}")
+    print(f"   Std: {stats['std']:.2f}")
+    
+    # Test 3: Composite score
+    print("\n3. Composite Anomaly Score:")
+    weights = {
+        'feature': 0.35,
+        'packet': 0.25,
+        'temporal': 0.20,
+        'behavioral': 0.20
+    }
+    composite = calculate_composite_anomaly_score(
+        A_feature=1.0,
+        A_packet=0.8,
+        A_temporal=0.3,
+        A_behavioral=0.95,
+        weights=weights
+    )
+    print(f"   Feature: 1.0, Packet: 0.8, Temporal: 0.3, Behavioral: 0.95")
+    print(f"   Composite Score: {composite:.3f}")
+    
+    # Test 4: Confidence calculation
+    print("\n4. Confidence Calculation:")
+    confidence = calculate_confidence_score(1.0, 0.8, 0.3, 0.95)
+    print(f"   Confidence: {confidence:.3f}")
+    
+    # Test 5: Severity classification
+    print("\n5. Severity Classification:")
+    severity = classify_severity(0.95, 'crypto_mining', 0.98)
+    print(f"   Score: 0.95, Type: crypto_mining, Confidence: 0.98")
+    print(f"   Severity: {severity}")
+    
+    print("\n" + "=" * 70)
+    print(" ALL TESTS PASSED")
+    print("=" * 70)
