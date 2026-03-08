@@ -2,6 +2,7 @@ import random
 from datetime import datetime, timedelta
 import numpy as np
 from typing import Dict, List, Optional
+from .severity_classifier import SeverityClassifier
 
 
 # what healthy traffic looks like
@@ -655,3 +656,4 @@ if __name__ == "__main__":
     print("\n" + "=" * 70)
     print(" ALL TESTS COMPLETE!")
     print("=" * 70)
+    

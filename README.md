@@ -1,141 +1,102 @@
-# Serverless Anomaly Detection System - Implementation Prototype
+# Cloud Sentinel
 
-**Status**: Early Implementation Phase 
+An AI-powered real-time security monitoring platform for AWS Lambda functions. Cloud Sentinel detects anomalous runtime behaviour — such as crypto mining and data exfiltration — by analysing execution logs through an online statistical model and surfacing alerts on a live dashboard.
 
-This is the initial implementation of an **Online Learning Anomaly Detection System** for AWS Lambda serverless applications. The system learns what "normal" behavior looks like and detects deviations in real-time.
+---
 
 ## Project Structure
 
 ```
-serverless_anomaly_detector/
+CloudSentinel/
+│
 ├── backend/
-│   ├── api.py                  # FastAPI server with threat detection endpoints
-│   ├── online_detector.py      # Core detection logic (Welford's Algorithm)
-│   ├── data_generator.py       # Test data generator
-│   └── __init__.py
+│   ├── api.py                  # FastAPI application — all HTTP endpoints
+│   ├── online_detector.py      # Online statistical anomaly detection engine
+│   ├── severity_classifier.py  # Threat labelling and severity scoring
+│   ├── data_generator.py       # Synthetic log generation for testing
+│   ├── log_parser.py           # CloudWatch log parsing utilities
+│   ├── requirements.txt        # Python dependencies
+│   │
+│   ├── models/                 # Trained ML model artefacts
+│   ├── services/               # AWS service integrations (CloudWatch, S3)
+│   ├── storage/
+│   │   └── in_memory_store.py  # In-memory alert store for the current session
+│   └── utils/                  # Shared helper functions
+│
 ├── frontend/
-│   ├── dashboard.py            # Streamlit dashboard
-│   └── __init__.py
+│   ├── src/
+│   │   ├── components/         # Reusable React UI components
+│   │   ├── pages/              # Dashboard page views
+│   │   └── App.jsx             # Root application component
+│   ├── public/
+│   └── package.json
+│
 ├── tests/
-│   └── test_api.py             # API integration and learning phase test
-├── data/                        # Data storage (future)
-├── logs/                        # Log files (future)
+│   ├── test_online_stats.py    # Unit tests for the core statistical math
+│   ├── test_severity.py        # Unit tests for threat and severity labelling
+│   └── run_all.py              # Master test runner — run before every commit
+│
+├── docs/                       # Architecture diagrams and project documentation
+├── .gitignore
 └── README.md
 ```
 
-## What's Implemented
+---
 
-### ✅ Backend (Core Logic)
-- **OnlineStats Class**: Implements Welford's Algorithm for efficient mean/variance calculation
-- **OnlineDetector Class**: Main detection engine with two phases:
-  - **Learning Phase**: Builds baseline statistics from first N requests
-  - **Detection Phase**: Identifies anomalies while continuing to learn from normal requests
-- **Data Generator**: Creates realistic test logs with normal and anomalous patterns
+## Getting Started
 
-### ✅ Frontend (Dashboard)
-- **Streamlit Dashboard**: Interactive web interface showing:
-  - Real-time metrics (total requests, anomalies detected, phase status)
-  - Learning progress indicator
-  - Live detection results with color-coded alerts
-  - Baseline statistics visualization
+### Prerequisites
 
-## Quick Start
+- Python 3.10+
+- Node.js 18+
+- AWS account with Lambda, CloudWatch, and S3 access
 
-### Installation
+### Backend
 
 ```bash
-# Navigate to project directory
-cd serverless_anomaly_detector
-
 # Install dependencies
-pip install streamlit pandas
+pip install -r backend/requirements.txt
+
+# Start the API server (run from the project root)
+uvicorn backend.api:app --reload --port 8000
 ```
 
-### Running the Dashboard
+### Frontend
 
 ```bash
-# From the project root directory
-streamlit run frontend/dashboard.py
+cd frontend
+npm install
+npm run dev
 ```
 
-The dashboard will open in your browser at `http://localhost:8501`
-
-### Running Tests
-
-```bash
-# Test the backend detector directly
-python backend/data_generator.py
-```
-
-## How It Works
-
-### Phase 1: Learning (First 50 requests)
-The model processes the first 50 requests to establish what "normal" looks like:
-- Calculates mean and standard deviation for each feature
-- Stores these as the baseline
-- No anomaly detection yet
-
-### Phase 2: Detection (After 50 requests)
-The model now detects anomalies while continuing to adapt:
-- Compares incoming requests to the baseline using Z-scores
-- Flags requests that deviate significantly (Z-score > 2.5)
-- **Important**: Does NOT learn from anomalies (prevents baseline corruption)
-- Continues learning from normal requests (adapts to legitimate changes)
-
-## Key Features
-
-1. **Memory Efficient**: Uses Welford's Algorithm (O(1) space complexity)
-2. **Adaptive**: Continues learning from normal behavior even during detection
-3. **Robust**: Doesn't learn from anomalies to prevent baseline corruption
-4. **Multi-feature**: Analyzes duration, memory usage, and API call counts
-5. **Real-time**: Processes logs as they arrive
-
-## Technical Details
-
-### Welford's Algorithm
-Enables online calculation of mean and variance without storing all data points:
-```
-mean = mean + (x - mean) / n
-M2 = M2 + (x - mean_old) * (x - mean_new)
-variance = M2 / (n - 1)
-```
-
-### Anomaly Scoring
-Uses multi-feature Z-score approach:
-```
-z_score = |value - mean| / std_dev
-anomaly_score = max(z_scores) / threshold
-is_anomaly = anomaly_score > 0.8
-```
-
-## Next Steps (Development Roadmap)
-
-- [ ] AWS CloudWatch integration (Boto3)
-- [ ] Database persistence (Redis/SQLite)
-- [ ] Advanced threat classification
-- [ ] Performance optimization for high-volume streams
-- [ ] Unit tests and integration tests
-- [ ] API endpoints for production deployment
-- [ ] Enhanced dashboard with historical trends
-
-## Team Assignments
-
-| Component | Assigned To | Status |
-| :--- | :--- | :--- |
-| Online Detector Core | Backend Lead | ✅ Complete |
-| Data Generator | Backend Team | ✅ Complete |
-| Streamlit Dashboard | Frontend Lead | ✅ Complete |
-| AWS Integration | Backend Dev 2 | 🔄 In Progress |
-| UI/UX Refinement | Frontend Dev 2 | 🔄 In Progress |
-| Testing & Documentation | All | 🔄 In Progress |
-
-## References
-
-- Welford, B. P. (1962). "Note on a method for calculating corrected sums of squares and products." Technometrics, 4(3), 419-420.
-- Online Machine Learning: https://en.wikipedia.org/wiki/Online_machine_learning
-- Streamlit Documentation: https://docs.streamlit.io/
+The dashboard will be available at `http://localhost:5173`.
 
 ---
 
-**Last Updated**: February 2, 2026  
-**Implementation Status**: Early Prototype - Core Logic Complete
+## Running Tests
+
+```bash
+# Run all tests before committing
+python -m tests.run_all
+
+# Run a specific module
+python -m pytest tests/test_severity.py -v
+```
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Cloud Platform | AWS Lambda, CloudWatch, CloudTrail, S3 |
+| Backend | Python, FastAPI, Scikit-learn |
+| Frontend | React, Tailwind CSS, Material-UI |
+| ML | Isolation Forest / One-Class SVM (Scikit-learn) |
+| Testing | Pytest, Unittest |
+| Version Control | Git, GitHub |
+
+---
+
+## Module: 5COSC021C — Software Development Group Project  
+**Institution:** Informatics Institute of Technology (IIT) / University of Westminster

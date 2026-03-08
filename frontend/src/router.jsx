@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router-dom";
 import AppShell from "./components/Appshell";
 import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
 import RealTimeAlerts from "./pages/RealTimeAlerts";
 import AIInsights from "./pages/AIInsights";
 import Team from "./pages/Team";
@@ -27,6 +28,7 @@ export const router = createBrowserRouter([
       { path: "insights", element: <AIInsights /> },
       { path: "team", element: <Team /> },
       { path: "settings", element: <Placeholder title="Settings" /> },
+      { path: "profile", element: <Profile /> },
     ],
   },
 ]);

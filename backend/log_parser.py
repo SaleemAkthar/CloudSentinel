@@ -10,9 +10,9 @@ from datetime import datetime
 from typing import Dict, Optional, List, Any
 
 
-# ============================================================================
+
 # CONFIGURATION - Expected Log Format
-# ============================================================================
+
 
 # Required fields that MUST be in every log
 REQUIRED_FIELDS = [

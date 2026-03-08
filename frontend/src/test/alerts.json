@@ -1,4 +1,7 @@
 [
+  
+
+
   {
     "id": "ALERT-1001",
     "timestamp": "2026-02-07T00:12:00Z",
@@ -293,5 +296,205 @@
       "unique_destinations": 2,
       "error_count": 1
     }
+  },
+
+
+  
+  {
+    "id": "ALERT-1022",
+    "timestamp": "2026-02-08T01:10:00Z",
+    "function": "authValidator",
+    "severity": "INFO",
+    "status": "CLOSED",
+    "anomaly_score": 0.35,
+    "features": {
+      "duration_ms": 200,
+      "outbound_calls": 0,
+      "unique_destinations": 0,
+      "error_count": 0
+    }
+  },
+  {
+    "id": "ALERT-1023",
+    "timestamp": "2026-02-08T04:35:00Z",
+    "function": "paymentHandler",
+    "severity": "WARNING",
+    "status": "OPEN",
+    "anomaly_score": 0.66,
+    "features": {
+      "duration_ms": 710,
+      "outbound_calls": 2,
+      "unique_destinations": 1,
+      "error_count": 0
+    }
+  },
+  {
+    "id": "ALERT-1024",
+    "timestamp": "2026-02-08T07:50:00Z",
+    "function": "logProcessor",
+    "severity": "INFO",
+    "status": "OPEN",
+    "anomaly_score": 0.48,
+    "features": {
+      "duration_ms": 420,
+      "outbound_calls": 1,
+      "unique_destinations": 1,
+      "error_count": 0
+    }
+  },
+  {
+    "id": "ALERT-1025",
+    "timestamp": "2026-02-08T11:15:00Z",
+    "function": "threatDetector",
+    "severity": "CRITICAL",
+    "status": "OPEN",
+    "anomaly_score": 0.96,
+    "features": {
+      "duration_ms": 1200,
+      "outbound_calls": 6,
+      "unique_destinations": 3,
+      "error_count": 2
+    }
+  },
+  {
+    "id": "ALERT-1026",
+    "timestamp": "2026-02-08T15:40:00Z",
+    "function": "dataSync",
+    "severity": "WARNING",
+    "status": "OPEN",
+    "anomaly_score": 0.69,
+    "features": {
+      "duration_ms": 880,
+      "outbound_calls": 3,
+      "unique_destinations": 2,
+      "error_count": 1
+    }
+  },
+  {
+    "id": "ALERT-1027",
+    "timestamp": "2026-02-08T19:55:00Z",
+    "function": "alertHandler",
+    "severity": "INFO",
+    "status": "OPEN",
+    "anomaly_score": 0.53,
+    "features": {
+      "duration_ms": 460,
+      "outbound_calls": 1,
+      "unique_destinations": 1,
+      "error_count": 0
+    }
+  },
+  {
+    "id": "ALERT-1028",
+    "timestamp": "2026-02-09T02:20:00Z",
+    "function": "paymentHandler",
+    "severity": "CRITICAL",
+    "status": "OPEN",
+    "anomaly_score": 0.91,
+    "features": {
+      "duration_ms": 1020,
+      "outbound_calls": 5,
+      "unique_destinations": 3,
+      "error_count": 1
+    }
+  },
+  {
+    "id": "ALERT-1029",
+    "timestamp": "2026-02-09T06:45:00Z",
+    "function": "imageResize",
+    "severity": "INFO",
+    "status": "CLOSED",
+    "anomaly_score": 0.42,
+    "features": {
+      "duration_ms": 320,
+      "outbound_calls": 0,
+      "unique_destinations": 0,
+      "error_count": 0
+    }
+  },
+  {
+    "id": "ALERT-1030",
+    "timestamp": "2026-02-09T10:30:00Z",
+    "function": "logProcessor",
+    "severity": "WARNING",
+    "status": "OPEN",
+    "anomaly_score": 0.64,
+    "features": {
+      "duration_ms": 690,
+      "outbound_calls": 2,
+      "unique_destinations": 1,
+      "error_count": 1
+    }
+  },
+  {
+    "id": "ALERT-1031",
+    "timestamp": "2026-02-09T14:55:00Z",
+    "function": "threatDetector",
+    "severity": "CRITICAL",
+    "status": "OPEN",
+    "anomaly_score": 0.94,
+    "features": {
+      "duration_ms": 1180,
+      "outbound_calls": 6,
+      "unique_destinations": 4,
+      "error_count": 2
+    }
+  },
+  {
+    "id": "ALERT-1032",
+    "timestamp": "2026-02-09T18:40:00Z",
+    "function": "dataSync",
+    "severity": "WARNING",
+    "status": "OPEN",
+    "anomaly_score": 0.67,
+    "features": {
+      "duration_ms": 860,
+      "outbound_calls": 3,
+      "unique_destinations": 2,
+      "error_count": 1
+    }
+  },
+  {
+    "id": "ALERT-1033",
+    "timestamp": "2026-02-09T18:50:00Z",
+    "function": "paymentHandler",
+    "severity": "WARNING",
+    "status": "OPEN",
+    "anomaly_score": 0.94,
+    "features": {
+      "duration_ms": 1200,
+      "outbound_calls": 5,
+      "unique_destinations": 4,
+      "error_count": 2
+    }
+  },
+  {
+    "id": "ALERT-1034",
+    "timestamp": "2026-02-10T01:05:00Z",
+    "function": "paymentHandler",
+    "severity": "CRITICAL",
+    "status": "OPEN",
+    "anomaly_score": 0.88,
+    "features": {
+      "duration_ms": 960,
+      "outbound_calls": 4,
+      "unique_destinations": 3,
+      "error_count": 1
+    }
+  },
+    {
+    "id": "ALERT-1035",
+    "timestamp": "2026-02-10T01:07:00Z",
+    "function": "paymentHandler",
+    "severity": "CRITICAL",
+    "status": "OPEN",
+    "anomaly_score": 0.88,
+    "features": {
+      "duration_ms": 960,
+      "outbound_calls": 4,
+      "unique_destinations": 3,
+      "error_count": 1
+    }
   }
+
 ]

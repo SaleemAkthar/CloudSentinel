@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import csLogo from "../assets/CS LOGO.png";
 
 // MUI Icons
-import ShieldOutlinedIcon from "@mui/icons-material/ShieldOutlined";
 import GridViewRoundedIcon from "@mui/icons-material/GridViewRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
@@ -35,14 +35,13 @@ function SideItem({ to, icon, label }) {
 export default function AppShell() {
   const navigate = useNavigate();
   return (
-    <div className="min-h-screen bg-[#050B1A] text-white">
-      <div className="mx-auto flex min-h-screen w-full">
+    <div className="h-screen overflow-hidden bg-[#050B1A] text-white">
+      <div className="mx-auto flex h-full w-full">
         {/* Sidebar */}
-        <aside className="w-[260px] shrink-0 border-r border-white/10 bg-gradient-to-b from-[#071A3A] via-[#06122B] to-[#050B1A]">
-          {/* Brand */}
+        <aside className="w-[260px] h-full shrink-0 overflow-y-auto border-r border-white/10 bg-gradient-to-b from-[#071A3A] via-[#06122B] to-[#050B1A]">          {/* Brand */}
           <div className="flex items-center gap-3 px-5 py-5">
-            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white/10 ring-1 ring-white/15">
-              <ShieldOutlinedIcon />
+            <div className="grid h-11 w-11 place-items-center rounded-2xl ring-1 ring-white/15">
+              <img src={csLogo} alt="CS Logo" className="h-7 w-7" />
             </div>
             <div className="leading-tight">
               <div className="text-base font-semibold">Cloud Sentinel</div>
@@ -58,7 +57,7 @@ export default function AppShell() {
               <SideItem to="/logs" icon={<DescriptionOutlinedIcon fontSize="small" />} label="Behaviour Logs" />
               <SideItem to="/lambda" icon={<ShowChartRoundedIcon fontSize="small" />} label="AWS Lambda Monitor" />
               <SideItem to="/insights" icon={<AutoAwesomeRoundedIcon fontSize="small" />} label="AI Insights" />
-              <SideItem to="/team" icon={<GroupOutlinedIcon fontSize="small" />} label="Team" />
+              {/* <SideItem to="/team" icon={<GroupOutlinedIcon fontSize="small" />} label="Team" /> */}
             </div>
 
             <div className="mt-5 border-t border-white/10 pt-4">
@@ -79,7 +78,7 @@ export default function AppShell() {
         </aside>
 
         {/* Main */}
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col h-full">
           {/* Top bar */}
           <header className="flex h-16 items-center justify-between border-b border-white/10 bg-gradient-to-r from-[#071A3A] via-[#071534] to-[#050B1A] px-6">
             <h1 className="text-xl font-semibold tracking-wide">Cloud Sentinel Dashboard</h1>
@@ -114,7 +113,7 @@ export default function AppShell() {
           </header>
 
           {/* Page content */}
-          <main className="min-w-0 flex-1 p-6">
+          <main className="min-w-0 flex-1 overflow-y-auto p-6">
             <Outlet />
           </main>
         </div>
