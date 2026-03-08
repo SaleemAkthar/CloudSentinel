@@ -179,7 +179,28 @@ export default function Notifications() {
                     </ResponsiveContainer>
                     </div>
                 </div>
+                {/* notification list */}
+                <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
 
+                    {/* filter tabs */}
+                    <div className="flex items-center gap-2 px-5 py-3 border-b border-white/10 flex-wrap">
+                        <NotificationsNoneRoundedIcon fontSize="small" className="text-slate-400 mr-1" />
+                        {["ALL", "CRITICAL", "WARNING", "INFO"].map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setFilter(tab)}
+                                className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
+                                    filter === tab
+                                        ? "bg-white/15 text-white"
+                                        : "text-slate-400 hover:text-white hover:bg-white/5"
+                                }`}
+                            >
+                                {tab}
+                            </button>
+                        ))}
+                    </div>
+
+                </div>
             </div>
     </div>
   );
