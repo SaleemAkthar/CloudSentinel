@@ -198,19 +198,47 @@ export default function Profile() {
                             { key: "email", label: "Email Alerts", desc: "Receive security alerts via email" },
                             { key: "critical", label: "Critical Threat Alerts", desc: "Instant notifications for CRITICAL severity threats" },
                             { key: "weekly", label: "Weekly Summary", desc: "Weekly security digest and performance report" },
-                    ].map(({ key, label, desc }) => (
-                        <div key={key} className="flex items-center justify-between">
-                            <div>
-                                <div className="text-sm text-slate-200">{label}</div>
-                                <div className="text-xs text-slate-500">{desc}</div>
-                            </div>
-                            <ToggleSwitch enabled={user.notifications[key]} onToggle={() => toggleNotification(key)} />
-                            </div>
-                        ))}
+                        ].map(({ key, label, desc }) => (
+                            <div key={key} className="flex items-center justify-between">
+                                <div>
+                                    <div className="text-sm text-slate-200">{label}</div>
+                                    <div className="text-xs text-slate-500">{desc}</div>
+                                </div>
+                                <ToggleSwitch enabled={user.notifications[key]} onToggle={() => toggleNotification(key)} />
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
+                            {/* security card */}
+            <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+              <div className="px-5 py-3 border-b border-white/10 flex items-center gap-2 text-sm font-semibold text-slate-300">
+                <WarningAmberRoundedIcon fontSize="small" />
+                Security
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="flex items-center justify-between py-2 border-b border-white/5">
+                  <div>
+                    <div className="text-sm text-slate-200">Two-Factor Authentication</div>
+                    <div className="text-xs text-slate-500">Extra layer of security on your account</div>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${user.twoFA ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" : "bg-red-500/15 text-red-400 border border-red-500/30"}`}>
+                    {user.twoFA ? "Enabled" : "Disabled"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2">
+                  <div>
+                    <div className="text-sm text-slate-200">Password</div>
+                    <div className="text-xs text-slate-500">Last changed 30 days ago</div>
+                  </div>
+                  <button className="px-3 py-1.5 text-xs rounded-lg bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 transition-colors">
+                    Change
+                  </button>
+                </div>
+              </div>
+            </div>
             </div>  
         </div>
     </div>
   );
-}
+}  
