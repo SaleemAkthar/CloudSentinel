@@ -80,6 +80,24 @@ export default function Notifications() {
   );
   return (
     <div className="space-y-6 text-white">
+      {/* page header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-3xl font-bold">Notifications</h1>
+          <p className="text-slate-400 mt-1">
+            Stay updated on security events and system activity
+          </p>
+        </div>
+        {unreadCount > 0 && (
+          <button
+            onClick={markAllRead}
+            className="flex items-center gap-2 px-4 py-2 text-sm rounded-xl bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 transition-colors"
+          >
+            <CheckCircleOutlineRoundedIcon fontSize="small" />
+            Mark all as read
+          </button>
+        )}
+      </div>
     </div>
   );
 }
