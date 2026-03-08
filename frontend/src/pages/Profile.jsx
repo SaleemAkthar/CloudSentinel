@@ -105,8 +105,22 @@ export default function Profile() {
      }));
   };
   return (
-    <div className="text-white">
-      <h1 className="text-3xl font-bold">My Profile</h1>
+    <div className="flex flex-col h-full space-y-6 text-white">
+
+      {/* page header with title and save confirmation */}
+      <div className="flex items-center justify-between flex-wrap gap-3 shrink-0">
+        <div>
+          <h1 className="text-3xl font-bold">My Profile</h1>
+          <p className="text-slate-400 mt-1">Manage your account information and preferences</p>
+        </div>
+
+        {saved && (
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-sm">
+            ✓ Profile updated successfully
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }
