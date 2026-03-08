@@ -46,6 +46,24 @@ function InfoRow({ icon, label, value, editing, fieldKey, onChange }) {
   );
 }
 
+// toggle switch for notification settings
+function ToggleSwitch({ enabled, onToggle }) {
+  return (
+    <button
+      onClick={onToggle}
+      className={`relative w-10 h-5 rounded-full transition-colors ${
+        enabled ? "bg-blue-500" : "bg-white/10"
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+          enabled ? "translate-x-5" : "translate-x-0"
+        }`}
+      />
+    </button>
+  );
+}
+
 // Profile page component
 export default function Profile() {
   return (
