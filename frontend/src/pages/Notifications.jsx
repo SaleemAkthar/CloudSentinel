@@ -53,6 +53,9 @@ const mockNotifications = [
 ];
 
 export default function Notifications() {
+  // state for notifications list and active filter
+  const [notifications, setNotifications] = useState(mockNotifications);
+  const [filter, setFilter] = useState("ALL");
   return (
     <div>
     </div>
