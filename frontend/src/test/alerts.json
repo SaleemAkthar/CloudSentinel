@@ -456,7 +456,35 @@
   },
   {
     "id": "ALERT-1033",
+    "timestamp": "2026-02-09T18:50:00Z",
+    "function": "paymentHandler",
+    "severity": "WARNING",
+    "status": "OPEN",
+    "anomaly_score": 0.94,
+    "features": {
+      "duration_ms": 1200,
+      "outbound_calls": 5,
+      "unique_destinations": 4,
+      "error_count": 2
+    }
+  },
+  {
+    "id": "ALERT-1034",
     "timestamp": "2026-02-10T01:05:00Z",
+    "function": "paymentHandler",
+    "severity": "CRITICAL",
+    "status": "OPEN",
+    "anomaly_score": 0.88,
+    "features": {
+      "duration_ms": 960,
+      "outbound_calls": 4,
+      "unique_destinations": 3,
+      "error_count": 1
+    }
+  },
+    {
+    "id": "ALERT-1035",
+    "timestamp": "2026-02-10T01:07:00Z",
     "function": "paymentHandler",
     "severity": "CRITICAL",
     "status": "OPEN",
