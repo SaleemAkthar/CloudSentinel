@@ -56,6 +56,10 @@ export default function Notifications() {
   // state for notifications list and active filter
   const [notifications, setNotifications] = useState(mockNotifications);
   const [filter, setFilter] = useState("ALL");
+  // mark all notifications as read
+  const markAllRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
   return (
     <div>
     </div>
