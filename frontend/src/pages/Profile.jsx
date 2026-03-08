@@ -8,6 +8,23 @@ import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ShowChartRoundedIcon from "@mui/icons-material/ShowChartRounded";
 import GridViewRoundedIcon from "@mui/icons-material/GridViewRounded";
 
+// default user data
+const initialUser = {
+  name: "Display Name",
+  role: "Display Role",
+  email: "email@cloudsentinel.io",
+  organization: "Cloud Sentinel Security",
+  joined: "January 2025",
+  avatar: "DN",
+  plan: "Team",
+  twoFA: true,
+  notifications: {
+    email: true,
+    critical: true,
+    weekly: false,
+  },
+};
+
 // Profile page component
 export default function Profile() {
   return (
