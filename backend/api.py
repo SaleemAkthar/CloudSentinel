@@ -12,6 +12,8 @@ import uuid
 from backend.detection.online_detector import OnlineDetector
 from backend.detection.sarima_forecaster import SARIMAForecaster
 from backend.storage.in_memory_store import AlertStore
+from backend.detection.layer1_filter import Layer1Filter
+from backend.detection.layer2_scanner import Layer2Scanner
 
 # Layer 2 Investigator — import gracefully so API still starts if file is missing
 try:
@@ -39,6 +41,8 @@ alert_store       = AlertStore()
 layer2            = Layer2Investigator() if _L2_AVAILABLE else None
 log_storage       = []   # All processed log entries for the behaviour log viewer
 lambda_metrics    = {}   # Latest per-function Lambda metrics
+layer1_filter  = Layer1Filter()
+layer2_scanner = Layer2Scanner()
 
 
 # ── Request / Response Models ─────────────────────────────────────────────────
@@ -51,6 +55,26 @@ class LogRequest(BaseModel):
     function_name: str   = "unknown"
     ip_address:    str   = "10.0.0.1"
 
+class PacketRequest(BaseModel):
+    """Full packet submission including network-layer fields."""
+    duration:             float
+    memory_used:          float
+    num_api_calls:        int
+    function_name:        str   = "unknown"
+    ip_address:           str   = "10.0.0.1"
+    ttl:                  int   = 64
+    packet_size:          int   = 512
+    packet_size_in:       int   = 512
+    packet_size_out:      int   = 0
+    fragment_count:       int   = 0
+    protocol:             str   = "TCP"
+    source_port:          int   = 0
+    dest_port:            int   = 443
+    network_latency:      float = 0.0
+    unique_destinations:  int   = 1
+    error_count:          int   = 0
+    region:               str   = "us-east-1"
+    content_type:         str   = "application/json"
 
 # ── Private Helpers ───────────────────────────────────────────────────────────
 
