@@ -28,6 +28,7 @@ export const router = createBrowserRouter([
       { path: "insights", element: <AIInsights /> },
       { path: "team", element: <Team /> },
       { path: "settings", element: <Placeholder title="Settings" /> },
+      { path: "profile", element: <Profile /> },
     ],
   },
 ]);
