@@ -8,6 +8,9 @@ import PushPinRoundedIcon from "@mui/icons-material/PushPinRounded";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 // Notifications page component
+// mock notification data
+const mockNotifications = [];
+
 export default function Notifications() {
   return (
     <div>
