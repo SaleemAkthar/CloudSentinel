@@ -120,7 +120,18 @@ export default function Profile() {
           </div>
         )}
       </div>
+            {/* grid layout - left sticky, right scrollable */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
+        {/* left column - stays in place while right scrolls */}
+        <div className="sticky top-6 shrink-0">
+        </div>
+
+        {/* right column - scrollable */}
+        <div className="lg:col-span-2 space-y-4 overflow-y-auto max-h-[80vh] pr-2">
+        </div>
+
+      </div>
     </div>
   );
 }
