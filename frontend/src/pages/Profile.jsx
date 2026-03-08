@@ -187,9 +187,30 @@ export default function Profile() {
                 <InfoRow icon={<AutoAwesomeRoundedIcon fontSize="small" />} label="Member Since" value={user.joined} editing={false} fieldKey="joined" onChange={() => {}} />
                 </div>
             </div>
+                {/* notification preferences card */}
+                <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+                    <div className="px-5 py-3 border-b border-white/10 flex items-center gap-2 text-sm font-semibold text-slate-300">
+                        <NotificationsNoneRoundedIcon fontSize="small" />
+                        Notification Preferences
+                    </div>
+                    <div className="p-5 space-y-4">
+                        {[
+                            { key: "email", label: "Email Alerts", desc: "Receive security alerts via email" },
+                            { key: "critical", label: "Critical Threat Alerts", desc: "Instant notifications for CRITICAL severity threats" },
+                            { key: "weekly", label: "Weekly Summary", desc: "Weekly security digest and performance report" },
+                    ].map(({ key, label, desc }) => (
+                        <div key={key} className="flex items-center justify-between">
+                            <div>
+                                <div className="text-sm text-slate-200">{label}</div>
+                                <div className="text-xs text-slate-500">{desc}</div>
+                            </div>
+                            <ToggleSwitch enabled={user.notifications[key]} onToggle={() => toggleNotification(key)} />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>  
         </div>
-
-      </div>
     </div>
   );
 }
