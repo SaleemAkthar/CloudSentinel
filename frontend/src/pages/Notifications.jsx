@@ -66,6 +66,12 @@ export default function Notifications() {
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
   };
+  // toggle pin status of a notification
+  const togglePin = (id) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n))
+    );
+  };
   return (
     <div>
     </div>
