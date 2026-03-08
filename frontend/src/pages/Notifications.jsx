@@ -151,6 +151,36 @@ export default function Notifications() {
                     </div>
                 </div>
             )}
+                {/* chart and notification list grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+
+                    {/* bar chart card */}
+                    <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+                        <div className="px-5 py-3 border-b border-white/10 text-sm font-semibold text-slate-300">
+                            Notifications — Last 7 Days
+                        </div>
+                    <div className="p-4 h-[220px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+                                <XAxis dataKey="day" stroke="rgba(255,255,255,0.4)" tick={{ fontSize: 11 }} />
+                                <YAxis stroke="rgba(255,255,255,0.4)" tick={{ fontSize: 11 }} />
+                                <Tooltip
+                                    contentStyle={{
+                                        background: "rgba(10, 20, 45, 0.95)",
+                                        border: "1px solid rgba(255,255,255,0.12)",
+                                        borderRadius: 10,
+                                        color: "white",
+                                        fontSize: 12,
+                                    }}
+                                />
+                            <Bar dataKey="notifications" fill="#3B82F6" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
+                    </div>
+                </div>
+
+            </div>
     </div>
   );
 }
