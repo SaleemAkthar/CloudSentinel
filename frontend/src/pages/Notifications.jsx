@@ -8,8 +8,16 @@ import PushPinRoundedIcon from "@mui/icons-material/PushPinRounded";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 // Notifications page component
+
 // mock notification data
-const mockNotifications = [];
+const mockNotifications = [
+  { id: 1, type: "CRITICAL", title: "Critical alert triggered", message: "paymentHandler exceeded anomaly threshold", time: "5 minutes ago", read: false, pinned: false },
+  { id: 2, type: "WARNING", title: "Warning detected", message: "dataSync showed unusual outbound calls", time: "1 hour ago", read: false, pinned: false },
+  { id: 3, type: "INFO", title: "Weekly summary generated", message: "Your weekly security digest is ready to view", time: "2 days ago", read: true, pinned: false },
+  { id: 4, type: "CRITICAL", title: "Critical alert triggered", message: "authCallback flagged with high anomaly score", time: "3 days ago", read: true, pinned: false },
+  { id: 5, type: "INFO", title: "Model training complete", message: "AI model retrained with latest data successfully", time: "4 days ago", read: true, pinned: false },
+  { id: 6, type: "WARNING", title: "Elevated error rate", message: "imageResize function error rate above normal", time: "5 days ago", read: true, pinned: false },
+];
 
 export default function Notifications() {
   return (
