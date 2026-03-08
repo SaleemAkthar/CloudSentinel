@@ -199,7 +199,46 @@ export default function Notifications() {
                             </button>
                         ))}
                     </div>
+                    {/* notification items */}
+                    <div className="divide-y divide-white/5">
+                        {filtered.length === 0 ? (
+                            <div className="p-8 text-center text-slate-400">No notifications found</div>
+                        ) : (
+                          filtered.map((n) => {
+                              const style = typeStyles[n.type];
+                              return (
+                                <div
+                                    key={n.id}
+                                    onClick={() => markRead(n.id)}
+                                    className={`flex items-start gap-4 px-5 py-4 border-l-4 ${style.border} cursor-pointer transition-colors ${
+                                        n.read ? "opacity-60 hover:opacity-80" : "bg-white/3 hover:bg-white/5"
+                                    }`}
+                                >
+                                    {/* unread dot */}
+                                    <div className="mt-1 shrink-0">
+                                        {!n.read ? (
+                                            <span className={`block w-2 h-2 rounded-full ${style.dot}`} />
+                                        ) : (
+                                           <span className="block w-2 h-2 rounded-full bg-transparent" />
+                                        )}
+                                        </div>
 
+                                        {/* content */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                                                <span className="text-sm font-semibold text-white">{n.title}</span>
+                                                <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${style.badge}`}>
+                                                    {n.type}
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-slate-400">{n.message}</p>
+                                            <p className="text-xs text-slate-500 mt-1">{n.time}</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
                 </div>
             </div>
     </div>
