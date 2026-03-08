@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router-dom";
 import AppShell from "./components/Appshell";
 import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
 import RealTimeAlerts from "./pages/RealTimeAlerts";
 import AIInsights from "./pages/AIInsights";
 import Team from "./pages/Team";
