@@ -98,6 +98,20 @@ export default function Notifications() {
           </button>
         )}
       </div>
+        {/* summary cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[
+                { label: "Total", value: notifications.length, color: "text-slate-200" },
+                { label: "Unread", value: unreadCount, color: "text-blue-400" },
+                { label: "Critical", value: notifications.filter((n) => n.type === "CRITICAL").length, color: "text-red-400" },
+                { label: "Warnings", value: notifications.filter((n) => n.type === "WARNING").length, color: "text-orange-400" },
+            ].map(({ label, value, color }) => (
+                <div key={label} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="text-xs text-slate-400 uppercase tracking-wide mb-1">{label}</div>
+                    <div className={`text-3xl font-bold ${color}`}>{value}</div>
+                </div>
+            ))}
+        </div>
     </div>
   );
 }
