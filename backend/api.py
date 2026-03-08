@@ -375,3 +375,78 @@ def get_status():
 
 if __name__ == "__main__":
     uvicorn.run("backend.api:app", host="0.0.0.0", port=8000, reload=True)
+
+# ── L1 & L2 Scanning ─────────────────────────────────────────────────────────────
+
+@app.post("/api/scan")
+def scan_packet(req: PacketRequest):
+    """
+    Two-layer packet scanning endpoint.
+    
+    Layer 1: Fast TTL + size check (< 1ms).
+    Layer 2: Deep scan only if Layer 1 flags the packet.
+    
+    Returns Layer 1 result if safe, or full Layer 2 report if suspicious.
+    """
+    packet = req.dict()
+
+    # ── Layer 1 ───────────────────────────────────────────────────────────────
+    l1 = layer1_filter.check(packet)
+
+    if l1["pass"]:
+        return {
+            "layer": 1,
+            "decision": "PASS",
+            "layer1": l1,
+            "layer2": None,
+            "severity": "SAFE",
+            "message": "Packet passed Layer 1 — no deep scan required",
+        }
+
+    # ── Layer 2 ───────────────────────────────────────────────────────────────
+    l2 = layer2_scanner.scan(packet, l1)
+
+    # Store as an alert if HIGH or MEDIUM
+    if l2["severity"] in ("HIGH", "MEDIUM"):
+        alert = {
+            "id":           l2["scan_id"],
+            "timestamp":    l2["timestamp"],
+            "function":     req.function_name,
+            "severity":     "CRITICAL" if l2["severity"] == "HIGH" else "WARNING",
+            "status":       "OPEN",
+            "anomaly_score": l2["risk_score"],
+            "threat_type":  l2["ai_recommendation"]["action"],
+            "confidence":   l2["ai_recommendation"]["confidence"],
+            "features": {
+                "duration_ms":         req.duration,
+                "memory_used_mb":      req.memory_used,
+                "outbound_calls":      req.num_api_calls,
+                "unique_destinations": req.unique_destinations,
+                "error_count":         req.error_count,
+                "ip_address":          req.ip_address,
+            },
+            "layer2_report": l2,
+        }
+        alert_store.add(alert)
+
+    return {
+        "layer":    2,
+        "decision": l2["ai_recommendation"]["action"],
+        "layer1":   l1,
+        "layer2":   l2,
+        "severity": l2["severity"],
+        "message":  f"Layer 2 scan complete in {l2['elapsed_ms']}ms",
+    }
+
+@app.get("/api/alerts/{alert_id}/packet-report")
+def get_packet_report(alert_id: str):
+    """Return the full Layer 2 packet report for an alert."""
+    alert = alert_store.get_by_id(alert_id)
+    if not alert:
+        raise HTTPException(status_code=404, detail=f"Alert '{alert_id}' not found.")
+    
+    report = alert.get("layer2_report")
+    if not report:
+        raise HTTPException(status_code=404, detail="No Layer 2 packet report for this alert.")
+    
+    return report
