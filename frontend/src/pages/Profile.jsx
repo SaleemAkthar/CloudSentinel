@@ -157,6 +157,36 @@ export default function Profile() {
             </div>
         {/* right column - scrollable */}
         <div className="lg:col-span-2 space-y-4 overflow-y-auto max-h-[80vh] pr-2">
+            {/* account information card */}
+            <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+                <div className="px-5 py-3 border-b border-white/10 flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
+                    <PersonOutlineRoundedIcon fontSize="small" />
+                    Account Information
+                </div>
+                {!editing ? (
+                    <button onClick={handleEdit} className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 transition-colors">
+                    ✎ Edit
+                    </button>
+                ) : (
+                    <div className="flex gap-2">
+                    <button onClick={handleCancel} className="px-3 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-colors">
+                        Cancel
+                    </button>
+                    <button onClick={handleSave} className="px-3 py-1.5 text-xs rounded-lg bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/30 transition-colors">
+                        Save
+                    </button>
+                    </div>
+                )}
+                </div>
+                <div className="p-5">
+                <InfoRow icon={<PersonOutlineRoundedIcon fontSize="small" />} label="Full Name" value={editing ? draft.name : user.name} editing={editing} fieldKey="name" onChange={handleFieldChange} />
+                <InfoRow icon={<GridViewRoundedIcon fontSize="small" />} label="Role" value={editing ? draft.role : user.role} editing={editing} fieldKey="role" onChange={handleFieldChange} />
+                <InfoRow icon={<DescriptionOutlinedIcon fontSize="small" />} label="Email Address" value={editing ? draft.email : user.email} editing={editing} fieldKey="email" onChange={handleFieldChange} />
+                <InfoRow icon={<ShowChartRoundedIcon fontSize="small" />} label="Organization" value={editing ? draft.organization : user.organization} editing={editing} fieldKey="organization" onChange={handleFieldChange} />
+                <InfoRow icon={<AutoAwesomeRoundedIcon fontSize="small" />} label="Member Since" value={user.joined} editing={false} fieldKey="joined" onChange={() => {}} />
+                </div>
+            </div>
         </div>
 
       </div>
