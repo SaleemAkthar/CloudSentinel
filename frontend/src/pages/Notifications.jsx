@@ -79,7 +79,7 @@ export default function Notifications() {
     filter === "ALL" ? true : n.type === filter
   );
   return (
-    <div>
+    <div className="space-y-6 text-white">
     </div>
   );
 }
