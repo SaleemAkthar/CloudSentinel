@@ -233,14 +233,29 @@ export default function Notifications() {
                                             </div>
                                             <p className="text-sm text-slate-400">{n.message}</p>
                                             <p className="text-xs text-slate-500 mt-1">{n.time}</p>
-                                            </div>
                                         </div>
-                                    );
-                                })
-                            )}
-                        </div>
+
+                                        {/* pin button */}
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); togglePin(n.id); }}
+                                            className={`shrink-0 mt-1 transition-colors ${
+                                                n.pinned ? "text-yellow-400" : "text-slate-600 hover:text-slate-300"
+                                            }`}
+                                            title={n.pinned ? "Unpin" : "Pin"}
+                                        >
+                                            {n.pinned ? (
+                                                <PushPinRoundedIcon fontSize="small" />
+                                            ) : (
+                                                <PushPinOutlinedIcon fontSize="small" />
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        ))}
+                    </div>
                 </div>
             </div>
-    </div>
-  );
+        </div>
+    );
 }
