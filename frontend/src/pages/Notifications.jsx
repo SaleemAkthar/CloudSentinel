@@ -112,6 +112,45 @@ export default function Notifications() {
                 </div>
             ))}
         </div>
+            {/* pinned notifications section */}
+            {pinnedNotifications.length > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+                    <div className="px-5 py-3 border-b border-white/10 flex items-center gap-2 text-sm font-semibold text-slate-300">
+                        <PushPinRoundedIcon fontSize="small" className="text-yellow-400" />
+                        <span>Pinned</span>
+                        <span className="ml-auto text-xs text-slate-500">{pinnedNotifications.length} pinned</span>
+                    </div>
+                    <div className="divide-y divide-white/5">
+                        {pinnedNotifications.map((n) => {
+                            const style = typeStyles[n.type];
+                            return (
+                                <div
+                                    key={n.id}
+                                    className={`flex items-start gap-4 px-5 py-4 border-l-4 ${style.border} bg-yellow-500/5`}
+                                >
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                                            <span className="text-sm font-semibold text-white">{n.title}</span>
+                                            <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${style.badge}`}>
+                                                {n.type}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-slate-400">{n.message}</p>
+                                        <p className="text-xs text-slate-500 mt-1">{n.time}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => togglePin(n.id)}
+                                        className="shrink-0 mt-1 text-yellow-400 hover:text-slate-400 transition-colors"
+                                        title="Unpin"
+                                    >
+                                        <PushPinRoundedIcon fontSize="small" />
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
     </div>
   );
 }
