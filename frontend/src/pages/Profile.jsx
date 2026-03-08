@@ -66,6 +66,44 @@ function ToggleSwitch({ enabled, onToggle }) {
 
 // Profile page component
 export default function Profile() {
+    // state for user data, edit mode, draft changes and save confirmation
+    const [user, setUser] = useState(initialUser);
+    const [editing, setEditing] = useState(false);
+    const [draft, setDraft] = useState(initialUser);
+    const [saved, setSaved] = useState(false);
+
+    // enter edit mode
+    const handleEdit = () => {
+        setDraft(user);
+        setEditing(true);
+    };
+
+    // save changes and show confirmation
+    const handleSave = () => {
+        setUser(draft);
+        setEditing(false);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 2500);
+    };
+
+    // cancel editing without saving
+    const handleCancel = () => {
+        setDraft(user);
+        setEditing(false);
+    };
+
+    // update a single field in draft
+    const handleFieldChange = (key, value) => {
+        setDraft((prev) => ({ ...prev, [key]: value }));
+    };
+
+    // toggle notification preferences
+    const toggleNotification = (key) => {
+        setUser((prev) => ({
+        ...prev,
+        notifications: { ...prev.notifications, [key]: !prev.notifications[key] },
+     }));
+  };
   return (
     <div className="text-white">
       <h1 className="text-3xl font-bold">My Profile</h1>
