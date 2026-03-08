@@ -72,6 +72,12 @@ export default function Notifications() {
       prev.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n))
     );
   };
+  // derived values
+  const unreadCount = notifications.filter((n) => !n.read).length;
+  const pinnedNotifications = notifications.filter((n) => n.pinned);
+  const filtered = notifications.filter((n) =>
+    filter === "ALL" ? true : n.type === filter
+  );
   return (
     <div>
     </div>
