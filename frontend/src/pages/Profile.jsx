@@ -25,6 +25,27 @@ const initialUser = {
   },
 };
 
+// reusable row component for each info field
+function InfoRow({ icon, label, value, editing, fieldKey, onChange }) {
+  return (
+    <div className="flex items-center gap-4 py-3 border-b border-white/5 last:border-0">
+      <div className="text-slate-400 w-5 shrink-0">{icon}</div>
+      <div className="flex-1 min-w-0">
+        <div className="text-xs text-slate-500 mb-0.5">{label}</div>
+        {editing ? (
+          <input
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white outline-none focus:border-blue-500/60 transition-colors"
+            value={value}
+            onChange={(e) => onChange(fieldKey, e.target.value)}
+          />
+        ) : (
+          <div className="text-sm text-white truncate">{value}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Profile page component
 export default function Profile() {
   return (
