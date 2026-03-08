@@ -9,6 +9,17 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 
 // Notifications page component
 
+// static chart data for last 7 days
+const chartData = [
+  { day: "Mon", notifications: 3 },
+  { day: "Tue", notifications: 7 },
+  { day: "Wed", notifications: 2 },
+  { day: "Thu", notifications: 9 },
+  { day: "Fri", notifications: 5 },
+  { day: "Sat", notifications: 1 },
+  { day: "Sun", notifications: 4 },
+];
+
 // mock notification data
 const mockNotifications = [
   { id: 1, type: "CRITICAL", title: "Critical alert triggered", message: "paymentHandler exceeded anomaly threshold", time: "5 minutes ago", read: false, pinned: false },
