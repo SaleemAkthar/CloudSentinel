@@ -30,6 +30,7 @@ export const router = createBrowserRouter([
       { path: "team", element: <Team /> },
       { path: "settings", element: <Placeholder title="Settings" /> },
       { path: "profile", element: <Profile /> },
+      { path: "notification", element: <Notifications /> },
     ],
   },
 ]);
