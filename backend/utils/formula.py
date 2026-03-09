@@ -665,14 +665,27 @@ def classify_severity(
     anomaly_score: float,
     attack_type: str,
     confidence: float
-) -> str:
+) -> Optional[str]:
     """
     Classify severity level based on score, attack type, and confidence
     
-    Dashboard supports 3 severity levels: CRITICAL, HIGH, MEDIUM┘
+    Uses tiered alerting system with 3 severity levels.
+    Returns None if score is below minimum detection threshold.
+    
+    Classification Rules:
+    ┌────────────────────────────────────────────────────────────────┐
+    │ Score  │ Attack Type   │ Result   │ Reasoning                │
+    ├────────────────────────────────────────────────────────────────┤
+    │ ≥ 0.8  │ Any           │ CRITICAL │ Very high anomaly        │
+    │ ≥ 0.6  │ Dangerous     │ CRITICAL │ Known attack pattern     │
+    │ ≥ 0.6  │ Other         │ HIGH     │ Suspicious activity      │
+    │ ≥ 0.4  │ Dangerous     │ HIGH     │ Potential attack         │
+    │ ≥ 0.4  │ Other         │ MEDIUM   │ Minor anomaly            │
+    │ < 0.4  │ Any           │ None     │ Not anomalous            │
+    └────────────────────────────────────────────────────────────────┘
     
     Dangerous attacks: crypto_mining, data_exfiltration, ddos, 
-                       ransomware, sql_injection
+                       ransomware, sql_injection, memory_attack
     
     Args:
         anomaly_score: Composite anomaly score (0-1)
@@ -680,7 +693,7 @@ def classify_severity(
         confidence: Confidence in detection (0-1)
     
     Returns:
-        Severity level: 'CRITICAL', 'HIGH', or 'MEDIUM' (3 levels only)
+        'CRITICAL', 'HIGH', 'MEDIUM', or None if below threshold
     
     Examples:
         >>> classify_severity(0.95, 'crypto_mining', 0.98)
@@ -689,8 +702,14 @@ def classify_severity(
         >>> classify_severity(0.65, 'unknown', 0.80)
         'HIGH'
         
+        >>> classify_severity(0.45, 'sql_injection', 0.85)
+        'HIGH'  (dangerous attack)
+        
+        >>> classify_severity(0.45, 'unknown', 0.70)
+        'MEDIUM'  (not dangerous)
+        
         >>> classify_severity(0.35, 'unknown', 0.70)
-        'MEDIUM'
+        None  (below minimum threshold)
     """
     # Known dangerous attack types
     dangerous_attacks = [
@@ -708,7 +727,7 @@ def classify_severity(
     # Lower confidence reduces effective severity
     adjusted_score = anomaly_score * confidence
     
-    # 3-tier classification
+    # Tiered classification
     if adjusted_score >= 0.8:
         # Very high score = always critical
         return 'CRITICAL'
@@ -722,10 +741,10 @@ def classify_severity(
         return 'HIGH' if is_dangerous else 'MEDIUM'
     
     else:
-        # Low score = always medium (catch-all)
-        return 'MEDIUM'
+        # Below minimum detection threshold
+        return None
     
-    # ============================================================================
+# ============================================================================
 # SECTION 12: HELPER FUNCTIONS
 # ============================================================================
 
@@ -821,12 +840,20 @@ if __name__ == "__main__":
     confidence = calculate_confidence_score(1.0, 0.8, 0.3, 0.95)
     print(f"   Confidence: {confidence:.3f}")
     
-    # Test 5: Severity classification
-    print("\n5. Severity Classification:")
-    severity = classify_severity(0.95, 'crypto_mining', 0.98)
-    print(f"   Score: 0.95, Type: crypto_mining, Confidence: 0.98")
-    print(f"   Severity: {severity}")
+    # Test 5: Severity classification (3 levels, tiered)
+    print("\n5. Severity Classification (3 Levels - Tiered Alerting):")
     
-    print("\n" + "=" * 70)
-    print(" ALL TESTS PASSED")
-    print("=" * 70)
+    test_cases = [
+        (0.95, 'crypto_mining', 0.98, 'CRITICAL'),
+        (0.75, 'data_exfiltration', 0.95, 'CRITICAL'),
+        (0.65, 'unknown', 0.80, 'HIGH'),
+        (0.55, 'sql_injection', 0.90, 'HIGH'),
+        (0.45, 'unknown', 0.70, 'MEDIUM'),
+        (0.35, 'unknown', 0.70, None),  # Below threshold
+    ]
+    
+    for score, attack_type, confidence, expected in test_cases:
+        severity = classify_severity(score, attack_type, confidence)
+        status = "Correct" if severity == expected else "Wrong"
+        expected_str = expected if expected else "None (below threshold)"
+        print(f"   {status} Score: {score:.2f}, Type: {attack_type:20s} → {severity if severity else 'None':8s} (expected: {expected_str})")
