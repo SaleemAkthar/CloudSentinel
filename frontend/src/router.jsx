@@ -6,6 +6,7 @@ import AIInsights from "./pages/AIInsights";
 import Team from "./pages/Team";
 import BehaviourLogs from "./components/BehaviourLogs";
 import AWSLambdaMonitorPage from "./pages/AWSLambdaMonitorPage";
+import Settings from "./pages/Settings";
 
 
 const Placeholder = ({ title }) => (
@@ -26,7 +27,7 @@ export const router = createBrowserRouter([
       { path: "lambda", element: <AWSLambdaMonitorPage /> },
       { path: "insights", element: <AIInsights /> },
       { path: "team", element: <Team /> },
-      { path: "settings", element: <Placeholder title="Settings" /> },
+      { path: "settings", element: <Settings/> },
     ],
   },
 ]);
