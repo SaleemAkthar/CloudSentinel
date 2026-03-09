@@ -30,6 +30,8 @@ export const router = createBrowserRouter([
       { path: "insights", element: <AIInsights /> },
       { path: "team", element: <Team /> },
       { path: "settings", element: <Settings /> },
+      { path: "profile", element: <Profile /> },
+      { path: "notifications", element: <Notifications /> },
     ],
   },
 ]);
