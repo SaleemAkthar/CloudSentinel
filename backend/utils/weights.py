@@ -122,3 +122,89 @@ ANOMALY_THRESHOLD = DETECTION_THRESHOLDS['medium']  # 0.4
 
 # Backward compatibility alias
 SEVERITY_THRESHOLDS = DETECTION_THRESHOLDS
+
+# ============================================================================
+# ATTACK-SPECIFIC THRESHOLDS
+# ============================================================================
+# Multipliers for baseline to detect specific attacks
+
+ATTACK_THRESHOLDS = {
+    # Crypto-mining: duration > 5x normal
+    # Research: AWS found 10-50x increases
+    # Conservative threshold catches most (5x)
+    'crypto_mining': {
+        'duration_multiplier': 5.0,
+        'memory_multiplier': 2.0
+    },
+    
+    # Data exfiltration: API calls > 10
+    # Research: IBM found 5-20x increases
+    # Absolute threshold (10 calls) robust across apps
+    'data_exfiltration': {
+        'api_calls_threshold': 10,
+        'packet_ratio_threshold': 5.0  # Outbound/inbound
+    },
+    
+    # SQL injection: DB queries > 10 AND errors > 0
+    # Research: SANS found 3-10x error rates
+    'sql_injection': {
+        'db_queries_threshold': 10,
+        'error_count_threshold': 1
+    },
+    
+    # Memory attack: memory > 90% of limit
+    # Lambda hard limit prevents going over 100%
+    'memory_attack': {
+        'memory_percentage': 0.90
+    },
+    
+    # DDoS: request rate > 100/min from single IP
+    # Industry standard threshold
+    'ddos': {
+        'request_rate_threshold': 100,  # per minute
+        'entropy_threshold': 0.3  # Low diversity = DDoS
+    }
+}
+# ============================================================================
+# NORMALIZATION PARAMETERS
+# ============================================================================
+
+# Hyperbolic tangent normalization factor
+# Used in composite score calculation
+TANH_SCALE_FACTOR = 1.0
+
+# Z-score normalization divisor
+# Based on 3-sigma rule (99.7% of data within ±3σ)
+Z_SCORE_NORMALIZER = 3.0
+
+
+# ============================================================================
+# CONFIDENCE THRESHOLDS
+# ============================================================================
+
+# Minimum confidence for auto-response (Phase 2)
+AUTO_RESPONSE_CONFIDENCE = 0.95
+
+# Minimum confidence for high-severity alerts
+HIGH_CONFIDENCE_THRESHOLD = 0.85
+
+# Low confidence threshold (flag for review)
+LOW_CONFIDENCE_THRESHOLD = 0.50
+
+
+# ============================================================================
+# TEMPORAL (SARIMA) PARAMETERS
+# ============================================================================
+
+# Minimum data points needed to train SARIMA
+SARIMA_MIN_DATA_POINTS = 200  # ~2 weeks at 1 sample/hour
+
+# SARIMA model parameters
+# SARIMA(p, d, q)(P, D, Q)_s
+SARIMA_ORDER = (1, 1, 1)           # Non-seasonal: (AR, I, MA)
+SARIMA_SEASONAL_ORDER = (1, 1, 1, 24)  # Seasonal: (AR, I, MA, period)
+
+# Period = 24 assumes hourly data with daily seasonality
+# Adjust if sampling frequency changes
+
+
