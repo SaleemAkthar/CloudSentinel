@@ -840,7 +840,7 @@ if __name__ == "__main__":
     confidence = calculate_confidence_score(1.0, 0.8, 0.3, 0.95)
     print(f"   Confidence: {confidence:.3f}")
     
-    # Test 5: Severity classification (3 levels, tiered)
+    # Test 5: Severity classification (3 levels, tiered) this was changed to tiered classification
     print("\n5. Severity Classification (3 Levels - Tiered Alerting):")
     
     test_cases = [
