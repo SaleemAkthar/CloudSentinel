@@ -93,3 +93,32 @@ COMPONENT_WEIGHTS = {
 
 # Validate weights sum to 1.0
 assert abs(sum(COMPONENT_WEIGHTS.values()) - 1.0) < 0.001, "Component weights must sum to 1.0"
+
+# ============================================================================
+# DETECTION THRESHOLDS (TIERED ALERTING SYSTEM)
+# ============================================================================
+
+# Detection thresholds for tiered alerting
+# Each threshold triggers an alert at that severity level
+DETECTION_THRESHOLDS = {
+    'critical': 0.8,   # Beyond 2.4σ (1.6% of normal traffic)
+    'high': 0.6,       # Beyond 1.8σ (7.2% of normal traffic)
+    'medium': 0.4      # Beyond 1.2σ (23% of normal traffic)
+}
+
+# Statistical justification:
+# CRITICAL (0.8 = 2.4σ): Only 1.6% of normal requests exceed this
+# HIGH (0.6 = 1.8σ):     Only 7.2% of normal requests exceed this
+# MEDIUM (0.4 = 1.2σ):   Only 23% of normal requests exceed this
+#
+# Anything scoring 0.4+ is statistically unusual enough to investigate
+# Security team can filter dashboard by severity:
+#   - Show only CRITICAL (urgent response)
+#   - Show CRITICAL + HIGH (daily review)
+#   - Show all (weekly audit)
+
+# Minimum score to be considered an anomaly (any severity)
+ANOMALY_THRESHOLD = DETECTION_THRESHOLDS['medium']  # 0.4
+
+# Backward compatibility alias
+SEVERITY_THRESHOLDS = DETECTION_THRESHOLDS
