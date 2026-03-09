@@ -8,8 +8,9 @@ These weights are based on:
 3. Empirical testing on simulated attacks
 4. Statistical theory (3-sigma rule)
 
+Last Updated: 2026-03-09
+Author: Raneesha (Backend Team)
 """
-
 # ============================================================================
 # FEATURE WEIGHTS
 # ============================================================================
@@ -53,4 +54,3 @@ FEATURE_WEIGHTS = {
 
 # Validate weights sum to 1.0
 assert abs(sum(FEATURE_WEIGHTS.values()) - 1.0) < 0.001, "Feature weights must sum to 1.0"
-
