@@ -372,10 +372,6 @@ def get_status():
         "timestamp":       datetime.datetime.utcnow().isoformat() + "Z",
     }
 
-
-if __name__ == "__main__":
-    uvicorn.run("backend.api:app", host="0.0.0.0", port=8000, reload=True)
-
 # ── L1 & L2 Scanning ─────────────────────────────────────────────────────────────
 
 @app.post("/api/scan")
@@ -450,3 +446,7 @@ def get_packet_report(alert_id: str):
         raise HTTPException(status_code=404, detail="No Layer 2 packet report for this alert.")
     
     return report
+
+if __name__ == "__main__":
+    uvicorn.run("backend.api:app", host="0.0.0.0", port=8000, reload=True)
+
