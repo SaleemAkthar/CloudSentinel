@@ -210,7 +210,11 @@ class TestFullPipeline:
 
         # Learning phase
         for _ in range(100):
-            log = normal_log()
+            log = {
+                "duration":      random.randint(450, 550),
+                "memory_used":   random.randint(120, 140),
+                "num_api_calls": random.randint(2, 5)
+            }
             result = detector.process_log(log)
             sarima.add_data_point(log["duration"])
 
