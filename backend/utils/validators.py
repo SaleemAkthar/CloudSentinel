@@ -80,4 +80,122 @@ def validate_log_entry(log_data: Dict) -> Tuple[bool, Optional[str]]:
     
     return True, None
 
+    # ============================================================================
+# INDIVIDUAL FIELD VALIDATORS
+# ============================================================================
+
+def validate_duration(duration: Any) -> Tuple[bool, Optional[str]]:
+    """
+    Validate duration field
+    
+    Rules:
+    - Must be numeric (int or float)
+    - Must be >= 0
+    - Reasonable upper bound: 60000ms (1 minute)
+    
+    Args:
+        duration: Duration value in milliseconds
+        
+    Returns:
+        (is_valid, error_message)
+    """
+    # Type check
+    if not isinstance(duration, (int, float)):
+        return False, f"Must be numeric, got {type(duration).__name__}"
+    
+    # Range check
+    if duration < 0:
+        return False, "Cannot be negative"
+    
+    if duration > 60000:  # 1 minute
+        # Warning, not error - crypto-mining can be very long
+        # But flag for review
+        pass
+    
+    return True, None
+
+
+def validate_memory(memory_used: Any) -> Tuple[bool, Optional[str]]:
+    """
+    Validate memory_used field
+    
+    Rules:
+    - Must be numeric
+    - Must be >= 0
+    - Reasonable upper bound: 10240 MB (10GB, Lambda max)
+    """
+    # Type check
+    if not isinstance(memory_used, (int, float)):
+        return False, f"Must be numeric, got {type(memory_used).__name__}"
+    
+    # Range check
+    if memory_used < 0:
+        return False, "Cannot be negative"
+    
+    if memory_used > 10240:  # 10GB (Lambda max)
+        return False, f"Exceeds Lambda maximum (10240MB), got {memory_used}MB"
+    
+    return True, None
+
+
+def validate_api_calls(num_api_calls: Any) -> Tuple[bool, Optional[str]]:
+    """
+    Validate num_api_calls field
+    
+    Rules:
+    - Must be integer
+    - Must be >= 0
+    - Reasonable upper bound: 1000 calls
+    """
+    # Type check
+    if not isinstance(num_api_calls, int):
+        return False, f"Must be integer, got {type(num_api_calls).__name__}"
+    
+    # Range check
+    if num_api_calls < 0:
+        return False, "Cannot be negative"
+    
+    if num_api_calls > 1000:
+        # Suspicious but not invalid - data exfiltration?
+        pass
+    
+    return True, None
+ def validate_error_count(error_count: Any) -> Tuple[bool, Optional[str]]:
+    """
+    Validate error_count field
+    
+    Rules:
+    - Must be integer
+    - Must be >= 0
+    """
+    # Type check
+    if not isinstance(error_count, int):
+        return False, f"Must be integer, got {type(error_count).__name__}"
+    
+    # Range check
+    if error_count < 0:
+        return False, "Cannot be negative"
+    
+    return True, None
+
+
+def validate_concurrency(concurrency: Any) -> Tuple[bool, Optional[str]]:
+    """
+    Validate concurrency field
+    
+    Rules:
+    - Must be integer
+    - Must be >= 1 (at least one execution)
+    """
+    # Type check
+    if not isinstance(concurrency, int):
+        return False, f"Must be integer, got {type(concurrency).__name__}"
+    
+    # Range check
+    if concurrency < 1:
+        return False, "Must be at least 1"
+    
+    return True, None
+
+
 
