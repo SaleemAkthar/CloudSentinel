@@ -252,4 +252,77 @@ def validate_timestamp(timestamp: str) -> Tuple[bool, Optional[str]]:
     except ValueError:
         return False, "Invalid timestamp format (expected ISO 8601)"
 
+# ============================================================================
+# FEATURE VALIDATION
+# ============================================================================
+
+def validate_features(features: Dict) -> Dict:
+    """
+    Validate and sanitize feature dictionary
+    
+    Converts types, clamps values, fills missing optional fields
+    
+    Args:
+        features: Raw feature dictionary
+        
+    Returns:
+        Sanitized feature dictionary
+        
+    Raises:
+        ValueError: If validation fails
+        
+    Example:
+        >>> features = {'duration': '500', 'memory_used': 130, 'num_api_calls': 3}
+        >>> validate_features(features)
+        {'duration': 500.0, 'memory_used': 130.0, 'num_api_calls': 3, ...}
+    """
+    sanitized = {}
+    
+    # Required fields with type conversion
+    required_conversions = {
+        'duration': float,
+        'memory_used': float,
+        'num_api_calls': int
+    }
+    
+    for field, target_type in required_conversions.items():
+        if field not in features:
+            raise ValueError(f"Missing required field: {field}")
+        
+        try:
+            sanitized[field] = target_type(features[field])
+        except (ValueError, TypeError):
+            raise ValueError(f"Cannot convert {field} to {target_type.__name__}")
+        
+        # Clamp to valid range
+        if sanitized[field] < 0:
+            sanitized[field] = 0
+    
+    # Optional fields with defaults
+    optional_fields = {
+        'error_count': (int, 0),
+        'concurrency': (int, 1),
+        'packet_size_in': (float, 0.0),
+        'packet_size_out': (float, 0.0),
+        'latency': (float, 0.0),
+        'fragment_count': (int, 0),
+        'ip_address': (str, 'unknown'),
+        'timestamp': (str, datetime.now().isoformat())
+    }
+    
+    for field, (field_type, default) in optional_fields.items():
+        if field in features:
+            try:
+                sanitized[field] = field_type(features[field])
+                
+                # Clamp numeric fields to >= 0
+                if field_type in (int, float) and sanitized[field] < 0:
+                    sanitized[field] = 0
+                    
+            except (ValueError, TypeError):
+                sanitized[field] = default
+        else:
+            sanitized[field] = default
+    
+    return sanitized
 
