@@ -196,6 +196,60 @@ def validate_concurrency(concurrency: Any) -> Tuple[bool, Optional[str]]:
         return False, "Must be at least 1"
     
     return True, None
+def validate_ip_address(ip: str) -> Tuple[bool, Optional[str]]:
+    """
+    Validate IP address format
+    
+    Accepts both IPv4 and IPv6
+    
+    Args:
+        ip: IP address string
+        
+    Returns:
+        (is_valid, error_message)
+        
+    Example:
+        >>> validate_ip_address('192.168.1.1')
+        (True, None)
+        
+        >>> validate_ip_address('999.999.999.999')
+        (False, "Invalid IP address format")
+    """
+    # Type check
+    if not isinstance(ip, str):
+        return False, f"Must be string, got {type(ip).__name__}"
+    
+    # Try parsing as IP address
+    try:
+        ipaddress.ip_address(ip)
+        return True, None
+    except ValueError:
+        return False, "Invalid IP address format"
 
+
+def validate_timestamp(timestamp: str) -> Tuple[bool, Optional[str]]:
+    """
+    Validate timestamp format
+    
+    Accepts ISO 8601 format: YYYY-MM-DDTHH:MM:SS or YYYY-MM-DDTHH:MM:SS.fffffZ
+    
+    Args:
+        timestamp: Timestamp string
+        
+    Returns:
+        (is_valid, error_message)
+    """
+    # Type check
+    if not isinstance(timestamp, str):
+        return False, f"Must be string, got {type(timestamp).__name__}"
+    
+    # Try parsing as ISO 8601
+    try:
+        # Remove 'Z' suffix if present
+        ts_clean = timestamp.replace('Z', '+00:00')
+        datetime.fromisoformat(ts_clean)
+        return True, None
+    except ValueError:
+        return False, "Invalid timestamp format (expected ISO 8601)"
 
 
