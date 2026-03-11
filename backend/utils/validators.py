@@ -325,4 +325,195 @@ def validate_features(features: Dict) -> Dict:
             sanitized[field] = default
     
     return sanitized
+# ============================================================================
+# SECURITY VALIDATION
+# ============================================================================
+
+def sanitize_string(text: str, max_length: int = 1000) -> str:
+    """
+    Sanitize string input to prevent injection attacks
+    
+    Args:
+        text: Input string
+        max_length: Maximum allowed length
+        
+    Returns:
+        Sanitized string
+        
+    Example:
+        >>> sanitize_string("Normal text 123")
+        'Normal text 123'
+        >>> sanitize_string("'; DROP TABLE--")
+        ' DROP TABLE'
+    """
+    if not isinstance(text, str):
+        return str(text)
+    
+    # Trim to max length
+    text = text[:max_length]
+    
+    # Remove potentially dangerous characters
+    # Allow: alphanumeric, spaces, dots, hyphens, underscores, colons
+    text = re.sub(r'[^a-zA-Z0-9\s\.\-_:]', '', text)
+    
+    return text
+
+
+def validate_alert_id(alert_id: str) -> Tuple[bool, Optional[str]]:
+    """
+    Validate alert ID format
+    
+    Expected format: ALERT-XXXX where XXXX is alphanumeric
+    
+    Args:
+        alert_id: Alert identifier
+        
+    Returns:
+        (is_valid, error_message)
+        
+    Example:
+        >>> validate_alert_id("ALERT-1234")
+        (True, None)
+        >>> validate_alert_id("invalid")
+        (False, "Invalid format (expected ALERT-XXXX)")
+    """
+    if not isinstance(alert_id, str):
+        return False, "Must be string"
+    
+    # Check format
+    if not re.match(r'^ALERT-[A-Z0-9]+$', alert_id):
+        return False, "Invalid format (expected ALERT-XXXX)"
+    
+    if len(alert_id) > 50:
+        return False, "Too long (max 50 characters)"
+    
+    return True, None
+
+# ============================================================================
+# BATCH VALIDATION
+# ============================================================================
+
+def validate_log_batch(logs: List[Dict]) -> Tuple[List[Dict], List[str]]:
+    """
+    Validate batch of log entries
+    
+    Args:
+        logs: List of log dictionaries
+        
+    Returns:
+        (valid_logs, error_messages)
+        
+    Example:
+        >>> logs = [
+        ...     {'duration': 500, 'memory_used': 130, 'num_api_calls': 3},
+        ...     {'duration': -100},  # Invalid
+        ...     {'duration': 600, 'memory_used': 140, 'num_api_calls': 2}
+        ... ]
+        >>> valid, errors = validate_log_batch(logs)
+        >>> len(valid)
+        2
+        >>> len(errors)
+        1
+    """
+    valid_logs = []
+    errors = []
+    
+    for i, log in enumerate(logs):
+        is_valid, error = validate_log_entry(log)
+        
+        if is_valid:
+            valid_logs.append(log)
+        else:
+            errors.append(f"Log {i}: {error}")
+    
+    return valid_logs, errors
+
+
+# ============================================================================
+# RANGE VALIDATORS
+# ============================================================================
+
+def validate_range(
+    value: float, 
+    min_val: float, 
+    max_val: float, 
+    field_name: str = "value"
+) -> Tuple[bool, Optional[str]]:
+    """
+    Generic range validator
+    
+    Args:
+        value: Value to check
+        min_val: Minimum allowed value (inclusive)
+        max_val: Maximum allowed value (inclusive)
+        field_name: Name for error messages
+        
+    Returns:
+        (is_valid, error_message)
+        
+    Example:
+        >>> validate_range(0.5, 0.0, 1.0, "probability")
+        (True, None)
+        >>> validate_range(1.5, 0.0, 1.0, "probability")
+        (False, "probability exceeds maximum (1.0)")
+    """
+    if not isinstance(value, (int, float)):
+        return False, f"{field_name} must be numeric"
+    
+    if value < min_val:
+        return False, f"{field_name} below minimum ({min_val})"
+    
+    if value > max_val:
+        return False, f"{field_name} exceeds maximum ({max_val})"
+    
+    return True, None
+
+
+def validate_percentage(value: float, field_name: str = "percentage") -> Tuple[bool, Optional[str]]:
+    """
+    Validate percentage value (0-100)
+    
+    Args:
+        value: Percentage value
+        field_name: Name for error messages
+        
+    Returns:
+        (is_valid, error_message)
+    """
+    return validate_range(value, 0.0, 100.0, field_name)
+
+
+def validate_probability(value: float, field_name: str = "probability") -> Tuple[bool, Optional[str]]:
+    """
+    Validate probability value (0-1)
+    
+    Args:
+        value: Probability value
+        field_name: Name for error messages
+        
+    Returns:
+        (is_valid, error_message)
+    """
+    return validate_range(value, 0.0, 1.0, field_name)
+
+
+def validate_score(score: float) -> float:
+    """
+    Ensure score is in valid range [0, 1], clamping if necessary
+    
+    Args:
+        score: Anomaly score
+        
+    Returns:
+        Clamped score (0-1)
+        
+    Example:
+        >>> validate_score(0.5)
+        0.5
+        >>> validate_score(-0.1)
+        0.0
+        >>> validate_score(1.5)
+        1.0
+    """
+    return max(0.0, min(score, 1.0))
 
