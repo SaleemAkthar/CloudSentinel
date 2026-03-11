@@ -88,7 +88,7 @@ export default function AppShell() {
               <button
                 className="relative grid h-10 w-10 place-items-center rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10"
                 title="Notifications"
-                onClick={() => navigate("/notification")}
+                onClick={() => navigate("/notifications")}
               >
                 <NotificationsNoneRoundedIcon />
                 

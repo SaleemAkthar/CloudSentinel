@@ -14,6 +14,8 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
+import alertsData from "../test/alerts.json"; 
+
 
 // Notifications page component
 
@@ -50,67 +52,85 @@ const typeStyles = {
   },
 };
 
-// mock notification data
-const mockNotifications = [
-  {
-    id: 1,
-    type: "CRITICAL",
-    title: "Critical alert triggered",
-    message: "paymentHandler exceeded anomaly threshold",
-    time: "5 minutes ago",
+function timeAgo(iso) {
+  const t = new Date(iso).getTime();
+  const now = Date.now();
+  const diff = Math.max(0, now - t);
+
+  const mins = Math.floor(diff / (60 * 1000));
+  if (mins < 60) return `${mins} minutes ago`;
+
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} hours ago`;
+
+  const days = Math.floor(hours / 24);
+  return `${days} days ago`;
+}
+
+function buildMessageFromAlert(a) {
+  const f = a.features || {};
+  const score = typeof a.anomaly_score === "number" ? a.anomaly_score : 0;
+
+  // Message templates based on severity + features
+  if (a.severity === "CRITICAL") {
+    if ((f.outbound_calls || 0) >= 4) {
+      return `${a.function} made unusually high outbound calls (${f.outbound_calls}).`;
+    }
+    if ((f.error_count || 0) >= 1) {
+      return `${a.function} triggered critical errors (error_count=${f.error_count}).`;
+    }
+    return `${a.function} exceeded anomaly threshold (score=${score.toFixed(2)}).`;
+  }
+
+  if (a.severity === "WARNING") {
+    if ((f.unique_destinations || 0) >= 2) {
+      return `${a.function} contacted multiple destinations (${f.unique_destinations}).`;
+    }
+    if ((f.duration_ms || 0) >= 800) {
+      return `${a.function} execution time is higher than normal (${f.duration_ms}ms).`;
+    }
+    if ((f.outbound_calls || 0) >= 2) {
+      return `${a.function} showed unusual outbound calls (${f.outbound_calls}).`;
+    }
+    return `${a.function} showed unusual behaviour (score=${score.toFixed(2)}).`;
+  }
+
+  // INFO
+  if ((f.duration_ms || 0) > 0) {
+    return `${a.function} ran normally (duration ${f.duration_ms}ms).`;
+  }
+  return `${a.function} informational event recorded.`;
+}
+
+function buildTitleFromAlert(a) {
+  if (a.severity === "CRITICAL") return "Critical alert triggered";
+  if (a.severity === "WARNING") return "Warning detected";
+  return "System update";
+}
+
+function alertsToNotifications(alerts) {
+  // Sort newest first
+  const sorted = alerts
+    .slice()
+    .sort((x, y) => new Date(y.timestamp) - new Date(x.timestamp));
+
+  return sorted.map((a, idx) => ({
+    id: a.id || idx + 1,
+    type: a.severity || "INFO",
+    title: buildTitleFromAlert(a),
+    message: buildMessageFromAlert(a),
+    time: timeAgo(a.timestamp),
     read: false,
     pinned: false,
-  },
-  {
-    id: 2,
-    type: "WARNING",
-    title: "Warning detected",
-    message: "dataSync showed unusual outbound calls",
-    time: "1 hour ago",
-    read: false,
-    pinned: false,
-  },
-  {
-    id: 3,
-    type: "INFO",
-    title: "Weekly summary generated",
-    message: "Your weekly security digest is ready to view",
-    time: "2 days ago",
-    read: true,
-    pinned: false,
-  },
-  {
-    id: 4,
-    type: "CRITICAL",
-    title: "Critical alert triggered",
-    message: "authCallback flagged with high anomaly score",
-    time: "3 days ago",
-    read: true,
-    pinned: false,
-  },
-  {
-    id: 5,
-    type: "INFO",
-    title: "Model training complete",
-    message: "AI model retrained with latest data successfully",
-    time: "4 days ago",
-    read: true,
-    pinned: false,
-  },
-  {
-    id: 6,
-    type: "WARNING",
-    title: "Elevated error rate",
-    message: "imageResize function error rate above normal",
-    time: "5 days ago",
-    read: true,
-    pinned: false,
-  },
-];
+    _raw: a, // keep original alert if you need details later
+  }));
+}
+
+
 
 export default function Notifications() {
   // state for notifications list and active filter
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const [notifications, setNotifications] = useState(() =>alertsToNotifications(alertsData));
   const [filter, setFilter] = useState("ALL");
 
   // mark all notifications as read
@@ -252,154 +272,134 @@ export default function Notifications() {
       )}
 
       {/* chart and notification list grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* bar chart card */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-          <div className="px-5 py-3 border-b border-white/10 text-sm font-semibold text-slate-300">
-            Notifications — Last 7 Days
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 items-start">
 
-          <div className="p-4 h-[220px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={chartData}
-                margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="rgba(255,255,255,0.06)"
-                />
-
-                <XAxis
-                  dataKey="day"
-                  stroke="rgba(255,255,255,0.4)"
-                  tick={{ fontSize: 11 }}
-                />
-
-                <YAxis
-                  stroke="rgba(255,255,255,0.4)"
-                  tick={{ fontSize: 11 }}
-                />
-
-                <Tooltip
-                  contentStyle={{
-                    background: "rgba(10, 20, 45, 0.95)",
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    borderRadius: 10,
-                    color: "white",
-                    fontSize: 12,
-                  }}
-                />
-
-                <Bar
-                  dataKey="notifications"
-                  fill="#3B82F6"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
 
         {/* notification list */}
-        <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+        <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden h-[70vh] flex flex-col">
+
           {/* filter tabs */}
-          <div className="flex items-center gap-2 px-5 py-3 border-b border-white/10 flex-wrap">
-            <NotificationsNoneRoundedIcon
-              fontSize="small"
-              className="text-slate-400 mr-1"
-            />
-
-            {["ALL", "CRITICAL", "WARNING", "INFO"].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setFilter(tab)}
-                className={`px-3 py-1 text-xs rounded-full font-medium transition-colors ${
-                  filter === tab
-                    ? "bg-white/15 text-white"
-                    : "text-slate-400 hover:text-white hover:bg-white/5"
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          {/* notification items */}
-          <div className="divide-y divide-white/5">
-            {filtered.length === 0 ? (
-              <div className="p-8 text-center text-slate-400">
-                No notifications found
+          <div className="sticky top-0 z-10 border-b border-white/10 bg-[#0a1328]/90 backdrop-blur">
+            <div className="flex items-center gap-3 px-5 py-3">
+              {/* left icon */}
+              <div className="grid h-9 w-9 place-items-center rounded-xl bg-white/5 ring-1 ring-white/10 text-slate-300">
+                <NotificationsNoneRoundedIcon fontSize="small" />
               </div>
-            ) : (
-              filtered.map((n) => {
-                const style = typeStyles[n.type];
 
-                return (
-                  <div
-                    key={n.id}
-                    onClick={() => markRead(n.id)}
-                    className={`flex items-start gap-4 px-5 py-4 border-l-4 ${style.border} cursor-pointer transition-colors ${
-                      n.read
-                        ? "opacity-60 hover:opacity-80"
-                        : "bg-white/3 hover:bg-white/5"
-                    }`}
-                  >
-                    {/* unread dot */}
-                    <div className="mt-1 shrink-0">
-                      {!n.read ? (
-                        <span
-                          className={`block w-2 h-2 rounded-full ${style.dot}`}
-                        />
-                      ) : (
-                        <span className="block w-2 h-2 rounded-full bg-transparent" />
-                      )}
-                    </div>
+              {/* pills */}
+              <div className="flex flex-wrap items-center gap-2">
+                {["ALL", "CRITICAL", "WARNING", "INFO"].map((tab) => {
+                  const active = filter === tab;
 
-                    {/* content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className="text-sm font-semibold text-white">
-                          {n.title}
-                        </span>
+                  const activeCls =
+                    "bg-white/15 text-white ring-1 ring-white/20 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]";
+                  const idleCls =
+                    "text-slate-300 hover:text-white hover:bg-white/5 ring-1 ring-white/10";
 
-                        <span
-                          className={`px-2 py-0.5 text-xs rounded-full font-medium ${style.badge}`}
-                        >
-                          {n.type}
-                        </span>
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => setFilter(tab)}
+                      className={[
+                        "px-4 py-1.5 rounded-full text-xs font-semibold tracking-wide",
+                        "transition-colors",
+                        active ? activeCls : idleCls,
+                      ].join(" ")}
+                    >
+                      {tab}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* right: optional count */}
+              <div className="ml-auto text-xs text-slate-400">
+                Showing{" "}
+                <span className="text-slate-200 font-semibold">
+                  {filtered.length}
+                </span>{" "}
+                notifications
+              </div>
+            </div>
+          </div>
+          
+          {/* notification items */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="divide-y divide-white/5"></div>
+              {filtered.length === 0 ? (
+                <div className="p-8 text-center text-slate-400">
+                  No notifications found
+                </div>
+              ) : (
+                filtered.map((n) => {
+                  const style = typeStyles[n.type];
+
+                  return (
+                    <div
+                      key={n.id}
+                      onClick={() => markRead(n.id)}
+                      className={`flex items-start gap-4 px-5 py-4 border-l-4 ${style.border} cursor-pointer transition-colors ${
+                        n.read
+                          ? "opacity-60 hover:opacity-80"
+                          : "bg-white/3 hover:bg-white/5"
+                      }`}
+                    >
+                      {/* unread dot */}
+                      <div className="mt-1 shrink-0">
+                        {!n.read ? (
+                          <span
+                            className={`block w-2 h-2 rounded-full ${style.dot}`}
+                          />
+                        ) : (
+                          <span className="block w-2 h-2 rounded-full bg-transparent" />
+                        )}
                       </div>
 
-                      <p className="text-sm text-slate-400">{n.message}</p>
-                      <p className="text-xs text-slate-500 mt-1">{n.time}</p>
-                    </div>
+                      {/* content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="text-sm font-semibold text-white">
+                            {n.title}
+                          </span>
 
-                    {/* pin button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        togglePin(n.id);
-                      }}
-                      className={`shrink-0 mt-1 transition-colors ${
-                        n.pinned
-                          ? "text-yellow-400"
-                          : "text-slate-600 hover:text-slate-300"
-                      }`}
-                      title={n.pinned ? "Unpin" : "Pin"}
-                    >
-                      {n.pinned ? (
-                        <PushPinRoundedIcon fontSize="small" />
-                      ) : (
-                        <PushPinOutlinedIcon fontSize="small" />
-                      )}
-                    </button>
-                  </div>
-                );
-              })
-            )}
+                          <span
+                            className={`px-2 py-0.5 text-xs rounded-full font-medium ${style.badge}`}
+                          >
+                            {n.type}
+                          </span>
+                        </div>
+
+                        <p className="text-sm text-slate-400">{n.message}</p>
+                        <p className="text-xs text-slate-500 mt-1">{n.time}</p>
+                      </div>
+
+                      {/* pin button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          togglePin(n.id);
+                        }}
+                        className={`shrink-0 mt-1 transition-colors ${
+                          n.pinned
+                            ? "text-yellow-400"
+                            : "text-slate-600 hover:text-slate-300"
+                        }`}
+                        title={n.pinned ? "Unpin" : "Pin"}
+                      >
+                        {n.pinned ? (
+                          <PushPinRoundedIcon fontSize="small" />
+                        ) : (
+                          <PushPinOutlinedIcon fontSize="small" />
+                        )}
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    // </div>
   );
 }
