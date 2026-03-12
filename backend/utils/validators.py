@@ -160,7 +160,8 @@ def validate_api_calls(num_api_calls: Any) -> Tuple[bool, Optional[str]]:
         pass
     
     return True, None
- def validate_error_count(error_count: Any) -> Tuple[bool, Optional[str]]:
+
+def validate_error_count(error_count: Any) -> Tuple[bool, Optional[str]]:
     """
     Validate error_count field
     
