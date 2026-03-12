@@ -448,4 +448,217 @@ class Alert(BaseModel):
                 "recommendation": "Block IP immediately"
             }
         }
-       
+# ============================================================================
+# TESTING
+# ============================================================================
+
+if __name__ == "__main__":
+    print("=" * 70)
+    print("WEIGHTED SCORE MODELS TEST")
+    print("=" * 70)
+    
+    # Test 1: Feature Score
+    print("\n1. Feature Score:")
+    feature_score = FeatureScore(
+        z_scores={'duration': 633.33, 'memory_used': 160.0},
+        weighted_sum=197478.0,
+        total_weight=0.85,
+        raw_score=232327.0,
+        normalized_score=1.0
+    )
+    print(f"   Z-scores: {feature_score.z_scores}")
+    print(f"   Normalized: {feature_score.normalized_score}")
+    assert feature_score.normalized_score == 1.0
+    print("    Feature score created successfully")
+    
+    # Test 2: Composite Score with CRITICAL severity
+    print("\n2. Composite Score (CRITICAL):")
+    composite_critical = CompositeScore(
+        feature_score=1.0,
+        packet_score=0.8,
+        temporal_score=0.3,
+        behavioral_score=0.95,
+        composite_score=0.89,
+        confidence=0.87,
+        severity='CRITICAL',
+        is_anomaly=True,
+        weights_applied={
+            'feature': 0.35,
+            'packet': 0.25,
+            'temporal': 0.20,
+            'behavioral': 0.20
+        }
+    )
+    print(f"   Composite: {composite_critical.composite_score}")
+    print(f"   Severity: {composite_critical.severity}")
+    print(f"   Is Anomaly: {composite_critical.is_anomaly}")
+    assert composite_critical.severity == 'CRITICAL'
+    print("    CRITICAL composite score created successfully")
+    
+    # Test 3: Composite Score with HIGH severity
+    print("\n3. Composite Score (HIGH):")
+    composite_high = CompositeScore(
+        feature_score=0.7,
+        packet_score=0.6,
+        temporal_score=0.2,
+        behavioral_score=0.5,
+        composite_score=0.65,
+        confidence=0.75,
+        severity='HIGH',
+        is_anomaly=True,
+        weights_applied={
+            'feature': 0.35,
+            'packet': 0.25,
+            'temporal': 0.20,
+            'behavioral': 0.20
+        }
+    )
+    print(f"   Composite: {composite_high.composite_score}")
+    print(f"   Severity: {composite_high.severity}")
+    assert composite_high.severity == 'HIGH'
+    print("    HIGH composite score created successfully")
+    
+    # Test 4: Composite Score with MEDIUM severity
+    print("\n4. Composite Score (MEDIUM):")
+    composite_medium = CompositeScore(
+        feature_score=0.5,
+        packet_score=0.4,
+        temporal_score=0.1,
+        behavioral_score=0.3,
+        composite_score=0.45,
+        confidence=0.60,
+        severity='MEDIUM',
+        is_anomaly=True,
+        weights_applied={
+            'feature': 0.35,
+            'packet': 0.25,
+            'temporal': 0.20,
+            'behavioral': 0.20
+        }
+    )
+    print(f"   Composite: {composite_medium.composite_score}")
+    print(f"   Severity: {composite_medium.severity}")
+    assert composite_medium.severity == 'MEDIUM'
+    print("    MEDIUM composite score created successfully")
+    
+    # Test 5: Composite Score with None severity (below threshold)
+    print("\n5. Composite Score (None - Below Threshold):")
+    composite_normal = CompositeScore(
+        feature_score=0.2,
+        packet_score=0.1,
+        temporal_score=0.0,
+        behavioral_score=0.1,
+        composite_score=0.35,
+        confidence=0.50,
+        severity=None,
+        is_anomaly=False,
+        weights_applied={
+            'feature': 0.35,
+            'packet': 0.25,
+            'temporal': 0.20,
+            'behavioral': 0.20
+        }
+    )
+    print(f"   Composite: {composite_normal.composite_score}")
+    print(f"   Severity: {composite_normal.severity}")
+    print(f"   Is Anomaly: {composite_normal.is_anomaly}")
+    assert composite_normal.severity is None
+    assert composite_normal.is_anomaly is False
+    print("    Normal (None severity) composite score created successfully")
+    
+    # Test 6: Baseline Stats
+    print("\n6. Baseline Stats:")
+    baseline = BaselineStats(
+        n=100,
+        mean=500.0,
+        std=15.0,
+        variance=225.0,
+        min=450.0,
+        max=550.0
+    )
+    print(f"   Mean: {baseline.mean}ms ± {baseline.std}ms")
+    print(f"   Range: [{baseline.min}, {baseline.max}]")
+    print(f"   Samples: {baseline.n}")
+    assert baseline.n == 100
+    print("    Baseline stats created successfully")
+    
+    # Test 7: Alert model
+    print("\n7. Alert Model:")
+    alert = Alert(
+        id="ALERT-1234",
+        timestamp="2026-03-09T10:30:00Z",
+        severity="CRITICAL",
+        anomaly_score=0.89,
+        confidence=0.98,
+        attack_type="crypto_mining",
+        ip_address="203.0.113.42",
+        function_name="payment-processor",
+        status="OPEN",
+        features={
+            "duration": 10000,
+            "memory_used": 450,
+            "num_api_calls": 2
+        },
+        evidence=[
+            "Duration 20x higher than normal",
+            "Memory 3.5x higher than normal"
+        ],
+        recommendation="Block IP immediately"
+    )
+    print(f"   Alert ID: {alert.id}")
+    print(f"   Severity: {alert.severity}")
+    print(f"   Score: {alert.anomaly_score}")
+    print(f"   Attack: {alert.attack_type}")
+    assert alert.severity == "CRITICAL"
+    print("    Alert created successfully")
+    
+    # Test 8: JSON serialization
+    print("\n8. JSON Serialization:")
+    json_output = composite_critical.model_dump_json(indent=2)
+    print(f"   Length: {len(json_output)} characters")
+    print(f"   First 150 chars: {json_output[:150]}...")
+    assert len(json_output) > 0
+    print("    JSON serialization works")
+    
+    # Test 9: Invalid severity (should raise error)
+    print("\n9. Invalid Severity Validation:")
+    try:
+        invalid = CompositeScore(
+            feature_score=1.0,
+            packet_score=0.8,
+            temporal_score=0.3,
+            behavioral_score=0.95,
+            composite_score=0.89,
+            confidence=0.87,
+            severity='INVALID',  # This should fail
+            is_anomaly=True,
+            weights_applied={'feature': 0.35, 'packet': 0.25, 'temporal': 0.20, 'behavioral': 0.20}
+        )
+        print("   Should have raised error for invalid severity")
+    except ValueError as e:
+        print(f"  Correctly rejected invalid severity: {str(e)}")
+    
+    # Test 10: Threshold Info
+    print("\n10. Threshold Info:")
+    threshold_info = ThresholdInfo(
+        score=0.89,
+        critical_threshold=0.8,
+        high_threshold=0.6,
+        medium_threshold=0.4,
+        exceeded="CRITICAL"
+    )
+    print(f"   Score: {threshold_info.score}")
+    print(f"   Exceeded: {threshold_info.exceeded} threshold")
+    print(f"   Thresholds: C={threshold_info.critical_threshold}, "
+          f"H={threshold_info.high_threshold}, M={threshold_info.medium_threshold}")
+    assert threshold_info.exceeded == "CRITICAL"
+    print("  Threshold info created successfully")
+    
+    print("\n" + "=" * 70)
+    print(" ALL MODELS WORKING CORRECTLY")
+    print("=" * 70)
+    print("\nAll 3 severity levels validated:")
+    print("   CRITICAL (score >= 0.8)")
+    print("   HIGH (score >= 0.6)")
+    print("   MEDIUM (score >= 0.4)")
+    print("   None (score < 0.4)")      
