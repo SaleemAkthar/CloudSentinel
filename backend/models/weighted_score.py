@@ -286,5 +286,59 @@ class DetectionResult(BaseModel):
                 "anomalies_detected": 3
             }
         }
+# ============================================================================
+# LEARNING PHASE RESULT
+# ============================================================================
 
+class LearningResult(BaseModel):
+    """
+    Result during learning phase
+    """
+    phase: str = Field(default='learning')
+    is_anomaly: bool = Field(default=False)
+    learning_progress: str = Field(
+        description="Progress indicator (e.g., '50/100')"
+    )
+    message: str = Field(
+        description="Human-readable status message"
+    )
+    requests_processed: int = Field(ge=0)
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "phase": "learning",
+                "is_anomaly": False,
+                "learning_progress": "75/100",
+                "message": "Building baseline... 75% complete",
+                "requests_processed": 75
+            }
+        }
+
+# ============================================================================
+# BASELINE STATISTICS MODEL
+# ============================================================================
+
+class BaselineStats(BaseModel):
+    """
+    Statistical baseline for a single feature
+    """
+    n: int = Field(ge=0, description="Number of samples")
+    mean: float = Field(description="Average value")
+    std: float = Field(ge=0.0, description="Standard deviation")
+    variance: float = Field(ge=0.0, description="Variance")
+    min: float = Field(description="Minimum value seen")
+    max: float = Field(description="Maximum value seen")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "n": 100,
+                "mean": 500.0,
+                "std": 15.0,
+                "variance": 225.0,
+                "min": 450.0,
+                "max": 550.0
+            }
+        }
         
