@@ -653,7 +653,7 @@ if __name__ == "__main__":
     ]
     for ip, expected in test_ips:
         is_valid, error = validate_ip_address(ip)
-        status = "✅" if is_valid == expected else "❌"
+        status = "Correct" if is_valid == expected else "Wrong"
         print(f"   {status} {ip:40s} -> Valid: {is_valid}")
         assert is_valid == expected, f"IP validation failed for {ip}"
     
