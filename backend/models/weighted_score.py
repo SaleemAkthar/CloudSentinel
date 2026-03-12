@@ -212,5 +212,79 @@ class CompositeScore(BaseModel):
                 "timestamp": "2026-03-09T10:30:00.000Z"
             }
         }
+# ============================================================================
+# DETECTION RESULT MODEL
+# ============================================================================
+
+class DetectionResult(BaseModel):
+    """
+    Complete detection result from Layer 1
+    
+    Contains all scoring details plus detection decision
+    """
+    # Phase
+    phase: str = Field(
+        description="Detection phase: 'learning' or 'detection'"
+    )
+    
+    # Scores
+    composite_score: CompositeScore
+    feature_details: FeatureScore
+    packet_details: Optional[PacketScore] = None
+    temporal_details: Optional[TemporalScore] = None
+    behavioral_details: Optional[BehavioralScore] = None
+    
+    # Baseline info
+    baseline: Dict[str, Dict] = Field(
+        description="Current baseline statistics"
+    )
+    
+    # Request metadata
+    requests_processed: int = Field(ge=0)
+    anomalies_detected: int = Field(ge=0)
+    
+    @field_validator('phase')
+    @classmethod
+    def validate_phase(cls, v):
+        """Ensure phase is valid"""
+        if v not in ['learning', 'detection']:
+            raise ValueError("Phase must be 'learning' or 'detection'")
+        return v
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "phase": "detection",
+                "composite_score": {
+                    "feature_score": 1.0,
+                    "packet_score": 0.8,
+                    "temporal_score": 0.0,
+                    "behavioral_score": 0.95,
+                    "composite_score": 0.89,
+                    "confidence": 0.87,
+                    "severity": "CRITICAL",
+                    "is_anomaly": True,
+                    "weights_applied": {
+                        "feature": 0.35,
+                        "packet": 0.25,
+                        "temporal": 0.20,
+                        "behavioral": 0.20
+                    },
+                    "timestamp": "2026-03-09T10:30:00Z"
+                },
+                "feature_details": {
+                    "z_scores": {"duration": 633.33, "memory_used": 160.0},
+                    "weighted_sum": 197478.0,
+                    "total_weight": 0.85,
+                    "raw_score": 232327.0,
+                    "normalized_score": 1.0
+                },
+                "baseline": {
+                    "duration": {"mean": 500.0, "std": 15.0, "n": 150}
+                },
+                "requests_processed": 150,
+                "anomalies_detected": 3
+            }
+        }
 
         
