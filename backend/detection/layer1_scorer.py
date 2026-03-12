@@ -64,7 +64,8 @@ class Layer1Scorer:
         # Packet statistics
         self.packet_stats = {}
         
-        # SARIMA forecaster (will be set later by Saleem)
+        # SARIMA forecaster (connects to Okitha's temporal analysis)
+        # Set via set_sarima_forecaster() method after initialization
         self.sarima_forecaster = None
         
         # State tracking
@@ -317,5 +318,130 @@ class Layer1Scorer:
         }
         
         return composite_score, details
+    def _update_baseline(self, features: Dict):
+        """Update baseline statistics with normal traffic"""
+        feature_names = ['duration', 'memory_used', 'num_api_calls', 'error_count', 'concurrency']
+        
+        for feature_name in feature_names:
+            if feature_name in features and feature_name in self.feature_stats:
+                value = float(features[feature_name])
+                self.feature_stats[feature_name].update(value)
     
+    def _update_ip_history(self, ip: str, features: Dict, is_anomaly: bool, score: float):
+        """Track IP behavior over time"""
+        if ip not in self.ip_history:
+            self.ip_history[ip] = {
+                'requests': 0,
+                'anomalies': 0,
+                'last_seen': None,
+                'request_rate': 0,
+                'entropy': 1.0,
+                'scores': []
+            }
+        
+        hist = self.ip_history[ip]
+        hist['requests'] += 1
+        if is_anomaly:
+            hist['anomalies'] += 1
+        hist['last_seen'] = datetime.now()
+        hist['scores'].append(score)
+        
+        # Keep only last 100 scores
+        if len(hist['scores']) > 100:
+            hist['scores'] = hist['scores'][-100:]
+        
+        # Simple request rate calculation (requests per minute)
+        # In production, use sliding window
+        hist['request_rate'] = hist['requests']  # Simplified
+    
+    def _build_evidence(
+        self,
+        features: Dict,
+        baseline_stats: Dict,
+        feature_details: Dict,
+        attack_type: str,
+        is_anomaly: bool
+    ) -> list:
+        """Build evidence list for alert"""
+        if not is_anomaly:
+            return []
+        
+        evidence = []
+        
+        # Duration evidence
+        if 'duration' in features and 'duration' in baseline_stats:
+            duration = features['duration']
+            mean = baseline_stats['duration']['mean']
+            if duration > mean * 2:
+                multiplier = duration / mean
+                evidence.append(
+                    f"Duration {multiplier:.1f}x higher than normal "
+                    f"({duration:.0f}ms vs {mean:.0f}ms)"
+                )
+        
+        # Memory evidence
+        if 'memory_used' in features and 'memory_used' in baseline_stats:
+            memory = features['memory_used']
+            mean = baseline_stats['memory_used']['mean']
+            if memory > mean * 1.5:
+                multiplier = memory / mean
+                evidence.append(
+                    f"Memory {multiplier:.1f}x higher than normal "
+                    f"({memory:.0f}MB vs {mean:.0f}MB)"
+                )
+        
+        # API calls evidence
+        if 'num_api_calls' in features:
+            api_calls = features['num_api_calls']
+            if api_calls > 10:
+                evidence.append(
+                    f"Excessive API calls ({api_calls} calls)"
+                )
+        
+        # Error evidence
+        if 'error_count' in features:
+            errors = features['error_count']
+            if errors > 0:
+                evidence.append(
+                    f"Errors detected ({errors} errors)"
+                )
+        
+        # Attack pattern evidence
+        if attack_type != 'unknown':
+            evidence.append(
+                f"Pattern matches {attack_type.replace('_', ' ')} signature"
+            )
+        
+        return evidence
+    
+    def _get_baseline_summary(self) -> Dict:
+        """Get summary of current baseline"""
+        summary = {}
+        for feature_name, stats in self.feature_stats.items():
+            stats_dict = stats.get_stats()
+            summary[feature_name] = {
+                'mean': round(stats_dict['mean'], 2),
+                'std': round(stats_dict['std'], 2),
+                'n': stats_dict['n']
+            }
+        return summary
+    
+    def set_sarima_forecaster(self, forecaster):
+        """Set SARIMA forecaster for temporal analysis"""
+        self.sarima_forecaster = forecaster
+        print(" SARIMA forecaster connected to Layer 1")
+    
+    def get_status(self) -> Dict:
+        """Get scorer status"""
+        return {
+            'phase': 'learning' if self.learning_phase else 'detection',
+            'requests_processed': self.n_requests,
+            'anomalies_detected': self.n_anomalies,
+            'learning_progress': f"{min(self.n_requests, self.learning_window)}/{self.learning_window}",
+            'baseline_features': list(self.feature_stats.keys()),
+            'detection_rate': f"{(self.n_anomalies/max(self.n_requests, 1))*100:.1f}%" if self.n_requests > 0 else "0%"
+        }
+    
+
+
     
