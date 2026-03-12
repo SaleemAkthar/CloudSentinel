@@ -516,4 +516,197 @@ def validate_score(score: float) -> float:
         1.0
     """
     return max(0.0, min(score, 1.0))
+# ============================================================================
+# PACKET/NETWORK VALIDATORS
+# ============================================================================
 
+def validate_packet_size(size: float) -> Tuple[bool, Optional[str]]:
+    """
+    Validate packet size value
+    
+    Args:
+        size: Packet size in bytes
+        
+    Returns:
+        (is_valid, error_message)
+    """
+    if not isinstance(size, (int, float)):
+        return False, "Must be numeric"
+    
+    if size < 0:
+        return False, "Cannot be negative"
+    
+    # 10MB max (suspicious if larger)
+    if size > 10_485_760:  # 10 * 1024 * 1024
+        return False, "Exceeds maximum packet size (10MB)"
+    
+    return True, None
+
+
+def validate_latency(latency: float) -> Tuple[bool, Optional[str]]:
+    """
+    Validate network latency value
+    
+    Args:
+        latency: Latency in milliseconds
+        
+    Returns:
+        (is_valid, error_message)
+    """
+    if not isinstance(latency, (int, float)):
+        return False, "Must be numeric"
+    
+    if latency < 0:
+        return False, "Cannot be negative"
+    
+    # 60 seconds max (extremely high)
+    if latency > 60000:
+        return False, "Exceeds maximum latency (60000ms)"
+    
+    return True, None
+
+
+# ============================================================================
+# TESTING
+# ============================================================================
+
+if __name__ == "__main__":
+    print("=" * 70)
+    print("VALIDATORS TEST")
+    print("=" * 70)
+    
+    # Test 1: Valid log entry
+    print("\n1. Valid Log Entry:")
+    valid_log = {
+        'duration': 500,
+        'memory_used': 130,
+        'num_api_calls': 3,
+        'ip_address': '192.168.1.1',
+        'timestamp': '2026-03-09T10:30:00Z'
+    }
+    is_valid, error = validate_log_entry(valid_log)
+    print(f"   Valid: {is_valid}, Error: {error}")
+    assert is_valid == True, "Valid log should pass"
+    
+    # Test 2: Missing required field
+    print("\n2. Missing Required Field:")
+    invalid_log = {
+        'duration': 500,
+        'memory_used': 130
+        # missing num_api_calls
+    }
+    is_valid, error = validate_log_entry(invalid_log)
+    print(f"   Valid: {is_valid}, Error: {error}")
+    assert is_valid == False, "Should fail on missing field"
+    
+    # Test 3: Invalid IP address
+    print("\n3. Invalid IP Address:")
+    bad_ip_log = {
+        'duration': 500,
+        'memory_used': 130,
+        'num_api_calls': 3,
+        'ip_address': '999.999.999.999'
+    }
+    is_valid, error = validate_log_entry(bad_ip_log)
+    print(f"   Valid: {is_valid}, Error: {error}")
+    assert is_valid == False, "Should fail on invalid IP"
+    
+    # Test 4: Negative duration
+    print("\n4. Negative Duration:")
+    negative_log = {
+        'duration': -100,
+        'memory_used': 130,
+        'num_api_calls': 3
+    }
+    is_valid, error = validate_log_entry(negative_log)
+    print(f"   Valid: {is_valid}, Error: {error}")
+    assert is_valid == False, "Should fail on negative duration"
+    
+    # Test 5: Feature sanitization
+    print("\n5. Feature Sanitization:")
+    dirty_features = {
+        'duration': '500',  # String, should convert to float
+        'memory_used': 130.5,
+        'num_api_calls': 3.9,  # Float, should convert to int
+        'error_count': -5  # Negative, should clamp to 0
+    }
+    sanitized = validate_features(dirty_features)
+    print(f"   Original duration: '500' (string)")
+    print(f"   Sanitized duration: {sanitized['duration']} ({type(sanitized['duration']).__name__})")
+    print(f"   Original num_api_calls: 3.9 (float)")
+    print(f"   Sanitized num_api_calls: {sanitized['num_api_calls']} ({type(sanitized['num_api_calls']).__name__})")
+    print(f"   Original error_count: -5")
+    print(f"   Sanitized error_count: {sanitized['error_count']}")
+    assert sanitized['duration'] == 500.0, "Should convert string to float"
+    assert sanitized['num_api_calls'] == 3, "Should convert float to int"
+    assert sanitized['error_count'] == 0, "Should clamp negative to 0"
+    
+    # Test 6: IP address validation
+    print("\n6. IP Address Validation:")
+    test_ips = [
+        ('192.168.1.1', True),
+        ('10.0.0.1', True),
+        ('invalid', False),
+        ('2001:0db8:85a3::8a2e:0370:7334', True),  # IPv6
+        ('999.999.999.999', False)
+    ]
+    for ip, expected in test_ips:
+        is_valid, error = validate_ip_address(ip)
+        status = "✅" if is_valid == expected else "❌"
+        print(f"   {status} {ip:40s} -> Valid: {is_valid}")
+        assert is_valid == expected, f"IP validation failed for {ip}"
+    
+    # Test 7: Alert ID validation
+    print("\n7. Alert ID Validation:")
+    test_ids = [
+        ('ALERT-1234', True),
+        ('ALERT-ABC123', True),
+        ('invalid', False),
+        ('alert-1234', False),  # lowercase
+        ('ALERT-', False),  # no suffix
+    ]
+    for alert_id, expected in test_ids:
+        is_valid, error = validate_alert_id(alert_id)
+        status = "Correct" if is_valid == expected else "Wrong"
+        print(f"   {status} {alert_id:20s} -> Valid: {is_valid}")
+        assert is_valid == expected, f"Alert ID validation failed for {alert_id}"
+    
+    # Test 8: Batch validation
+    print("\n8. Batch Validation:")
+    logs = [
+        {'duration': 500, 'memory_used': 130, 'num_api_calls': 3},
+        {'duration': -100, 'memory_used': 130, 'num_api_calls': 3},  # Invalid
+        {'duration': 600, 'memory_used': 140, 'num_api_calls': 2},
+    ]
+    valid, errors = validate_log_batch(logs)
+    print(f"   Total logs: {len(logs)}")
+    print(f"   Valid logs: {len(valid)}")
+    print(f"   Errors: {len(errors)}")
+    for error in errors:
+        print(f"     - {error}")
+    assert len(valid) == 2, "Should have 2 valid logs"
+    assert len(errors) == 1, "Should have 1 error"
+    
+    # Test 9: Score validation (clamping)
+    print("\n9. Score Validation (Clamping):")
+    test_scores = [-0.5, 0.0, 0.5, 1.0, 1.5]
+    for score in test_scores:
+        clamped = validate_score(score)
+        print(f"   Score {score:5.1f} -> Clamped: {clamped:.1f}")
+        assert 0.0 <= clamped <= 1.0, "Score should be clamped to [0, 1]"
+    
+    # Test 10: String sanitization
+    print("\n10. String Sanitization:")
+    dangerous_strings = [
+        "Normal text",
+        "'; DROP TABLE--",
+        "<script>alert('xss')</script>",
+        "../../etc/passwd"
+    ]
+    for dangerous in dangerous_strings:
+        sanitized = sanitize_string(dangerous)
+        print(f"   '{dangerous}' -> '{sanitized}'")
+    
+    print("\n" + "=" * 70)
+    print("ALL VALIDATORS TEST PASSED")
+    print("=" * 70)
