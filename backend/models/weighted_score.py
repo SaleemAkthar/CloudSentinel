@@ -341,4 +341,111 @@ class BaselineStats(BaseModel):
                 "max": 550.0
             }
         }
-        
+# ============================================================================
+# THRESHOLD INFO MODEL
+# ============================================================================
+
+class ThresholdInfo(BaseModel):
+    """
+    Information about which threshold was exceeded
+    """
+    score: float = Field(ge=0.0, le=1.0, description="Actual anomaly score")
+    critical_threshold: float = Field(default=0.8)
+    high_threshold: float = Field(default=0.6)
+    medium_threshold: float = Field(default=0.4)
+    exceeded: Optional[str] = Field(
+        default=None,
+        description="Which threshold was exceeded: CRITICAL, HIGH, MEDIUM, or None"
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "score": 0.89,
+                "critical_threshold": 0.8,
+                "high_threshold": 0.6,
+                "medium_threshold": 0.4,
+                "exceeded": "CRITICAL"
+            }
+        }
+
+
+# ============================================================================
+# ALERT MODEL (for API responses)
+# ============================================================================
+
+class Alert(BaseModel):
+    """
+    Alert model for frontend consumption
+    """
+    id: str = Field(description="Alert ID (e.g., ALERT-1234)")
+    timestamp: str = Field(description="ISO 8601 timestamp")
+    severity: str = Field(description="CRITICAL, HIGH, or MEDIUM")
+    anomaly_score: float = Field(ge=0.0, le=1.0)
+    confidence: float = Field(ge=0.0, le=1.0)
+    attack_type: str = Field(description="Detected attack type")
+    ip_address: str = Field(description="Source IP address")
+    function_name: Optional[str] = Field(default=None)
+    status: str = Field(default="OPEN", description="OPEN or CLOSED")
+    
+    # Feature values that triggered alert
+    features: Dict[str, float] = Field(
+        description="Feature values (duration, memory, etc.)"
+    )
+    
+    # Evidence
+    evidence: List[str] = Field(
+        default_factory=list,
+        description="List of evidence strings"
+    )
+    
+    # Recommendation
+    recommendation: str = Field(
+        default="Investigate this alert",
+        description="Recommended action"
+    )
+    
+    @field_validator('severity')
+    @classmethod
+    def validate_severity(cls, v):
+        """Ensure severity is valid"""
+        valid_severities = ['CRITICAL', 'HIGH', 'MEDIUM']
+        if v not in valid_severities:
+            raise ValueError(f"Severity must be one of {valid_severities}")
+        return v
+    
+    @field_validator('status')
+    @classmethod
+    def validate_status(cls, v):
+        """Ensure status is valid"""
+        valid_statuses = ['OPEN', 'CLOSED']
+        if v not in valid_statuses:
+            raise ValueError(f"Status must be one of {valid_statuses}")
+        return v
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": "ALERT-1234",
+                "timestamp": "2026-03-09T10:30:00Z",
+                "severity": "CRITICAL",
+                "anomaly_score": 0.89,
+                "confidence": 0.98,
+                "attack_type": "crypto_mining",
+                "ip_address": "203.0.113.42",
+                "function_name": "payment-processor",
+                "status": "OPEN",
+                "features": {
+                    "duration": 10000,
+                    "memory_used": 450,
+                    "num_api_calls": 2
+                },
+                "evidence": [
+                    "Duration 20x higher than normal (10,000ms vs 500ms)",
+                    "Memory 3.5x higher than normal (450MB vs 130MB)",
+                    "Pattern matches crypto-mining signature"
+                ],
+                "recommendation": "Block IP immediately"
+            }
+        }
+       
