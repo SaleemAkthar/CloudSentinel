@@ -12,12 +12,19 @@ This layer:
 
 Author: Raneesha (Backend Team)
 """
+import sys
+import os
+
+# Add project root to Python path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, project_root)
+
 import numpy as np
 from typing import Dict, Tuple, Optional
 from datetime import datetime
 
 # Import our mathematical functions
-from utils.formula import (
+from backend.utils.formula import (
     WelfordStatistics,
     calculate_feature_anomaly,
     calculate_packet_anomaly,
@@ -29,7 +36,7 @@ from utils.formula import (
 )
 
 # Import weight configurations
-from utils.weights import (
+from backend.utils.weights import (
     FEATURE_WEIGHTS,
     COMPONENT_WEIGHTS,
     ANOMALY_THRESHOLD,
