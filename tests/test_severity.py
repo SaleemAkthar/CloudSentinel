@@ -2,7 +2,7 @@
 #   python -m pytest tests/test_severity.py -v
 
 import unittest
-from backend.online_detector import OnlineDetector
+from backend.detection.online_detector import OnlineDetector
 
 
 class TestSeverityClassifier(unittest.TestCase):
