@@ -1,5 +1,17 @@
-# Run from the project root:
-#   uvicorn backend.api:app --reload --port 8000
+"""
+Cloud Sentinel — FastAPI Backend
+=================================
+Entry point for the anomaly detection API.
+
+Detection pipeline:
+    POST /process_log  →  Layer1Scorer  →  SARIMAForecaster  →  AlertStore
+    POST /api/scan     →  Layer1Filter  →  Layer2Scanner      →  AlertStore
+
+Run from the project root:
+    uvicorn backend.api:app --reload --port 8000
+
+Author: Okitha (API Integration & SARIMA)
+"""
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,13 +21,14 @@ import uvicorn
 import datetime
 import uuid
 
-from backend.detection.online_detector import OnlineDetector
+from backend.detection.layer1_scorer import Layer1Scorer
 from backend.detection.sarima_forecaster import SARIMAForecaster
 from backend.storage.in_memory_store import AlertStore
 from backend.detection.layer1_filter import Layer1Filter
 from backend.detection.layer2_scanner import Layer2Scanner
 
-# Layer 2 Investigator — import gracefully so API still starts if file is missing
+# Layer2Investigator is optional — the API starts normally without it.
+# Endpoints that require it return 503 until Saleem's file is in place.
 try:
     from backend.detection.layer2_investigator import Layer2Investigator
     _L2_AVAILABLE = True
@@ -24,7 +37,7 @@ except ImportError:
 
 app = FastAPI(title="Cloud Sentinel API", version="2.0")
 
-# ── CORS ──────────────────────────────────────────────────────────────────────
+# Allow the Vite dev server and any local React build to call this API.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://localhost:3000"],
@@ -33,30 +46,50 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Singletons ────────────────────────────────────────────────────────────────
-# These must NOT be re-instantiated per request — they accumulate state.
-detector          = OnlineDetector(learning_window=100)
+# ---------------------------------------------------------------------------
+# Module-level singletons
+# Each component is instantiated once at startup and reused across requests
+# so that state (baselines, trained models, stored alerts) is preserved.
+# ---------------------------------------------------------------------------
+
+# SARIMA must be created before Layer1Scorer so it can be passed in.
 sarima_forecaster = SARIMAForecaster()
-alert_store       = AlertStore()
-layer2            = Layer2Investigator() if _L2_AVAILABLE else None
-log_storage       = []   # All processed log entries for the behaviour log viewer
-lambda_metrics    = {}   # Latest per-function Lambda metrics
+
+# Layer 1 weighted scorer. Learning window = 100 requests before detection
+# begins. SARIMA is wired in here so temporal scores feed into the composite.
+detector = Layer1Scorer(learning_window=100)
+detector.set_sarima_forecaster(sarima_forecaster)
+
+alert_store    = AlertStore()
+layer2         = Layer2Investigator() if _L2_AVAILABLE else None
+log_storage    = []  # in-memory audit log shown in the Behaviour Logs page
+lambda_metrics = {}  # per-function invocation stats for the Lambda monitor
 layer1_filter  = Layer1Filter()
 layer2_scanner = Layer2Scanner()
 
 
-# ── Request / Response Models ─────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Request models
+# ---------------------------------------------------------------------------
 
 class LogRequest(BaseModel):
-    """Single Lambda execution event submitted by the frontend or test scripts."""
-    duration:      float
-    memory_used:   float
-    num_api_calls: int
-    function_name: str   = "unknown"
-    ip_address:    str   = "10.0.0.1"
+    """
+    A single Lambda execution event.
+    Sent by the frontend simulator or the generate_test_data script.
+    """
+    duration:      float          # execution time in ms
+    memory_used:   float          # memory consumed in MB
+    num_api_calls: int            # outbound API calls made during execution
+    function_name: str  = "unknown"
+    ip_address:    str  = "10.0.0.1"
+    error_count:   int  = 0
+
 
 class PacketRequest(BaseModel):
-    """Full packet submission including network-layer fields."""
+    """
+    A full network packet submission.
+    Used by /api/scan which runs the Layer1Filter + Layer2Scanner pipeline.
+    """
     duration:             float
     memory_used:          float
     num_api_calls:        int
@@ -76,15 +109,20 @@ class PacketRequest(BaseModel):
     region:               str   = "us-east-1"
     content_type:         str   = "application/json"
 
-# ── Private Helpers ───────────────────────────────────────────────────────────
+
+# ---------------------------------------------------------------------------
+# Internal helpers  (prefixed _ — not exposed as endpoints)
+# ---------------------------------------------------------------------------
 
 def _build_alert(log_request: LogRequest, detector_result: dict) -> dict:
     """
-    Convert raw detector output into a frontend-compatible alert object.
-    Normalises the Z-score to [0.0, 1.0] and maps severity to the three
-    values the frontend accepts: CRITICAL, WARNING, INFO.
+    Construct a frontend-compatible alert record from a Layer1Scorer result.
+
+    Layer1Scorer already returns anomaly_score in [0.0, 1.0], so no
+    rescaling is needed. Internal severity labels (HIGH, MEDIUM) are
+    collapsed to WARNING because the frontend only renders three levels.
     """
-    normalised_score = round(min(detector_result.get("anomaly_score", 0) / 10.0, 1.0), 2)
+    normalised_score = round(min(detector_result.get("anomaly_score", 0), 1.0), 2)
 
     severity_map = {
         "CRITICAL": "CRITICAL",
@@ -99,7 +137,7 @@ def _build_alert(log_request: LogRequest, detector_result: dict) -> dict:
         "timestamp":     datetime.datetime.utcnow().isoformat() + "Z",
         "function":      log_request.function_name,
         "severity":      frontend_severity,
-        "threat_type":   detector_result.get("threat_type", "Unknown"),
+        "threat_type":   detector_result.get("attack_type", "Unknown"),
         "status":        "OPEN",
         "anomaly_score": normalised_score,
         "confidence":    detector_result.get("confidence", 0),
@@ -109,12 +147,16 @@ def _build_alert(log_request: LogRequest, detector_result: dict) -> dict:
             "outbound_calls": int(log_request.num_api_calls),
             "ip_address":     log_request.ip_address,
         },
-        "z_scores": detector_result.get("z_scores", {}),
+        "evidence":   detector_result.get("evidence", []),
+        "components": detector_result.get("components", {}),
     }
 
 
 def _build_log_entry(log_request: LogRequest, result: dict) -> dict:
-    """Build an audit-log record. Every request is logged (not just anomalies)."""
+    """
+    Build a single audit-log row. Every request is recorded regardless
+    of whether it is flagged as an anomaly, giving a complete event trail.
+    """
     is_anomaly  = result.get("is_anomaly", False)
     is_critical = is_anomaly and result.get("severity") == "CRITICAL"
 
@@ -130,15 +172,19 @@ def _build_log_entry(log_request: LogRequest, result: dict) -> dict:
 
 
 def _update_lambda_metrics(log_request: LogRequest, is_anomaly: bool):
-    """Keep a rolling summary of per-function Lambda metrics."""
+    """
+    Maintain a running total of per-function invocation stats.
+    Anomalous invocations increment the error counter, which is used
+    to calculate the error rate shown on the Lambda monitor page.
+    """
     fn = log_request.function_name
     if fn not in lambda_metrics:
         lambda_metrics[fn] = {
-            "function_name":    fn,
-            "invocations":      0,
-            "total_duration":   0.0,
-            "total_memory":     0.0,
-            "error_count":      0,
+            "function_name":  fn,
+            "invocations":    0,
+            "total_duration": 0.0,
+            "total_memory":   0.0,
+            "error_count":    0,
         }
     m = lambda_metrics[fn]
     m["invocations"]    += 1
@@ -148,27 +194,45 @@ def _update_lambda_metrics(log_request: LogRequest, is_anomaly: bool):
         m["error_count"] += 1
 
 
-# ── Core Detection ────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Core detection endpoint
+# ---------------------------------------------------------------------------
 
 @app.post("/process_log")
 def process_log(request: LogRequest):
     """
-    Core detection endpoint.
-    1. Passes features to the statistical anomaly detector (Layer 1).
-    2. Feeds the duration to the SARIMA forecaster.
-    3. Creates an alert if an anomaly is detected.
-    4. Logs every request for the behaviour log viewer.
+    Main detection pipeline for Lambda execution events.
+
+    Flow:
+        1. Build feature dict from the incoming request.
+        2. Pass to Layer1Scorer, which runs weighted anomaly scoring.
+           SARIMA temporal scoring is handled inside Layer1Scorer via
+           the forecaster reference set at startup.
+        3. During the learning phase (first 100 requests), data points
+           are collected but no anomaly decisions are made.
+        4. After learning, if the composite score exceeds the threshold,
+           an alert is created and stored.
+        5. Every request is appended to the audit log regardless of result.
     """
     features = {
-        "duration":      request.duration,
-        "memory_used":   request.memory_used,
-        "num_api_calls": request.num_api_calls,
+        "duration":        request.duration,
+        "memory_used":     request.memory_used,
+        "num_api_calls":   request.num_api_calls,
+        "error_count":     request.error_count,
+        "ip_address":      request.ip_address,
+        "timestamp":       datetime.datetime.utcnow().isoformat(),
+        # Packet-level fields default to neutral values when not supplied
+        # by a basic LogRequest (only populated via /api/scan PacketRequest).
+        "concurrency":     1,
+        "packet_size_in":  512,
+        "packet_size_out": 0,
+        "latency":         0.0,
+        "fragment_count":  0,
     }
 
-    # ── Layer 1: Statistical detection ──
-    result = detector.process_log(features)
+    score, result = detector.process_log(features)
 
-    # Still in learning phase — log but return early
+    # During learning, just log the request and feed SARIMA — no alert.
     if result.get("phase") == "learning":
         log_storage.append(_build_log_entry(request, result))
         sarima_forecaster.add_data_point(
@@ -177,7 +241,7 @@ def process_log(request: LogRequest):
         )
         return result
 
-    # ── SARIMA: Feed data point + get temporal anomaly score ──
+    # Feed SARIMA independently so it also maintains its own data series.
     sarima_forecaster.add_data_point(
         request.duration,
         datetime.datetime.utcnow().isoformat(),
@@ -185,29 +249,27 @@ def process_log(request: LogRequest):
     temporal_score = sarima_forecaster.detect_temporal_anomaly(request.duration)
     result["temporal_anomaly_score"] = round(temporal_score, 3)
 
-    # ── Build log entry ──
     log_storage.append(_build_log_entry(request, result))
     _update_lambda_metrics(request, is_anomaly=result.get("is_anomaly", False))
 
-    # ── Create alert if anomaly ──
     if result.get("is_anomaly"):
         alert_store.add(_build_alert(request, result))
 
-    result["normalised_score"] = round(
-        min(result.get("anomaly_score", 0) / 10.0, 1.0), 2
-    )
+    result["normalised_score"] = round(min(score, 1.0), 2)
     return result
 
 
-# ── Alert Endpoints ───────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Alert endpoints
+# ---------------------------------------------------------------------------
 
 @app.get("/api/alerts")
 def get_alerts(
-    severity: Optional[str] = Query(None, description="Filter by CRITICAL / WARNING / INFO"),
-    status:   Optional[str] = Query(None, description="Filter by OPEN / CLOSED"),
-    limit:    int            = Query(100,  description="Max alerts to return"),
+    severity: Optional[str] = Query(None, description="CRITICAL | WARNING | INFO"),
+    status:   Optional[str] = Query(None, description="OPEN | CLOSED"),
+    limit:    int            = Query(100,  description="Maximum number of alerts to return"),
 ):
-    """Return stored alerts with optional severity / status filtering."""
+    """Return stored alerts. Supports filtering by severity and status."""
     alerts = alert_store.get_all()
 
     if severity:
@@ -220,13 +282,15 @@ def get_alerts(
 
 @app.get("/api/alerts/summary")
 def get_alerts_summary():
-    """Return alert counts grouped by severity."""
-    alerts = alert_store.get_all()
+    """Return alert counts broken down by severity and open/closed state."""
+    alerts  = alert_store.get_all()
     summary = {"CRITICAL": 0, "WARNING": 0, "INFO": 0, "total": len(alerts)}
+
     for a in alerts:
         sev = a.get("severity", "INFO")
         if sev in summary:
             summary[sev] += 1
+
     summary["open"]   = sum(1 for a in alerts if a.get("status") == "OPEN")
     summary["closed"] = sum(1 for a in alerts if a.get("status") == "CLOSED")
     return summary
@@ -234,7 +298,7 @@ def get_alerts_summary():
 
 @app.get("/api/alerts/{alert_id}")
 def get_alert(alert_id: str):
-    """Fetch a single alert by ID. Returns 404 if not found."""
+    """Fetch a single alert by ID."""
     alert = alert_store.get_by_id(alert_id)
     if not alert:
         raise HTTPException(status_code=404, detail=f"Alert '{alert_id}' not found.")
@@ -243,7 +307,7 @@ def get_alert(alert_id: str):
 
 @app.patch("/api/alerts/{alert_id}/close")
 def close_alert(alert_id: str):
-    """Mark an alert as CLOSED (acknowledged)."""
+    """Mark an alert as CLOSED once a analyst has reviewed it."""
     if not alert_store.close(alert_id):
         raise HTTPException(status_code=404, detail=f"Alert '{alert_id}' not found.")
     return {"success": True}
@@ -252,14 +316,15 @@ def close_alert(alert_id: str):
 @app.post("/api/alerts/{alert_id}/investigate")
 def investigate_alert(alert_id: str):
     """
-    Trigger a Layer 2 deep forensic investigation on an alert.
-    Returns a full investigation report including risk score,
-    matched attack patterns, and prioritised recommendations.
+    Trigger a Layer 2 forensic investigation on a flagged alert.
+    Delegates to Layer2Investigator (Saleem) which produces a detailed
+    report with matched attack patterns and remediation recommendations.
+    Returns 503 if layer2_investigator.py has not been implemented yet.
     """
     if not _L2_AVAILABLE or layer2 is None:
         raise HTTPException(
             status_code=503,
-            detail="Layer 2 Investigator not available. Check backend/detection/layer2_investigator.py.",
+            detail="Layer 2 Investigator is not available yet.",
         )
 
     alert = alert_store.get_by_id(alert_id)
@@ -267,12 +332,12 @@ def investigate_alert(alert_id: str):
         raise HTTPException(status_code=404, detail=f"Alert '{alert_id}' not found.")
 
     log_data = {
-        "duration":        alert.get("features", {}).get("duration_ms", 0),
-        "memory_used":     alert.get("features", {}).get("memory_used_mb", 0),
-        "num_api_calls":   alert.get("features", {}).get("outbound_calls", 0),
-        "ip_address":      alert.get("features", {}).get("ip_address", "10.0.0.1"),
-        "function_name":   alert.get("function", "unknown"),
-        "timestamp":       alert.get("timestamp"),
+        "duration":      alert.get("features", {}).get("duration_ms", 0),
+        "memory_used":   alert.get("features", {}).get("memory_used_mb", 0),
+        "num_api_calls": alert.get("features", {}).get("outbound_calls", 0),
+        "ip_address":    alert.get("features", {}).get("ip_address", "10.0.0.1"),
+        "function_name": alert.get("function", "unknown"),
+        "timestamp":     alert.get("timestamp"),
     }
     alert_metadata = {
         "severity":      alert.get("severity"),
@@ -288,61 +353,75 @@ def investigate_alert(alert_id: str):
     )
 
 
-# ── Log Endpoints ─────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Audit log endpoint
+# ---------------------------------------------------------------------------
 
 @app.get("/api/logs")
-def get_logs(limit: int = Query(100, description="Max log entries to return")):
-    """Return all audit-log entries recorded in the current session."""
+def get_logs(limit: int = Query(100, description="Maximum number of log entries to return")):
+    """Return the most recent audit log entries for the Behaviour Logs page."""
     return log_storage[-limit:]
 
 
-# ── Lambda Monitor Endpoints ──────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Lambda monitor endpoints
+# ---------------------------------------------------------------------------
 
 @app.get("/api/lambda/overview")
 def get_lambda_overview():
-    """Return aggregate Lambda monitoring metrics across all functions."""
+    """
+    Return aggregate Lambda metrics across all tracked functions.
+    Fallback values are shown when no requests have been processed yet,
+    so the dashboard cards are never blank on first load.
+    """
     all_functions = list(lambda_metrics.values())
-    total_inv = sum(f["invocations"] for f in all_functions)
-    avg_dur   = (
-        sum(f["total_duration"] for f in all_functions) / max(total_inv, 1)
-    )
-    total_err = sum(f["error_count"] for f in all_functions)
+    total_inv  = sum(f["invocations"] for f in all_functions)
+    avg_dur    = sum(f["total_duration"] for f in all_functions) / max(total_inv, 1)
+    total_err  = sum(f["error_count"] for f in all_functions)
     error_rate = round((total_err / max(total_inv, 1)) * 100, 2)
 
     return {
-        "total_invocations":   total_inv or 38484,   # fallback for empty state
-        "avg_response_time":   round(avg_dur, 1) or 487,
-        "error_rate":          error_rate or 1.2,
-        "active_functions":    len(all_functions),
-        "functions":           all_functions,
+        "total_invocations": total_inv  or 38484,
+        "avg_response_time": round(avg_dur, 1) or 487,
+        "error_rate":        error_rate or 1.2,
+        "active_functions":  len(all_functions),
+        "functions":         all_functions,
     }
 
 
 @app.get("/api/lambda/functions")
 def get_lambda_functions():
-    """Return per-function Lambda metrics."""
+    """Return per-function Lambda metrics with computed averages."""
     result = []
     for fn, m in lambda_metrics.items():
         inv = m["invocations"]
         result.append({
-            "function_name":    fn,
-            "invocations":      inv,
-            "avg_duration_ms":  round(m["total_duration"] / max(inv, 1), 1),
-            "avg_memory_mb":    round(m["total_memory"]   / max(inv, 1), 1),
-            "error_count":      m["error_count"],
-            "error_rate_pct":   round(m["error_count"] / max(inv, 1) * 100, 2),
+            "function_name":   fn,
+            "invocations":     inv,
+            "avg_duration_ms": round(m["total_duration"] / max(inv, 1), 1),
+            "avg_memory_mb":   round(m["total_memory"]   / max(inv, 1), 1),
+            "error_count":     m["error_count"],
+            "error_rate_pct":  round(m["error_count"] / max(inv, 1) * 100, 2),
         })
     return result
 
 
-# ── Model Health ──────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# Model health endpoint
+# ---------------------------------------------------------------------------
 
 @app.get("/api/model/health")
 def model_health():
-    """Return AI model performance metrics for the dashboard health card."""
+    """
+    Return detection model performance metrics for the dashboard health card.
+
+    Accuracy improves as more requests are seen (up to a ceiling of 99.9%).
+    Precision decreases as the anomaly rate rises above expected levels.
+    These are heuristic estimates suitable for a demo dashboard.
+    """
     status        = detector.get_status()
     requests_seen = status.get("requests_processed", 0)
-    anomalies     = status.get("anomalies_found", 0)
+    anomalies     = status.get("anomalies_detected", 0)
     sarima_status = sarima_forecaster.get_status()
 
     precision = round(max(0, 100 - (anomalies / max(requests_seen, 1)) * 5), 1)
@@ -352,67 +431,76 @@ def model_health():
         "accuracy":        accuracy,
         "precision":       precision,
         "recall":          40.0,
-        "trainingActive":  status.get("phase") == "Learning",
+        "trainingActive":  status.get("phase") == "learning",
         "delta":           2.3,
         "sarima_trained":  sarima_status["trained"],
         "sarima_progress": sarima_status["progress_pct"],
     }
 
 
-# ── System Status ─────────────────────────────────────────────────────────────
+# ---------------------------------------------------------------------------
+# System status endpoint
+# ---------------------------------------------------------------------------
 
 @app.get("/status")
 def get_status():
-    """Health check — returns API status, detector state, and SARIMA state."""
+    """
+    Health check endpoint.
+    Returns the current state of the detector, SARIMA forecaster,
+    and whether Layer 2 is available.
+    """
     return {
-        "status":          "running",
-        "detector_stats":  detector.get_status(),
-        "sarima_status":   sarima_forecaster.get_status(),
+        "status":           "running",
+        "detector_stats":   detector.get_status(),
+        "sarima_status":    sarima_forecaster.get_status(),
         "layer2_available": _L2_AVAILABLE,
-        "timestamp":       datetime.datetime.utcnow().isoformat() + "Z",
+        "timestamp":        datetime.datetime.utcnow().isoformat() + "Z",
     }
 
-# ── L1 & L2 Scanning ─────────────────────────────────────────────────────────────
+
+# ---------------------------------------------------------------------------
+# Packet scanning endpoints  (Layer1Filter → Layer2Scanner pipeline)
+# ---------------------------------------------------------------------------
 
 @app.post("/api/scan")
 def scan_packet(req: PacketRequest):
     """
-    Two-layer packet scanning endpoint.
-    
-    Layer 1: Fast TTL + size check (< 1ms).
-    Layer 2: Deep scan only if Layer 1 flags the packet.
-    
-    Returns Layer 1 result if safe, or full Layer 2 report if suspicious.
+    Two-stage packet inspection endpoint.
+
+    Stage 1 — Layer1Filter: Checks TTL and packet size against safe thresholds.
+    If the packet passes, it is returned immediately with decision PASS.
+
+    Stage 2 — Layer2Scanner: Runs only on packets that failed Stage 1.
+    Performs deep inspection (IP analysis, payload scoring, risk classification)
+    and returns a full scan report. HIGH and MEDIUM severity results are
+    also stored as alerts.
     """
     packet = req.dict()
 
-    # ── Layer 1 ───────────────────────────────────────────────────────────────
     l1 = layer1_filter.check(packet)
 
     if l1["pass"]:
         return {
-            "layer": 1,
+            "layer":    1,
             "decision": "PASS",
-            "layer1": l1,
-            "layer2": None,
+            "layer1":   l1,
+            "layer2":   None,
             "severity": "SAFE",
-            "message": "Packet passed Layer 1 — no deep scan required",
+            "message":  "Packet cleared Layer 1 — no further inspection required.",
         }
 
-    # ── Layer 2 ───────────────────────────────────────────────────────────────
     l2 = layer2_scanner.scan(packet, l1)
 
-    # Store as an alert if HIGH or MEDIUM
     if l2["severity"] in ("HIGH", "MEDIUM"):
         alert = {
-            "id":           l2["scan_id"],
-            "timestamp":    l2["timestamp"],
-            "function":     req.function_name,
-            "severity":     "CRITICAL" if l2["severity"] == "HIGH" else "WARNING",
-            "status":       "OPEN",
+            "id":            l2["scan_id"],
+            "timestamp":     l2["timestamp"],
+            "function":      req.function_name,
+            "severity":      "CRITICAL" if l2["severity"] == "HIGH" else "WARNING",
+            "status":        "OPEN",
             "anomaly_score": l2["risk_score"],
-            "threat_type":  l2["ai_recommendation"]["action"],
-            "confidence":   l2["ai_recommendation"]["confidence"],
+            "threat_type":   l2["ai_recommendation"]["action"],
+            "confidence":    l2["ai_recommendation"]["confidence"],
             "features": {
                 "duration_ms":         req.duration,
                 "memory_used_mb":      req.memory_used,
@@ -431,22 +519,26 @@ def scan_packet(req: PacketRequest):
         "layer1":   l1,
         "layer2":   l2,
         "severity": l2["severity"],
-        "message":  f"Layer 2 scan complete in {l2['elapsed_ms']}ms",
+        "message":  f"Layer 2 scan completed in {l2['elapsed_ms']}ms.",
     }
+
 
 @app.get("/api/alerts/{alert_id}/packet-report")
 def get_packet_report(alert_id: str):
-    """Return the full Layer 2 packet report for an alert."""
+    """
+    Retrieve the full Layer 2 packet scan report attached to an alert.
+    Only alerts created via /api/scan carry a packet report.
+    """
     alert = alert_store.get_by_id(alert_id)
     if not alert:
         raise HTTPException(status_code=404, detail=f"Alert '{alert_id}' not found.")
-    
+
     report = alert.get("layer2_report")
     if not report:
-        raise HTTPException(status_code=404, detail="No Layer 2 packet report for this alert.")
-    
+        raise HTTPException(status_code=404, detail="No packet report found for this alert.")
+
     return report
+
 
 if __name__ == "__main__":
     uvicorn.run("backend.api:app", host="0.0.0.0", port=8000, reload=True)
-
