@@ -103,7 +103,7 @@ _IP_RANGES: List[Tuple] = [
     # ── Sri Lanka ─────────────────────────────────────────────────────────────
     ("112.134.0.0/16",   "LK",  "Sri Lanka",          "Colombo",    6.9,   79.9,   "AS9329",   "SLT Sri Lanka"),
     ("117.239.0.0/16",   "LK",  "Sri Lanka",          "Colombo",    6.9,   79.9,   "AS9329",   "SLT Sri Lanka"),
-    ("203.143.0.0/16",   "LK",  "Sri Lanka",          "Colombo",    6.9,   79.9",  "AS9329",   "Dialog Sri Lanka"),
+    ("203.143.0.0/16",   "LK",  "Sri Lanka",          "Colombo",    6.9,   79.9,   "AS9329",   "Dialog Sri Lanka"),
 
     # ── Private / RFC1918 ─────────────────────────────────────────────────────
     ("10.0.0.0/8",       "PR",  "Private Network",    "Internal",   0.0,    0.0,   "AS0",      "RFC1918 Private"),
