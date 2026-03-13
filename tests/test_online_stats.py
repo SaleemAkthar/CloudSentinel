@@ -1,5 +1,5 @@
 import unittest
-from backend.online_detector import OnlineStats
+from backend.detection.online_detector import OnlineStats
 
 class TestSaleemCore(unittest.TestCase):
     def test_welford_accuracy(self):
