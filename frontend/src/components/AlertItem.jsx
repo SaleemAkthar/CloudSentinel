@@ -1,4 +1,4 @@
-export default function AlertItem({ alert }) {
+export default function AlertItem({ alert, onInvestigate }) {
   if (!alert) return null;
 
   const severityColors = {
@@ -57,7 +57,9 @@ export default function AlertItem({ alert }) {
 
       {/* RIGHT ACTION BUTTONS */}
       <div className="flex gap-2 flex-shrink-0">
-        <button className="px-3 py-2 text-xs rounded-lg bg-blue-600/20 border border-blue-500 text-blue-300 hover:bg-blue-600/30 whitespace-nowrap">
+        <button 
+          onClick={() => onInvestigate?.(alert.id)}
+          className="px-3 py-2 text-xs rounded-lg bg-blue-600/20 border border-blue-500 text-blue-300 hover:bg-blue-600/30 whitespace-nowrap">
           Investigate
         </button>
 

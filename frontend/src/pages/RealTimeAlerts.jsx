@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import AlertItem from "../components/AlertItem";
+import Investigation from "./Investigate";
 import alertsData from "../test/alerts.json";
 
 export default function RealTimeAlerts() {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedAlertId, setSelectedAlertId] = useState(null);
 
   useEffect(() => {
     try {
@@ -65,11 +67,24 @@ export default function RealTimeAlerts() {
         ) : (
           <div className="divide-y divide-white/10">
             {alerts.map(alert => (
-              <AlertItem key={alert.id} alert={alert} />
+              <AlertItem 
+                key={alert.id} 
+                alert={alert} 
+                onInvestigate={(alertId) => setSelectedAlertId(alertId)}
+              />
             ))}
           </div>
         )}
       </div>
+
+      {/* Investigation Modal */}
+      {selectedAlertId && (
+        <Investigation 
+          alertId={selectedAlertId} 
+          onClose={() => setSelectedAlertId(null)} 
+        />
+      )}
+      
     </div>
   );
 }
