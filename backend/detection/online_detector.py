@@ -1,6 +1,9 @@
 """
 Cloud Sentinel:Learning Anomaly Detector
 Welford's Algorithm, Multi-feature Z-scoring, and Severity Classification
+
+   DEPRECATED — replaced by Layer1Scorer (backend/detection/layer1_scorer.py)
+   Kept for reference only. Do not use in new code.
 """
 
 from datetime import datetime
