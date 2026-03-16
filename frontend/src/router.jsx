@@ -5,7 +5,6 @@ import Profile from "./pages/Profile";
 import Notifications from "./pages/Notifications";
 import RealTimeAlerts from "./pages/RealTimeAlerts";
 import AIInsights from "./pages/AIInsights";
-import Team from "./pages/Team";
 import BehaviourLogs from "./components/BehaviourLogs";
 import AWSLambdaMonitorPage from "./pages/AWSLambdaMonitorPage";
 import Settings from "./pages/Settings";
@@ -28,7 +27,6 @@ export const router = createBrowserRouter([
       { path: "logs", element: <BehaviourLogs /> },
       { path: "lambda", element: <AWSLambdaMonitorPage /> },
       { path: "insights", element: <AIInsights /> },
-      { path: "team", element: <Team /> },
       { path: "settings", element: <Settings /> },
       { path: "profile", element: <Profile /> },
       { path: "notifications", element: <Notifications /> },
