@@ -57,7 +57,7 @@ export default function AppShell() {
               <SideItem to="/logs" icon={<DescriptionOutlinedIcon fontSize="small" />} label="Behaviour Logs" />
               <SideItem to="/lambda" icon={<ShowChartRoundedIcon fontSize="small" />} label="AWS Lambda Monitor" />
               <SideItem to="/insights" icon={<AutoAwesomeRoundedIcon fontSize="small" />} label="AI Insights" />
-              {/* <SideItem to="/team" icon={<GroupOutlinedIcon fontSize="small" />} label="Team" /> */}
+              <SideItem to="/signup" icon={<GroupOutlinedIcon fontSize="small" />} label="Sign Up" />
             </div>
 
             <div className="mt-5 border-t border-white/10 pt-4">

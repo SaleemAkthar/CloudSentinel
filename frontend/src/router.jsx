@@ -8,6 +8,7 @@ import AIInsights from "./pages/AIInsights";
 import BehaviourLogs from "./components/BehaviourLogs";
 import AWSLambdaMonitorPage from "./pages/AWSLambdaMonitorPage";
 import Settings from "./pages/Settings";
+import SignUp from "./pages/Signup";
 
 
 const Placeholder = ({ title }) => (
@@ -30,6 +31,8 @@ export const router = createBrowserRouter([
       { path: "settings", element: <Settings /> },
       { path: "profile", element: <Profile /> },
       { path: "notifications", element: <Notifications /> },
+      { path: "signup", element: <SignUp /> },
+      
     ],
   },
 ]);

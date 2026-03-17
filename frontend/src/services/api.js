@@ -2,7 +2,7 @@ import axios from "axios";
 import mockAlerts from "../test/alerts.json";
 
 // Toggle this when backend is ready:
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 // If we using backend later, we can call:
 // GET /api/alerts
