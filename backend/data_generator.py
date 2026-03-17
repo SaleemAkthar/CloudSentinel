@@ -270,6 +270,83 @@ def generate_ddos_attack(timestamp: datetime) -> Dict:
         'attack_type': 'ddos_loop'
     }
 
+    def generate_ip_spoofing_attack(timestamp):
+    """
+    IP SPOOFING ATTACK
+    
+    What it is: Attacker disguises their real IP address to bypass security,
+    hide identity, or impersonate a trusted source.
+    
+    Detection signals (used by Layer 2 ip_spoofing pattern):
+    - Impossible TTL values (0, 1, 250, 254 — not matching any real OS)
+    - Private IP appearing from public internet
+    - Low source port (below 1024 — unusual for client traffic)
+    - Packet fragmentation (fragments used to evade detection)
+    - Otherwise normal-looking request (attacker hides in plain sight)
+    
+    Characteristics:
+    - Normal or slightly elevated duration (not the giveaway)
+    - Normal memory usage (not the giveaway)
+    - Low-moderate API calls
+    - The IP metadata is what's suspicious, not the execution metrics
+    
+    References:
+    - OWASP: IP Spoofing is used in DDoS amplification and session hijacking
+    - Layer 2 detection: TTL analysis, geolocation jumps, private IP checks
+    """
+    
+    # Spoofed IP addresses — mix of private IPs that shouldn't come from
+    # public internet, and known suspicious ranges
+    spoofed_ips = [
+        '10.0.0.1',          # Private IP from "public" internet
+        '172.16.0.100',      # Private IP from "public" internet
+        '192.168.1.1',       # Private IP from "public" internet
+        '5.34.178.52',       # Known suspicious range (Russia)
+        '31.13.80.10',       # Spoofing a Meta/Facebook IP
+        '185.220.101.42',    # Tor exit node range
+        '45.155.205.10',     # Known bulletproof hosting
+    ]
+    
+    # Impossible or suspicious TTL values
+    # Normal: 64 (Linux), 128 (Windows), 255 (Cisco)
+    # Suspicious: 0, 1, 3, 250, 254 — no real OS uses these
+    suspicious_ttls = [0, 1, 3, 250, 254, 17, 33]
+    
+    # Low source ports (below 1024) are suspicious for client traffic
+    # Normal clients use ephemeral ports (49152-65535)
+    suspicious_source_port = random.randint(1, 1023)
+    
+    # The execution itself looks fairly normal — spoofing is about
+    # the network metadata, not the Lambda behavior
+    duration = int(np.random.uniform(200, 600))
+    memory_used = int(np.random.uniform(100, 160))
+    num_api_calls = random.randint(2, 8)
+    
+    # Some fragmentation (used to evade packet inspection)
+    fragment_count = random.randint(2, 6)
+    
+    api_calls = ['dynamodb:Query'] * min(num_api_calls, 3)
+    if num_api_calls > 3:
+        api_calls.extend(['s3:GetObject'] * (num_api_calls - 3))
+    
+    return {
+        'timestamp': timestamp.isoformat(),
+        'requestId': f'req-{random.randint(100000, 999999):06d}',
+        'functionName': random.choice(FUNCTION_TYPES),
+        'duration': duration,
+        'memoryUsed': memory_used,
+        'memorySize': NORMAL_RANGES['memory_size'],
+        'statusCode': 200,
+        'apiCalls': api_calls,
+        'errorMessage': None,
+        'attack_type': 'ip_spoofing',
+        # Extra metadata for Layer 2 IP analysis
+        'ip_address': random.choice(spoofed_ips),
+        'ttl': random.choice(suspicious_ttls),
+        'source_port': suspicious_source_port,
+        'fragment_count': fragment_count,
+    }
+
 
 def generate_error_spike_attack(timestamp: datetime) -> Dict:
     """
