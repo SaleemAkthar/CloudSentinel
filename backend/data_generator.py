@@ -700,19 +700,18 @@ if __name__ == "__main__":
     
     # Test 3: Show one of each attack type
     print("\n" + "=" * 70)
-    print("Test 3: Sample of Each Attack Type")
+    print("Test 3: Sample of Each Attack Type (6 Types)")
     print("-" * 70)
     
     timestamp = datetime.now()
     
     attack_generators = [
-        ('Crypto Mining', generate_crypto_mining_attack),
-        ('Data Exfiltration', generate_data_exfiltration_attack),
-        ('SQL Injection', generate_sql_injection_attack),
-        ('SSRF', generate_ssrf_attack),
-        ('Memory Attack', generate_memory_leak_attack),
-        ('DDoS/Loop', generate_ddos_attack),
-        ('Error Spike', generate_error_spike_attack),
+        ('Crypto Mining',      generate_crypto_mining_attack),
+        ('Data Exfiltration',  generate_data_exfiltration_attack),
+        ('SQL Injection',      generate_sql_injection_attack),
+        ('DDoS',               generate_ddos_attack),
+        ('Memory Attack',      generate_memory_leak_attack),
+        ('IP Spoofing',        generate_ip_spoofing_attack),
     ]
     
     for name, func in attack_generators:
@@ -722,10 +721,15 @@ if __name__ == "__main__":
         print(f"  Memory: {log['memoryUsed']}MB")
         print(f"  Status: {log['statusCode']}")
         print(f"  API Calls: {len(log['apiCalls'])}")
-        if log['errorMessage']:
+        print(f"  Attack Type: {log['attack_type']}")
+        if log.get('errorMessage'):
             print(f"  Error: {log['errorMessage'][:50]}...")
+        if log.get('ip_address'):
+            print(f"  IP: {log['ip_address']}")
+        if log.get('ttl'):
+            print(f"  TTL: {log['ttl']}")
     
     print("\n" + "=" * 70)
     print(" ALL TESTS COMPLETE!")
     print("=" * 70)
-    
+ 
