@@ -42,13 +42,11 @@ def test_learning_phase():
     # After 10 requests, should be in detection phase
     assert scorer.learning_phase == False
 
-    def test_normal_request_detection():
-        """
-        Test that normal requests don't trigger alerts
-        """
 
+def test_normal_request_detection():
+    """Test that normal requests don't trigger alerts"""
     scorer = Layer1Scorer(learning_window=10)
-    
+
     # Learn baseline
     for i in range(10):
         scorer.process_log({
@@ -57,7 +55,7 @@ def test_learning_phase():
             'packet_size_out': 512, 'latency': 50, 'fragment_count': 1,
             'ip_address': '192.168.1.1', 'timestamp': datetime.now().isoformat()
         })
-    
+
     # Test normal request
     score, details = scorer.process_log({
         'duration': 505, 'memory_used': 128, 'num_api_calls': 3,
@@ -65,39 +63,13 @@ def test_learning_phase():
         'packet_size_out': 512, 'latency': 50, 'fragment_count': 1,
         'ip_address': '192.168.1.1', 'timestamp': datetime.now().isoformat()
     })
-    
+
     assert details['is_anomaly'] == False
     assert details['severity'] is None
     assert score < 0.4
 
-    def test_critical_severity():
-    """
-    Test CRITICAL severity detection (crypto-mining)
-    """
-    scorer = Layer1Scorer(learning_window=10)
-    # Learn baseline
-    for i in range(10):
-        scorer.process_log({
-            'duration': 500, 'memory_used': 130, 'num_api_calls': 3,
-            'error_count': 0, 'concurrency': 1, 'packet_size_in': 1024,
-            'packet_size_out': 512, 'latency': 50, 'fragment_count': 1,
-            'ip_address': '192.168.1.1', 'timestamp': datetime.now().isoformat()
-        })
-    # Test crypto-mining attack
-    score, details = scorer.process_log({
-        'duration': 10000,  # 20x normal
-        'memory_used': 450,  # 3.5x normal
-        'num_api_calls': 2,
-        'error_count': 0, 'concurrency': 1, 'packet_size_in': 1024,
-        'packet_size_out': 512, 'latency': 50, 'fragment_count': 1,
-        'ip_address': '192.168.1.100', 'timestamp': datetime.now().isoformat()
-    })
-    assert details['is_anomaly'] == True
-    assert details['severity'] == 'CRITICAL'
-    assert score >= 0.8
-    assert details['attack_type'] == 'crypto_mining'
 
-    def test_critical_severity():
+def test_critical_severity():
     """Test CRITICAL severity detection (crypto-mining)"""
     scorer = Layer1Scorer(learning_window=10)
     
