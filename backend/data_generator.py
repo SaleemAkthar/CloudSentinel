@@ -190,24 +190,24 @@ def generate_sql_injection_attack(timestamp: datetime) -> Dict:
     }
 
 
-def generate_ssrf_attack(timestamp: datetime) -> Dict:
-    num_http_calls = int(np.random.uniform(6, 15))  # Excessive external calls
-    
-    api_calls = ['https:GET'] * num_http_calls
-    api_calls.extend(['dynamodb:GetItem'] * random.randint(0, 2))
-    
-    return {
-        'timestamp': timestamp.isoformat(),
-        'requestId': f'req-{random.randint(100000, 999999):06d}',
-        'functionName': random.choice(FUNCTION_TYPES),
-        'duration': int(np.random.uniform(1000, 2000)),
-        'memoryUsed': int(np.random.uniform(120, 180)),
-        'memorySize': NORMAL_RANGES['memory_size'],
-        'statusCode': 200,
-        'apiCalls': api_calls,
-        'errorMessage': None,
-        'attack_type': 'ssrf_attempt'
-    }
+# def generate_ssrf_attack(timestamp: datetime) -> Dict:
+#     num_http_calls = int(np.random.uniform(6, 15))  # Excessive external calls
+#
+#     api_calls = ['https:GET'] * num_http_calls
+#     api_calls.extend(['dynamodb:GetItem'] * random.randint(0, 2))
+#
+#     return {
+#         'timestamp': timestamp.isoformat(),
+#         'requestId': f'req-{random.randint(100000, 999999):06d}',
+#         'functionName': random.choice(FUNCTION_TYPES),
+#         'duration': int(np.random.uniform(1000, 2000)),
+#         'memoryUsed': int(np.random.uniform(120, 180)),
+#         'memorySize': NORMAL_RANGES['memory_size'],
+#         'statusCode': 200,
+#         'apiCalls': api_calls,
+#         'errorMessage': None,
+#         'attack_type': 'ssrf_attempt'
+#     }
 
 
 def generate_memory_leak_attack(timestamp: datetime) -> Dict:
@@ -348,40 +348,40 @@ def generate_ddos_attack(timestamp: datetime) -> Dict:
     }
 
 
-def generate_error_spike_attack(timestamp: datetime) -> Dict:
-    """
-    ERROR SPIKE ATTACK
-    
-    What it is: Deliberate triggering of errors to disrupt service
-    
-    Characteristics:
-    - Status 400/500 errors
-    - Error messages
-    - Normal duration (fails fast)
-    """
-    
-    error_types = [
-        {'code': 400, 'message': 'Bad Request: Missing required parameter'},
-        {'code': 401, 'message': 'Unauthorized: Invalid credentials'},
-        {'code': 403, 'message': 'Forbidden: Access denied'},
-        {'code': 500, 'message': 'Internal Server Error'},
-        {'code': 502, 'message': 'Bad Gateway: Upstream connection failed'},
-    ]
-    
-    error = random.choice(error_types)
-    
-    return {
-        'timestamp': timestamp.isoformat(),
-        'requestId': f'req-{random.randint(100000, 999999):06d}',
-        'functionName': random.choice(FUNCTION_TYPES),
-        'duration': int(np.random.uniform(200, 500)),  # Fast failures
-        'memoryUsed': int(np.random.uniform(80, 150)),
-        'memorySize': NORMAL_RANGES['memory_size'],
-        'statusCode': error['code'],
-        'apiCalls': ['dynamodb:GetItem'] * random.randint(0, 2),
-        'errorMessage': error['message'],
-        'attack_type': 'error_spike'
-    }
+# def generate_error_spike_attack(timestamp: datetime) -> Dict:
+#     """
+#     ERROR SPIKE ATTACK
+#
+#     What it is: Deliberate triggering of errors to disrupt service
+#
+#     Characteristics:
+#     - Status 400/500 errors
+#     - Error messages
+#     - Normal duration (fails fast)
+#     """
+#
+#     error_types = [
+#         {'code': 400, 'message': 'Bad Request: Missing required parameter'},
+#         {'code': 401, 'message': 'Unauthorized: Invalid credentials'},
+#         {'code': 403, 'message': 'Forbidden: Access denied'},
+#         {'code': 500, 'message': 'Internal Server Error'},
+#         {'code': 502, 'message': 'Bad Gateway: Upstream connection failed'},
+#     ]
+#
+#     error = random.choice(error_types)
+#
+#     return {
+#         'timestamp': timestamp.isoformat(),
+#         'requestId': f'req-{random.randint(100000, 999999):06d}',
+#         'functionName': random.choice(FUNCTION_TYPES),
+#         'duration': int(np.random.uniform(200, 500)),  # Fast failures
+#         'memoryUsed': int(np.random.uniform(80, 150)),
+#         'memorySize': NORMAL_RANGES['memory_size'],
+#         'statusCode': error['code'],
+#         'apiCalls': ['dynamodb:GetItem'] * random.randint(0, 2),
+#         'errorMessage': error['message'],
+#         'attack_type': 'error_spike'
+#     }
 
 
 def generate_suspicious_timing_attack(timestamp: datetime) -> Dict:
