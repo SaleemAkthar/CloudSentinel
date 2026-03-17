@@ -416,39 +416,34 @@ class EnhancedLogGenerator:
         
         return generate_normal_log(timestamp, variation)
     
-    def _generate_attack(self, timestamp: datetime) -> Dict:
+     def _generate_attack(self, timestamp):
         """
-        Generate attack log
+        Generate attack log — 6 attack types matching Layer 2 and frontend
         
         Attack type probabilities:
-        - 25% Crypto Mining (most dangerous)
-        - 20% Data Exfiltration (most damaging)
-        - 20% SQL Injection (most common)
-        - 15% SSRF
-        - 10% Memory Attack
-        - 5% DDoS/Loop
-        - 3% Error Spike
-        - 2% Suspicious Timing
+        - 25% Crypto Mining    (most dangerous, highest duration/memory)
+        - 25% Data Exfiltration (high API calls, large outbound — includes SSRF patterns)
+        - 20% SQL Injection    (high errors, many DB queries — includes error spike patterns)
+        - 10% DDoS             (high concurrency, repeated calls — includes suspicious timing)
+        - 10% Memory Attack    (extreme memory usage, near limit)
+        - 10% IP Spoofing      (TTL mismatch, impossible travel, private IP from public)
         """
         
         rand = random.random()
         
         if rand < 0.25:
             return generate_crypto_mining_attack(timestamp)
-        elif rand < 0.45:
+        elif rand < 0.50:
             return generate_data_exfiltration_attack(timestamp)
-        elif rand < 0.65:
+        elif rand < 0.70:
             return generate_sql_injection_attack(timestamp)
         elif rand < 0.80:
-            return generate_ssrf_attack(timestamp)
+            return generate_ddos_attack(timestamp)
         elif rand < 0.90:
             return generate_memory_leak_attack(timestamp)
-        elif rand < 0.95:
-            return generate_ddos_attack(timestamp)
-        elif rand < 0.98:
-            return generate_error_spike_attack(timestamp)
         else:
-            return generate_suspicious_timing_attack(timestamp)
+            return generate_ip_spoofing_attack(timestamp)
+ 
     
     def generate_batch(self, count: int = 100) -> List[Dict]:
         """
