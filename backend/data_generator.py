@@ -384,34 +384,34 @@ def generate_ddos_attack(timestamp: datetime) -> Dict:
 #     }
 
 
-def generate_suspicious_timing_attack(timestamp: datetime) -> Dict:
-    """
-    SUSPICIOUS TIMING ATTACK
-    
-    What it is: Unusual activity during off-hours
-    
-    Characteristics:
-    - Happens at night (2-5 AM)
-    - Otherwise normal-looking
-    - But context is suspicious
-    """
-    
-    # Make it happen at night
-    night_hour = random.randint(2, 5)
-    suspicious_timestamp = timestamp.replace(hour=night_hour)
-    
-    return {
-        'timestamp': suspicious_timestamp.isoformat(),
-        'requestId': f'req-{random.randint(100000, 999999):06d}',
-        'functionName': random.choice(FUNCTION_TYPES),
-        'duration': int(np.random.uniform(400, 800)),
-        'memoryUsed': int(np.random.uniform(120, 180)),
-        'memorySize': NORMAL_RANGES['memory_size'],
-        'statusCode': 200,
-        'apiCalls': ['dynamodb:Query'] * random.randint(2, 5),
-        'errorMessage': None,
-        'attack_type': 'suspicious_timing'
-    }
+# def generate_suspicious_timing_attack(timestamp: datetime) -> Dict:
+#     """
+#     SUSPICIOUS TIMING ATTACK
+#
+#     What it is: Unusual activity during off-hours
+#
+#     Characteristics:
+#     - Happens at night (2-5 AM)
+#     - Otherwise normal-looking
+#     - But context is suspicious
+#     """
+#
+#     # Make it happen at night
+#     night_hour = random.randint(2, 5)
+#     suspicious_timestamp = timestamp.replace(hour=night_hour)
+#
+#     return {
+#         'timestamp': suspicious_timestamp.isoformat(),
+#         'requestId': f'req-{random.randint(100000, 999999):06d}',
+#         'functionName': random.choice(FUNCTION_TYPES),
+#         'duration': int(np.random.uniform(400, 800)),
+#         'memoryUsed': int(np.random.uniform(120, 180)),
+#         'memorySize': NORMAL_RANGES['memory_size'],
+#         'statusCode': 200,
+#         'apiCalls': ['dynamodb:Query'] * random.randint(2, 5),
+#         'errorMessage': None,
+#         'attack_type': 'suspicious_timing'
+#     }
 
 
 # MAIN GENERATOR CLASS
