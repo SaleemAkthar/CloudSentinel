@@ -5,12 +5,13 @@ Entry point for the anomaly detection API.
 
 Detection pipeline:
     POST /process_log
-        → Layer 1 Filter (hard rule gate: TTL, DDoS, spoofing)
-            ↓ PASS → traffic allowed, AI model keeps learning
+        → Layer1Scorer  (AI scoring — runs FIRST)
+            ↓
+        → Layer1Filter  (hard rule confirmation — runs AFTER scorer)
+            ↓ PASS → traffic allowed
             ↓ FAIL → Layer 2 Scanner (deep forensics)
                 → AI Model (Isolation Forest + Random Forest ensemble)
                     → Decision: ALLOW / INVESTIGATE / BLOCK
-                        → Alert → Dashboard → Analyst → ALLOW or BLOCK
 
 Run from project root:
     uvicorn backend.api:app --reload --port 8000
