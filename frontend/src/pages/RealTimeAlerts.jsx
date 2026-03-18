@@ -1,7 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import axios from "axios";
 import AlertItem from "../components/AlertItem";
 import Investigation from "./Investigate";
-import alertsData from "../test/alerts.json";
+
+
+// ── Polling interval — refresh every 10 seconds ────────────────────────
+const POLL_INTERVAL = 500;
+
 
 export default function RealTimeAlerts() {
   const [alerts, setAlerts] = useState([]);
@@ -9,38 +14,67 @@ export default function RealTimeAlerts() {
   const [error, setError] = useState(null);
   const [selectedAlertId, setSelectedAlertId] = useState(null);
 
-  useEffect(() => {
+  // ── Fetch alerts from live backend ──────────────────────────────────
+  const fetchAlerts = useCallback(async () => {
     try {
-      console.log("Alert data:", alertsData);
-      setAlerts(Array.isArray(alertsData) ? alertsData : []);
+      const res = await axios.get("/api/alerts?limit=500");
+      const data = Array.isArray(res.data) ? res.data : [];
+
+      // Sort by timestamp descending (newest first)
+      data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      setAlerts(data);
       setError(null);
-      setLoading(false);
     } catch (err) {
-      console.error("Error loading alerts:", err);
-      setError(err.message);
-      setAlerts([]);
+      console.error("Failed to fetch alerts:", err);
+      setError("Backend unavailable — please ensure the server is running");
+    } finally {
       setLoading(false);
     }
   }, []);
 
-  console.log("Current alerts state:", alerts);
-  const critical = alerts.filter(a => a.severity === "CRITICAL").length;
-  const high = alerts.filter(a => a.severity === "WARNING").length;
-  const medium = alerts.filter(a => a.severity === "INFO").length;
+  useEffect(() => {
+    fetchAlerts();
+    const interval = setInterval(fetchAlerts, POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchAlerts]);
 
-  console.log("Summary - Critical:", critical, "High:", high, "Medium:", medium, "Total:", alerts.length);
+  // ── Counts ──────────────────────────────────────────────────────────
+  const critical = alerts.filter((a) => a.severity === "CRITICAL").length;
+  const high = alerts.filter((a) => a.severity === "WARNING").length;
+  const medium = alerts.filter((a) => a.severity === "INFO").length;
 
   return (
     <div className="space-y-8">
       {/* HEADER */}
-      <div>
-        <h1 className="text-3xl font-bold text-white">
-          Real-Time Security Alerts
-        </h1>
-        <p className="text-slate-400 mt-1">
-          Monitor and respond to security threats in real-time
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-white">
+            Real-Time Security Alerts
+          </h1>
+          <p className="text-slate-400 mt-1">
+            Monitor and respond to security threats in real-time
+          </p>
+        </div>
+
+        {/* Live indicator */}
+        <div className="flex items-center gap-2">
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${
+              error ? "bg-red-400" : "bg-emerald-400 animate-pulse"
+            }`}
+          />
+          <span className="text-xs text-slate-400">
+            {error ? "Disconnected" : "Live — Layer 1 + Layer 2"}
+          </span>
+        </div>
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
 
       {/* SUMMARY CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -50,26 +84,25 @@ export default function RealTimeAlerts() {
         <SummaryCard title="Total" count={alerts.length} color="blue" />
       </div>
 
-      {/* ACTIVE THREATS SECTION */}
+      {/* ACTIVE THREATS */}
       <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-        <div className="px-5 py-3 border-b border-white/10 text-sm font-semibold text-slate-300">
-          Active Threats
+        <div className="px-5 py-3 border-b border-white/10 text-sm font-semibold text-slate-300 flex items-center justify-between">
+          <span>Active Threats</span>
+          <span className="text-xs text-slate-500 font-normal">
+            Polling every {POLL_INTERVAL / 1000}s
+          </span>
         </div>
 
-        {error && (
-          <div className="p-6 text-red-400">Error: {error}</div>
-        )}
-        
         {loading ? (
           <div className="p-6 text-slate-400">Loading alerts…</div>
         ) : alerts.length === 0 ? (
           <div className="p-6 text-emerald-400">No active threats 🎉</div>
         ) : (
           <div className="divide-y divide-white/10">
-            {alerts.map(alert => (
-              <AlertItem 
-                key={alert.id} 
-                alert={alert} 
+            {alerts.map((alert) => (
+              <AlertItem
+                key={alert.id}
+                alert={alert}
                 onInvestigate={(alertId) => setSelectedAlertId(alertId)}
               />
             ))}
@@ -79,15 +112,15 @@ export default function RealTimeAlerts() {
 
       {/* Investigation Modal */}
       {selectedAlertId && (
-        <Investigation 
-          alertId={selectedAlertId} 
-          onClose={() => setSelectedAlertId(null)} 
+        <Investigation
+          alertId={selectedAlertId}
+          onClose={() => setSelectedAlertId(null)}
         />
       )}
-      
     </div>
   );
 }
+
 
 function SummaryCard({ title, count, color }) {
   const colors = {

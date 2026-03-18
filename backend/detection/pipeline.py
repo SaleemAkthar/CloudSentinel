@@ -192,32 +192,69 @@ class CloudSentinelPipeline:
             "temporal_context": temporal_context,
         }
 
-        # ── STAGE 2: LAYER 1 ─────────────────────────────────────────────────
-        # Rebuild Layer1Filter with SARIMA dynamic thresholds
+        # ── STAGE 2A: LAYER 1 SCORER (AI scoring — runs first) ──────────────
+        # Feeds every packet into the AI model to keep baseline updated.
+        # During learning phase: just collects data, no anomaly decision.
+        # After learning:        calculates Z-scores + weighted composite.
+        scorer_features  = self._extract_scorer_features(packet)
+        l1_score, l1_score_details = _ai_model.process_log(scorer_features)
+        stages["layer1_scorer"] = {
+            "score":   round(l1_score, 4),
+            "details": l1_score_details,
+        }
+
+        scorer_is_anomaly = (
+            l1_score_details.get("phase") != "learning"
+            and l1_score_details.get("is_anomaly", False)
+        )
+        scorer_learning = l1_score_details.get("phase") == "learning"
+
+        # ── STAGE 2B: LAYER 1 FILTER (hard rules — runs after scorer) ────────
+        # Always runs regardless of scorer result.
+        # Specifically catches DDoS (API call rate), IP spoofing,
+        # data exfiltration (outbound ratio), and fragmentation attacks.
+        # SARIMA provides dynamic duration threshold.
         dynamic_l1 = Layer1Filter(
-            ttl_min      = sarima_thresholds["ttl_min"],
-            ttl_max      = sarima_thresholds["ttl_max"],
-            size_max     = sarima_thresholds["size_max"],
+            ttl_min         = sarima_thresholds["ttl_min"],
+            ttl_max         = sarima_thresholds["ttl_max"],
+            size_max        = sarima_thresholds["size_max"],
             duration_max_ms = sarima_thresholds["duration_max"],
         )
-        l1_result = dynamic_l1.check(packet)
+        l1_filter_result = dynamic_l1.check(packet)
+        stages["layer1_filter"] = l1_filter_result
+
+        filter_has_violations = not l1_filter_result["pass"]
+
+        # Combined Layer 1 result
+        # ALLOW only if: filter clean AND (scorer says normal OR still learning)
+        # FAIL  if:      filter has violations OR scorer found anomaly
+        l1_pass = (not filter_has_violations) and (not scorer_is_anomaly)
+
+        l1_result = {
+            "pass":              l1_pass,
+            "scorer_anomaly":    scorer_is_anomaly,
+            "scorer_learning":   scorer_learning,
+            "filter_violations": l1_filter_result["violations"],
+            "filter_passed":     l1_filter_result["pass"],
+            "l1_score":          round(l1_score, 4),
+            "filter_result":     l1_filter_result,
+            "scorer_result":     l1_score_details,
+        }
         stages["layer1"] = l1_result
 
         # ALLOW immediately if Layer 1 passes
-        if l1_result["pass"]:
+        if l1_pass:
             elapsed_ms = round((time.perf_counter() - t0) * 1000, 3)
-            # Still feed AI model so it keeps learning normal patterns
-            self._feed_ai_model(packet, is_training_only=True)
             return self._build_result(
                 pipeline_id = pipeline_id,
                 timestamp   = timestamp,
                 decision    = "ALLOW",
                 confidence  = 0.95,
-                severity    = "SAFE",
+                severity    = "MEDIUM",
                 stages      = stages,
                 elapsed_ms  = elapsed_ms,
                 stopped_at  = "layer1",
-                reason      = "Packet passed all Layer 1 checks",
+                reason      = "Passed Layer 1 scorer and filter — normal traffic",
             )
 
         # ── STAGE 3: LAYER 2 ─────────────────────────────────────────────────
@@ -258,6 +295,24 @@ class CloudSentinelPipeline:
         )
 
     # ── Feed AI model (learning only, no decision) ────────────────────────────
+
+    # ── Extract features for Layer 1 Scorer ───────────────────────────
+
+    def _extract_scorer_features(self, packet: dict) -> dict:
+        """Minimal features for Layer1Scorer baseline learning."""
+        return {
+            "duration":        packet.get("duration", 0),
+            "memory_used":     packet.get("memory_used", 0),
+            "num_api_calls":   packet.get("num_api_calls", 0),
+            "error_count":     packet.get("error_count", 0),
+            "concurrency":     1,
+            "packet_size_in":  packet.get("packet_size_in", 512),
+            "packet_size_out": packet.get("packet_size_out", 0),
+            "latency":         packet.get("network_latency", 0),
+            "fragment_count":  packet.get("fragment_count", 0),
+            "ip_address":      packet.get("ip_address", "10.0.0.1"),
+            "timestamp":       datetime.datetime.utcnow().isoformat(),
+        }
 
     def _feed_ai_model(self, packet: dict, is_training_only: bool = False):
         """Feed normal packets into the AI model to keep the baseline updated."""
@@ -328,15 +383,12 @@ class CloudSentinelPipeline:
         into a final ALLOW / INVESTIGATE / BLOCK decision.
 
         Decision rules:
-          BLOCK       → AI score >= 0.7  OR  L2 severity CRITICAL
-                        OR (AI score >= 0.5 AND L2 severity HIGH)
-          INVESTIGATE → AI score >= 0.4  OR  L2 severity HIGH or MEDIUM
-                        OR temporal off-peak attack
-          ALLOW       → everything else
+          BLOCK       -> CRITICAL or combined >= 0.75 or HIGH
+          INVESTIGATE -> everything else that reached Layer 2
+          ALLOW       -> only returned by Layer 1 fast-pass
         """
-        l2_severity      = l2_result.get("severity", "LOW")
+        l2_severity      = l2_result.get("severity", "MEDIUM")
         l2_risk          = l2_result.get("risk", {}).get("adjusted_score", 0)
-        is_off_peak_atk  = temporal.get("is_off_peak_attack", False)
         ai_phase         = ai_details.get("phase")
 
         # During AI learning phase — rely purely on Layer 2
@@ -344,11 +396,9 @@ class CloudSentinelPipeline:
             if l2_severity == "CRITICAL":
                 return "BLOCK", 0.85
             elif l2_severity == "HIGH":
-                return "INVESTIGATE", 0.72
-            elif l2_severity == "MEDIUM":
-                return "INVESTIGATE", 0.60
+                return "BLOCK", 0.72
             else:
-                return "ALLOW", 0.80
+                return "INVESTIGATE", 0.60
 
         # Full decision with AI score
         combined = (ai_score * 0.5) + (l2_risk * 0.5)
@@ -361,20 +411,17 @@ class CloudSentinelPipeline:
             decision   = "BLOCK"
             confidence = min(0.60 + combined * 0.20, 0.95)
 
-        elif combined >= 0.35 or l2_severity == "MEDIUM" or is_off_peak_atk:
+        else:
+            # Anything reaching Layer 2 is at minimum INVESTIGATE
             decision   = "INVESTIGATE"
             confidence = min(0.50 + combined * 0.20, 0.90)
-
-        else:
-            decision   = "ALLOW"
-            confidence = min(0.80 + (1 - combined) * 0.15, 0.99)
 
         return decision, round(confidence, 4)
 
     # ── Build reason string ───────────────────────────────────────────────────
 
     def _build_reason(self, decision: str, ai_details: dict, l2_result: dict) -> str:
-        severity = l2_result.get("severity", "LOW")
+        severity = l2_result.get("severity", "MEDIUM")
         patterns = l2_result.get("patterns", {})
         top      = patterns.get("top_threat")
         phase    = ai_details.get("phase", "detection")

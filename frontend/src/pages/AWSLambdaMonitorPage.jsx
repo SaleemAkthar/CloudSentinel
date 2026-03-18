@@ -83,10 +83,9 @@ function buildHourlyBuckets(logs) {
 
   for (let i = 23; i >= 0; i--) {
     const bucketTime = new Date(now.getTime() - i * 60 * 60 * 1000);
-    const hourKey = bucketTime.toISOString().slice(0, 13); // "YYYY-MM-DDTHH"
+    const hourKey = bucketTime.toISOString().slice(0, 13);
     const label = `${String(bucketTime.getHours()).padStart(2, "0")}:00`;
 
-    // Count logs whose timestamp falls within this hour
     let actual = 0;
     for (const log of logs) {
       const ts = log.timestamp || "";
@@ -98,7 +97,7 @@ function buildHourlyBuckets(logs) {
     buckets.push({ time: label, actual, predicted: 0 });
   }
 
-  // Compute SARIMA-style predicted line (3-hour rolling average as approximation)
+  // Compute SARIMA-style predicted line (3-hour rolling average)
   for (let i = 0; i < buckets.length; i++) {
     const windowStart = Math.max(0, i - 1);
     const windowEnd = Math.min(buckets.length - 1, i + 1);
@@ -117,7 +116,6 @@ function buildHourlyBuckets(logs) {
 
 // ── Build threat counts from alerts ─────────────────────────────────────
 function buildThreatCounts(alerts) {
-  // Initialise all 6 attack types from layer2_scanner.py → attack_patterns.py
   const counts = {
     "DDoS":           0,
     "IP Spoofing":    0,
@@ -134,7 +132,6 @@ function buildThreatCounts(alerts) {
       counts[label] += 1;
     }
 
-    // Also count from layer2_report matched_patterns if present
     const patterns = alert.layer2_report?.patterns?.matched_patterns;
     if (Array.isArray(patterns)) {
       for (const p of patterns) {
@@ -163,41 +160,14 @@ function buildThreatCounts(alerts) {
 }
 
 
-// ── Fallback synthetic data (shown when backend has 0 packets) ──────────
-function fallbackInvocations() {
-  const now = new Date();
-  const data = [];
-  for (let i = 23; i >= 0; i--) {
-    const h = new Date(now.getTime() - i * 60 * 60 * 1000).getHours();
-    const label = `${String(h).padStart(2, "0")}:00`;
-    const base =
-      h >= 9 && h <= 17
-        ? 1400 + Math.sin(((h - 9) / 8) * Math.PI) * 600
-        : 400 + ((h * 137) % 200);
-    const actual = Math.round(base + ((i * 73) % 300) - 150);
-    data.push({ time: label, actual, predicted: Math.round(base) });
-  }
-  return data;
-}
 
-function fallbackThreats() {
-  return [
-    { type: "DDoS",          packets: 142, color: "#ef4444" },
-    { type: "IP Spoofing",   packets: 87,  color: "#f97316" },
-    { type: "SQL Injection",  packets: 64,  color: "#eab308" },
-    { type: "Crypto Mining",  packets: 38,  color: "#a855f7" },
-    { type: "Data Exfil",     packets: 53,  color: "#3b82f6" },
-    { type: "Memory Attack",  packets: 21,  color: "#06b6d4" },
-  ];
-}
+// ── Real Lambda functions from LocalStack simulation ────────────────────
 
 const FALLBACK_FUNCTIONS = [
-  { name: "ProcessImage",     status: "active",  invocations: 12000, duration: "450ms",  error: "0.5%",  memory: "256MB" },
-  { name: "SendNotification", status: "warning", invocations: 8000,  duration: "600ms",  error: "2.1%",  memory: "128MB" },
-  { name: "DataIngest",       status: "error",   invocations: 500,   duration: "1200ms", error: "12%",   memory: "512MB" },
-  { name: "UserAuth",         status: "active",  invocations: 9000,  duration: "300ms",  error: "0.2%",  memory: "128MB" },
-  { name: "Cleanup",          status: "active",  invocations: 1984,  duration: "700ms",  error: "0.0%",  memory: "64MB"  },
-  { name: "ArchiveLogs",      status: "active",  invocations: 1000,  duration: "900ms",  error: "0.1%",  memory: "256MB" },
+  { name: "api-handler",     status: "active",  invocations: 0, duration: "0ms",  error: "0%",  memory: "128MB" },
+  { name: "file-processor",  status: "active",  invocations: 0, duration: "0ms",  error: "0%",  memory: "128MB" },
+  { name: "db-query",        status: "active",  invocations: 0, duration: "0ms",  error: "0%",  memory: "128MB" },
+  { name: "auth-service",    status: "active",  invocations: 0, duration: "0ms",  error: "0%",  memory: "128MB" },
 ];
 
 
@@ -216,6 +186,9 @@ export default function AWSLambdaMonitorPage() {
   const [invocationData, setInvocationData] = useState([]);
   const [threatData, setThreatData]         = useState([]);
   const [loading, setLoading]               = useState(true);
+  const [selectedFn, setSelectedFn]         = useState(null);
+  const [fnAlerts, setFnAlerts]             = useState([]);
+  const [fnLogs, setFnLogs]                 = useState([]);
 
   // ── Fetch from existing backend endpoints ───────────────────────────
   const fetchAll = useCallback(async () => {
@@ -227,22 +200,16 @@ export default function AWSLambdaMonitorPage() {
         axios.get("/api/alerts?limit=5000"),
       ]);
 
-      // Overview stats
       setOverview(overviewRes.data);
 
-      // ── Invocations chart (from /api/logs) ──────────────────────
       const logs = Array.isArray(logsRes.data) ? logsRes.data : [];
       const hourly = buildHourlyBuckets(logs);
-      const hasLogData = hourly.some((b) => b.actual > 0);
-      setInvocationData(hasLogData ? hourly : fallbackInvocations());
+      setInvocationData(hourly);
 
-      // ── Threats chart (from /api/alerts) ────────────────────────
       const alerts = Array.isArray(alertsRes.data) ? alertsRes.data : [];
       const threats = buildThreatCounts(alerts);
-      const hasThreats = threats.some((t) => t.packets > 0);
-      setThreatData(hasThreats ? threats : fallbackThreats());
+      setThreatData(threats);
 
-      // ── Function details (from /api/lambda/functions) ───────────
       const fnData = functionsRes.data.map((fn) => {
         const errorPct = fn.error_rate_pct;
         let status = "active";
@@ -262,9 +229,6 @@ export default function AWSLambdaMonitorPage() {
       setFunctions(fnData.length > 0 ? fnData : FALLBACK_FUNCTIONS);
     } catch (err) {
       console.error("Lambda Monitor fetch error:", err);
-      // On error, keep fallback data so page isn't blank
-      setInvocationData((prev) => prev.length > 0 ? prev : fallbackInvocations());
-      setThreatData((prev) => prev.length > 0 ? prev : fallbackThreats());
     } finally {
       setLoading(false);
     }
@@ -276,11 +240,41 @@ export default function AWSLambdaMonitorPage() {
     return () => clearInterval(interval);
   }, [fetchAll]);
 
+  // ── Fetch details for a specific function ─────────────────────────
+  const openFnDetails = useCallback(async (fnName) => {
+    setSelectedFn(fnName);
+    try {
+      const [alertsRes, logsRes] = await Promise.all([
+        axios.get("/api/alerts?limit=500"),
+        axios.get("/api/logs?limit=2000"),
+      ]);
+      const alerts = Array.isArray(alertsRes.data) ? alertsRes.data : [];
+      const logs = Array.isArray(logsRes.data) ? logsRes.data : [];
+
+      setFnAlerts(
+        alerts
+          .filter((a) => a.function === fnName)
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+          .slice(0, 20)
+      );
+      setFnLogs(
+        logs
+          .filter((l) => l.function === fnName)
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+          .slice(0, 20)
+      );
+    } catch (err) {
+      console.error("Failed to fetch function details:", err);
+      setFnAlerts([]);
+      setFnLogs([]);
+    }
+  }, []);
+
   // ── Derived values with fallbacks ───────────────────────────────────
-  const totalInvocations = overview?.total_invocations ?? 38484;
-  const avgResponseTime  = overview?.avg_response_time ?? 487;
-  const errorRate        = overview?.error_rate ?? 1.2;
-  const activeFunctions  = overview?.active_functions ?? 5;
+  const totalInvocations = overview?.total_invocations ?? 0;
+  const avgResponseTime  = overview?.avg_response_time ?? 0;
+  const errorRate        = overview?.error_rate ?? 0;
+  const activeFunctions  = overview?.active_functions ?? 4;
   const totalFunctions   = functions.length || 6;
   const errorFunctions   = functions.filter((f) => f.status === "error").length;
 
@@ -301,12 +295,12 @@ export default function AWSLambdaMonitorPage() {
 
   // ── Render ──────────────────────────────────────────────────────────
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-8">
 
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-bold">AWS Lambda Monitor</h1>
-        <p className="text-gray-400">Real-time monitoring of serverless functions</p>
+        <h1 className="text-3xl font-bold text-white">AWS Lambda Monitor</h1>
+        <p className="text-slate-400 mt-1">Real-time monitoring of serverless functions</p>
       </div>
 
       <div className="space-y-6">
@@ -316,17 +310,14 @@ export default function AWSLambdaMonitorPage() {
           <div className="bg-[#0f1b3d] p-5 rounded-xl">
             <p className="text-gray-400 text-sm">Total Invocations</p>
             <h2 className="text-3xl font-bold">{totalInvocations.toLocaleString()}</h2>
-            <p className="text-green-400 text-sm">+12.5%</p>
           </div>
           <div className="bg-[#0f1b3d] p-5 rounded-xl">
             <p className="text-gray-400 text-sm">Avg Response Time</p>
             <h2 className="text-3xl font-bold">{avgResponseTime}ms</h2>
-            <p className="text-green-400 text-sm">-8.2%</p>
           </div>
           <div className="bg-[#0f1b3d] p-5 rounded-xl">
             <p className="text-gray-400 text-sm">Error Rate</p>
             <h2 className="text-3xl font-bold">{errorRate}%</h2>
-            <p className="text-red-400 text-sm">+0.3%</p>
           </div>
           <div className="bg-[#0f1b3d] p-5 rounded-xl">
             <p className="text-gray-400 text-sm">Active Functions</p>
@@ -478,7 +469,10 @@ export default function AWSLambdaMonitorPage() {
                   </div>
                 </div>
               </div>
-              <button className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm">
+              <button
+                onClick={() => openFnDetails(fn.name)}
+                className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm"
+              >
                 View Details
               </button>
             </div>
@@ -486,6 +480,142 @@ export default function AWSLambdaMonitorPage() {
         </div>
 
       </div>
+
+      {/* ── Function Detail Modal ──────────────────────────────────── */}
+      {selectedFn && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#0a1628] border border-white/10 rounded-2xl w-full max-w-3xl max-h-[85vh] overflow-y-auto shadow-2xl">
+
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+              <div>
+                <h2 className="text-xl font-bold text-white">{selectedFn}</h2>
+                <p className="text-xs text-slate-400 mt-0.5">Function activity from Layer 1 + Layer 2</p>
+              </div>
+              <button
+                onClick={() => setSelectedFn(null)}
+                className="text-slate-400 hover:text-white text-2xl leading-none px-2"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Alerts section */}
+            <div className="px-6 py-4">
+              <h3 className="text-sm font-semibold text-slate-300 mb-3">
+                Recent Alerts ({fnAlerts.length})
+              </h3>
+              {fnAlerts.length === 0 ? (
+                <p className="text-sm text-slate-500">No alerts for this function</p>
+              ) : (
+                <div className="space-y-2">
+                  {fnAlerts.map((a) => (
+                    <div
+                      key={a.id}
+                      className={`rounded-lg p-3 border-l-4 ${
+                        a.severity === "CRITICAL"
+                          ? "border-red-500 bg-red-500/10"
+                          : a.severity === "WARNING"
+                          ? "border-orange-400 bg-orange-400/10"
+                          : "border-yellow-400 bg-yellow-400/10"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                            a.severity === "CRITICAL"
+                              ? "bg-red-500/20 text-red-400"
+                              : a.severity === "WARNING"
+                              ? "bg-orange-500/20 text-orange-400"
+                              : "bg-yellow-500/20 text-yellow-400"
+                          }`}
+                        >
+                          {a.severity}
+                        </span>
+                        <span className={`text-xs font-semibold ${a.status === "OPEN" ? "text-red-400" : "text-emerald-400"}`}>
+                          {a.status}
+                        </span>
+                        {a.threat_type && (
+                          <span className="text-xs text-slate-400">• {a.threat_type}</span>
+                        )}
+                      </div>
+                      <div className="text-sm text-slate-300">
+                        Score: <span className="font-semibold">{((a.anomaly_score || 0) * 100).toFixed(1)}%</span>
+                        {a.features?.duration_ms != null && (
+                          <> • Duration: <span className="font-semibold">{a.features.duration_ms}ms</span></>
+                        )}
+                        {a.confidence != null && (
+                          <> • Confidence: <span className="font-semibold">{(a.confidence * 100).toFixed(0)}%</span></>
+                        )}
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        {new Date(a.timestamp).toLocaleString()}
+                        {a.features?.ip_address && <> • IP: {a.features.ip_address}</>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Logs section */}
+            <div className="px-6 py-4 border-t border-white/10">
+              <h3 className="text-sm font-semibold text-slate-300 mb-3">
+                Recent Logs ({fnLogs.length})
+              </h3>
+              {fnLogs.length === 0 ? (
+                <p className="text-sm text-slate-500">No logs for this function</p>
+              ) : (
+                <table className="w-full text-sm text-left">
+                  <thead className="text-gray-500 text-xs">
+                    <tr>
+                      <th className="py-1.5">Timestamp</th>
+                      <th>Event</th>
+                      <th>IP Address</th>
+                      <th>Status</th>
+                      <th>Duration</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fnLogs.map((log, i) => (
+                      <tr key={i} className="border-t border-white/5">
+                        <td className="py-2 text-slate-400 text-xs">{new Date(log.timestamp).toLocaleString()}</td>
+                        <td className="text-slate-300">{log.event}</td>
+                        <td className="text-slate-400">{log.ip_address}</td>
+                        <td>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs ${
+                              log.status === "success"
+                                ? "bg-green-500/20 text-green-400"
+                                : log.status === "blocked"
+                                ? "bg-yellow-500/20 text-yellow-400"
+                                : "bg-red-500/20 text-red-400"
+                            }`}
+                          >
+                            {log.status}
+                          </span>
+                        </td>
+                        <td className="text-slate-300">{log.duration}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {/* Close button */}
+            <div className="px-6 py-4 border-t border-white/10 flex justify-end">
+              <button
+                onClick={() => setSelectedFn(null)}
+                className="bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-lg text-sm text-slate-300"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
