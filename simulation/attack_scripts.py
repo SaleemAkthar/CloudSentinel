@@ -269,7 +269,7 @@ def generate_ddos_record(timestamp: str = None) -> dict:
         timestamp = datetime.utcnow().isoformat()
 
     total_duration = 0.0
-    burst_count    = random.randint(10, 20)
+    burst_count    = random.randint(30, 60)
 
     for _ in range(burst_count):
         result = invoke("api-handler", {"action": "quick"})
