@@ -151,7 +151,7 @@ export default function Dashboard() {
 
             <div className="flex items-center justify-between rounded-xl border border-orange-500/100 bg-orange-500/30 px-4 py-4">
               <div>
-                <div className="text-sm font-semibold text-slate-100">High</div>
+                <div className="text-sm font-semibold text-slate-100">Medium</div>
                 <div className="text-xs text-orange-200/80">Active threats</div>
               </div>
               <div className="text-2xl font-semibold text-orange-200">{stats.high}</div>
@@ -159,7 +159,7 @@ export default function Dashboard() {
 
             <div className="flex items-center justify-between rounded-xl border border-yellow-500/100 bg-yellow-500/30 px-4 py-4">
               <div>
-                <div className="text-sm font-semibold text-slate-100">Medium</div>
+                <div className="text-sm font-semibold text-slate-100">Low</div>
                 <div className="text-xs text-yellow-200/80">Active threats</div>
               </div>
               <div className="text-2xl font-semibold text-yellow-200">{stats.medium}</div>
