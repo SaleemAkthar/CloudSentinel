@@ -19,7 +19,7 @@ Detection pipeline (unified flow):
 Run from the project root:
     uvicorn backend.api:app --reload --port 8000
 
-Author: Okitha (API Integration & SARIMA)
+Author: Saleem, Okitha, Raneesha (API Integration & SARIMA)
 """
 
 from fastapi import FastAPI, HTTPException, Query
