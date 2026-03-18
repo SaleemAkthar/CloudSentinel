@@ -31,7 +31,6 @@ import os
 
 from backend.detection.sarima_forecaster import SARIMAForecaster
 from backend.storage.in_memory_store import AlertStore
-from backend.detection.layer2_scanner import Layer2Scanner
 from backend.detection.ai_model import EnsembleAnomalyDetector
 from backend.detection.pipeline import CloudSentinelPipeline
 
