@@ -2,11 +2,10 @@ import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import AlertItem from "../components/AlertItem";
 import Investigation from "./Investigate";
-import alertsData from "../test/alerts.json";
 
 
-// ── Polling interval — refresh every 0.5 seconds ────────────────────────
-const POLL_INTERVAL = 500; // 0.5 seconds
+// ── Polling interval — refresh every 10 seconds ────────────────────────
+const POLL_INTERVAL = 500;
 
 
 export default function RealTimeAlerts() {
@@ -14,7 +13,6 @@ export default function RealTimeAlerts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedAlertId, setSelectedAlertId] = useState(null);
-  const [isLive, setIsLive] = useState(false);
 
   // ── Fetch alerts from live backend ──────────────────────────────────
   const fetchAlerts = useCallback(async () => {
@@ -22,33 +20,13 @@ export default function RealTimeAlerts() {
       const res = await axios.get("/api/alerts?limit=500");
       const data = Array.isArray(res.data) ? res.data : [];
 
-      if (data.length > 0) {
-        // Sort by timestamp descending (newest first)
-        data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        setAlerts(data);
-        setIsLive(true);
-      } else {
-        // Backend has no alerts yet — fall back to static JSON
-        setAlerts(
-          Array.isArray(alertsData)
-            ? alertsData.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-            : []
-        );
-        setIsLive(false);
-      }
+      // Sort by timestamp descending (newest first)
+      data.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      setAlerts(data);
       setError(null);
     } catch (err) {
       console.error("Failed to fetch alerts:", err);
-      // On error, fall back to static JSON so page isn't blank
-      if (alerts.length === 0) {
-        setAlerts(
-          Array.isArray(alertsData)
-            ? alertsData.slice().sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-            : []
-        );
-        setIsLive(false);
-      }
-      setError("Backend unavailable — showing cached alerts");
+      setError("Backend unavailable — please ensure the server is running");
     } finally {
       setLoading(false);
     }
@@ -78,22 +56,22 @@ export default function RealTimeAlerts() {
           </p>
         </div>
 
-        {/* Live / Cached indicator */}
+        {/* Live indicator */}
         <div className="flex items-center gap-2">
           <span
             className={`h-2.5 w-2.5 rounded-full ${
-              isLive ? "bg-emerald-400 animate-pulse" : "bg-yellow-400"
+              error ? "bg-red-400" : "bg-emerald-400 animate-pulse"
             }`}
           />
           <span className="text-xs text-slate-400">
-            {isLive ? "Live — Layer 2 Scanner" : "Cached data"}
+            {error ? "Disconnected" : "Live — Layer 1 + Layer 2"}
           </span>
         </div>
       </div>
 
       {/* Error banner */}
       {error && (
-        <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-4 py-3 text-sm text-yellow-300">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
           {error}
         </div>
       )}
