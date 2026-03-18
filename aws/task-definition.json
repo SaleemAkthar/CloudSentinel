@@ -4,11 +4,11 @@
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "512",
   "memory": "1024",
-  "executionRoleArn": "arn:aws:iam::ACCOUNT_ID:role/ecsTaskExecutionRole",
+  "executionRoleArn": "arn:aws:iam::555847395733:role/ecsTaskExecutionRole",
   "containerDefinitions": [
     {
       "name": "cloud-sentinel-api",
-      "image": "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/cloud-sentinel-api:latest",
+      "image": "555847395733.dkr.ecr.us-east-1.amazonaws.com/cloud-sentinel-api:latest",
       "portMappings": [
         {
           "containerPort": 8000,
