@@ -349,11 +349,14 @@ def generate_memory_attack_record(timestamp: str = None) -> dict:
 
 def generate_ip_spoofing_record(timestamp: str = None) -> dict:
     """
-    Simulate IP spoofing via auth-service with anomalous TTL metadata.
-
-    Execution metrics look normal — the anomaly is entirely in the
-    network layer: TTL is abnormally low (1–29), indicating the packet
-    has been routed through many anonymising hops.
+    Simulate IP spoofing via anomalous TTL values.
+    
+    Value ranges based on:
+    - RFC 1122 Section 3.2.1.7: standard TTL values are 64 (Linux)
+      or 128 (Windows); values below 30 indicate 30+ hops suggesting
+      anonymising proxy chains or spoofed source routing
+    - MITRE ATT&CK T1036 (Masquerading): network-layer anomalies
+      as primary indicator when execution metrics appear normal
     """
     if timestamp is None:
         timestamp = datetime.utcnow().isoformat()
