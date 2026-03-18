@@ -160,36 +160,8 @@ function buildThreatCounts(alerts) {
 }
 
 
-// ── Fallback synthetic data for charts ───────────────────────────────────
-function fallbackInvocations() {
-  const now = new Date();
-  const data = [];
-  for (let i = 23; i >= 0; i--) {
-    const h = new Date(now.getTime() - i * 60 * 60 * 1000).getHours();
-    const label = `${String(h).padStart(2, "0")}:00`;
-    const base =
-      h >= 9 && h <= 17
-        ? 1400 + Math.sin(((h - 9) / 8) * Math.PI) * 600
-        : 400 + ((h * 137) % 200);
-    const actual = Math.round(base + ((i * 73) % 300) - 150);
-    data.push({ time: label, actual, predicted: Math.round(base) });
-  }
-  return data;
-}
 
-function fallbackThreats() {
-  return [
-    { type: "DDoS",          packets: 142, color: "#ef4444" },
-    { type: "IP Spoofing",   packets: 87,  color: "#f97316" },
-    { type: "SQL Injection",  packets: 64,  color: "#eab308" },
-    { type: "Crypto Mining",  packets: 38,  color: "#a855f7" },
-    { type: "Data Exfil",     packets: 53,  color: "#3b82f6" },
-    { type: "Memory Attack",  packets: 21,  color: "#06b6d4" },
-  ];
-}
-
-
-// ── Fallback functions (real Lambda functions from LocalStack) ───────────
+// ── Real Lambda functions from LocalStack simulation ────────────────────
 
 const FALLBACK_FUNCTIONS = [
   { name: "api-handler",     status: "active",  invocations: 0, duration: "0ms",  error: "0%",  memory: "128MB" },
@@ -229,13 +201,11 @@ export default function AWSLambdaMonitorPage() {
 
       const logs = Array.isArray(logsRes.data) ? logsRes.data : [];
       const hourly = buildHourlyBuckets(logs);
-      const hasLogData = hourly.some((b) => b.actual > 0);
-      setInvocationData(hasLogData ? hourly : fallbackInvocations());
+      setInvocationData(hourly);
 
       const alerts = Array.isArray(alertsRes.data) ? alertsRes.data : [];
       const threats = buildThreatCounts(alerts);
-      const hasThreats = threats.some((t) => t.packets > 0);
-      setThreatData(hasThreats ? threats : fallbackThreats());
+      setThreatData(threats);
 
       const fnData = functionsRes.data.map((fn) => {
         const errorPct = fn.error_rate_pct;
@@ -256,8 +226,6 @@ export default function AWSLambdaMonitorPage() {
       setFunctions(fnData.length > 0 ? fnData : FALLBACK_FUNCTIONS);
     } catch (err) {
       console.error("Lambda Monitor fetch error:", err);
-      setInvocationData((prev) => prev.length > 0 ? prev : fallbackInvocations());
-      setThreatData((prev) => prev.length > 0 ? prev : fallbackThreats());
     } finally {
       setLoading(false);
     }
