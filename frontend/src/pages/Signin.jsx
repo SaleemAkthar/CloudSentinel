@@ -8,6 +8,37 @@ export default function Signin() {
   const [submitted, setSubmitted] = useState(false);
 
 
+  const handleChange = (field) => (e) => {
+    setForm((f) => ({ ...f, [field]: e.target.value }));
+    if (errors[field]) setErrors((err) => ({ ...err, [field]: undefined }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const v = validate();
+    if (Object.keys(v).length) { setErrors(v); return; }
+    setLoading(true);
+    setTimeout(() => { setLoading(false); setSubmitted(true); }, 1400);
+  };
+
+  const EyeIcon = ({ open }) => (
+    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+      {open ? (
+        <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></>
+      ) : (
+        <><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" /><line x1="1" y1="1" x2="23" y2="23" /></>
+      )}
+    </svg>
+  );
+
+  const inputCls = (field) =>
+    `w-full rounded-xl px-4 py-3 text-white text-[0.95rem] placeholder-white/20 outline-none transition-all ${
+      errors[field]
+        ? "border border-red-500/60 bg-red-500/5 shadow-[0_0_0_3px_rgba(239,68,68,0.1)]"
+        : "border border-white/10 bg-white/5 focus:border-blue-500/60 focus:bg-blue-500/5 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+    }`;
+
+
 
   return (
     <div className="min-h-screen bg-[#020817] flex items-center justify-center px-4 py-10 relative overflow-hidden">
@@ -56,7 +87,7 @@ export default function Signin() {
               You've signed in successfully.<br />Redirecting to your dashboard…
             </p>
             <button
-              onClick={() => (false)}
+              onClick={() => (setSubmitted(false))}
               className="mt-2 px-8 py-3 rounded-xl text-white font-bold text-sm transition-all hover:opacity-90 hover:-translate-y-0.5"
               style={{ background: "linear-gradient(135deg, #3B82F6, #8B5CF6)", boxShadow: "0 4px 24px rgba(59,130,246,0.35)" }}
             >
@@ -85,7 +116,7 @@ export default function Signin() {
               Sign in to your account to continue
             </p>
 
-            <form  className="space-y-4">
+            <form  onSubmit={handleSubmit} noValidate className="space-y-4">
 
               {/* Email */}
               <div>
@@ -96,9 +127,9 @@ export default function Signin() {
                   type="email"
                   placeholder="you@company.com"
                   value={form.email}
-                  onChange={("email")}
+                  onChange={handleChange("email")}
                   autoComplete="email"
-                  className={("email")}
+                  className={inputCls("email")}
                 />
                 {errors.email && <p className="text-red-400 text-[0.75rem] mt-1.5">⚠ {errors.email}</p>}
               </div>
@@ -118,16 +149,16 @@ export default function Signin() {
                     type={showPass ? "text" : "password"}
                     placeholder="Enter your password"
                     value={form.password}
-                    onChange={("password")}
+                    onChange={handleChange("password")}
                     autoComplete="current-password"
-                    className={`${("password")} pr-11`}
+                    className={`${inputCls("password")} pr-11`}
                   />
                   <button
                     type="button"
-                    onClick={() => ((v) => !v)}
+                    onClick={() => setShowPass((v) => !v)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70 transition-colors"
                   >
-                    
+                    <EyeIcon open={showPass} />
                   </button>
                 </div>
                 {errors.password && <p className="text-red-400 text-[0.75rem] mt-1.5">⚠ {errors.password}</p>}
