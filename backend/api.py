@@ -270,6 +270,12 @@ def process_log(request: LogRequest):
     # Internally: SARIMA → Layer1Scorer → Layer1Filter → Layer2 → AI Model
     pipeline_result = sentinel_pipeline.process(packet)
 
+    # ── Feed SARIMA forecaster ────────────────────────────────────
+    sarima_forecaster.add_data_point(request.duration)
+    if (not sarima_forecaster._trained
+            and len(sarima_forecaster.training_data) >= sarima_forecaster.MIN_TRAINING_POINTS):
+        sarima_forecaster.train()
+        
     decision      = pipeline_result["decision"]          # ALLOW / INVESTIGATE / BLOCK
     confidence    = pipeline_result["confidence"]
     severity      = pipeline_result["severity"]
