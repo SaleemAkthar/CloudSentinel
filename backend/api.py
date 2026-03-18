@@ -1,31 +1,28 @@
 """
-Cloud Sentinel — FastAPI Backend (Unified Pipeline + ML Ensemble)
-==================================================================
+Cloud Sentinel — FastAPI Backend
+=================================
 Entry point for the anomaly detection API.
 
-Detection pipeline (unified flow):
-    POST /process_log  →  Layer1Filter (quick gate — TTL, DDoS, spoofing)
-                              ↓ PASS → traffic allowed (AI model keeps learning)
-                              ↓ FAIL → Layer2Scanner (deep forensics)
-                                           ↓
-                                       AI Model — ML Ensemble
-                                       (Isolation Forest + Random Forest)
-                                       BLOCK only when both models agree
-                                           ↓
-                                       Decision: ALLOW / INVESTIGATE / BLOCK
-                                           ↓ if suspicious
-                                       Alert → Real-Time Alerts → User → ALLOW or BLOCK
+Detection pipeline:
+    POST /process_log
+        → Layer 1 Filter (hard rule gate: TTL, DDoS, spoofing)
+            ↓ PASS → traffic allowed, AI model keeps learning
+            ↓ FAIL → Layer 2 Scanner (deep forensics)
+                → AI Model (Isolation Forest + Random Forest ensemble)
+                    → Decision: ALLOW / INVESTIGATE / BLOCK
+                        → Alert → Dashboard → Analyst → ALLOW or BLOCK
 
-Run from the project root:
+Run from project root:
     uvicorn backend.api:app --reload --port 8000
-
-Author: Saleem, Okitha, Raneesha (API Integration & SARIMA)
+    
+Author: Okitha (API Integration & SARIMA)
 """
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
+from collections import deque
 import uvicorn
 import datetime
 import uuid
@@ -37,8 +34,7 @@ from backend.detection.layer1_filter import Layer1Filter
 from backend.detection.layer2_scanner import Layer2Scanner
 from backend.detection.ai_model import EnsembleAnomalyDetector
 
-# Layer2Investigator is optional — the API starts normally without it.
-# Endpoints that require it return 503 until Saleem's file is in place.
+# Layer2Investigator is optional — API starts without it.
 try:
     from backend.detection.layer2_investigator import Layer2Investigator
     _L2_AVAILABLE = True
@@ -48,7 +44,7 @@ except ImportError:
 app = FastAPI(title="Cloud Sentinel API", version="3.0")
 
 # ---------------------------------------------------------------------------
-# Environment-based configuration
+# CORS configuration (env-based for flexibility)
 # ---------------------------------------------------------------------------
 
 CORS_ORIGINS = os.environ.get(
@@ -65,51 +61,54 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------------------------
-# Module-level singletons
+# Singletons — created once at startup, shared across all requests
 # ---------------------------------------------------------------------------
 
-# SARIMA for temporal analysis — runs in parallel, feeds temporal scores
+# SARIMA for temporal anomaly detection
 sarima_forecaster = SARIMAForecaster()
 
-# The AI Model — real ML ensemble (Isolation Forest + Random Forest).
-# Phase 1 (first 200 requests): collects normal traffic, trains Isolation Forest
-# Phase 2: Isolation Forest scores every packet
-# Phase 3: Once enough labeled data, Random Forest joins → full ensemble
-# BLOCK only when both models agree → low false positives
+# AI Ensemble: Isolation Forest (unsupervised) + Random Forest (supervised)
+# Phase 1 (first 200 requests): learns normal baseline
+# Phase 2: Isolation Forest scores packets
+# Phase 3: Both models vote — BLOCK only when both agree
 ai_model = EnsembleAnomalyDetector(learning_window=200)
 
-alert_store    = AlertStore()
-layer2         = Layer2Investigator() if _L2_AVAILABLE else None
-log_storage    = []        # in-memory audit log for the Behaviour Logs page
-lambda_metrics = {}        # per-function invocation stats for Lambda monitor
-layer1_filter  = Layer1Filter()   # Stage 1: hard rule gate
-layer2_scanner = Layer2Scanner()  # Stage 2: deep forensic scan
+# Storage
+alert_store = AlertStore()
+layer2 = Layer2Investigator() if _L2_AVAILABLE else None
+
+# Bounded audit log — keeps last 10,000 entries to prevent memory leaks
+LOG_STORAGE_MAX = 10_000
+log_storage = deque(maxlen=LOG_STORAGE_MAX)
+
+# Per-function invocation stats for Lambda monitor page
+lambda_metrics = {}
+
+# Detection layers
+layer1_filter = Layer1Filter()
+layer2_scanner = Layer2Scanner()
 
 
 # ---------------------------------------------------------------------------
-# Request models
+# Request model
 # ---------------------------------------------------------------------------
 
 class LogRequest(BaseModel):
     """
     A single Lambda execution event.
 
-    Includes both basic fields (always sent) and packet-level fields
-    (with sensible defaults) so the unified pipeline can run Layer 1
-    Filter checks on every request.
+    Basic fields are always present. Packet-level fields have safe defaults
+    so the pipeline can run Layer 1 Filter checks on every request.
     """
     # Basic fields (always present)
-    duration:      float          # execution time in ms
-    memory_used:   float          # memory consumed in MB
-    num_api_calls: int            # outbound API calls made during execution
+    duration:      float
+    memory_used:   float
+    num_api_calls: int
     function_name: str  = "unknown"
     ip_address:    str  = "10.0.0.1"
     error_count:   int  = 0
 
     # Packet-level fields (defaults = normal traffic values)
-    # These allow Layer1Filter to run on every request.
-    # When sent by generate_test_data with attack patterns,
-    # these will carry realistic attack values.
     ttl:                  int   = 64
     packet_size:          int   = 512
     packet_size_in:       int   = 512
@@ -131,10 +130,9 @@ class LogRequest(BaseModel):
 def _build_alert(log_request: LogRequest, decision: str, severity: str,
                  confidence: float, anomaly_score: float, threat_type: str,
                  layer2_report: dict = None, ai_result: dict = None) -> dict:
-    """
-    Construct a frontend-compatible alert record from the unified pipeline.
-    """
-    # Map internal severity to frontend contract (CRITICAL / WARNING / INFO)
+    """Build a frontend-compatible alert record."""
+
+    # Map backend severity to frontend contract (CRITICAL / WARNING / INFO)
     frontend_severity = severity
     if severity in ("HIGH", "MEDIUM"):
         frontend_severity = "WARNING"
@@ -150,7 +148,7 @@ def _build_alert(log_request: LogRequest, decision: str, severity: str,
         "anomaly_score":  round(anomaly_score, 3),
         "confidence":     round(confidence, 3),
         "threat_type":    threat_type or "Unknown",
-        "decision":       decision,     # ALLOW / INVESTIGATE / BLOCK
+        "decision":       decision,
         "features": {
             "duration_ms":         log_request.duration,
             "memory_used_mb":      log_request.memory_used,
@@ -162,11 +160,9 @@ def _build_alert(log_request: LogRequest, decision: str, severity: str,
         },
     }
 
-    # Attach Layer 2 report if available (for investigation page)
     if layer2_report:
         alert["layer2_report"] = layer2_report
 
-    # Attach AI model details if available
     if ai_result:
         alert["ai_details"] = {
             "composite_score": ai_result.get("anomaly_score", 0),
@@ -179,7 +175,7 @@ def _build_alert(log_request: LogRequest, decision: str, severity: str,
 
 
 def _build_log_entry(log_request: LogRequest, result: dict) -> dict:
-    """Build an audit log entry for every request."""
+    """Build an audit log entry for every processed request."""
     is_anomaly = result.get("is_anomaly", False)
     decision   = result.get("decision", "ALLOW")
 
@@ -209,7 +205,7 @@ def _build_log_entry(log_request: LogRequest, result: dict) -> dict:
 
 
 def _update_lambda_metrics(log_request: LogRequest, is_anomaly: bool):
-    """Track per-function invocation stats."""
+    """Track per-function invocation stats for the Lambda monitor page."""
     fn = log_request.function_name
     if fn not in lambda_metrics:
         lambda_metrics[fn] = {
@@ -228,7 +224,7 @@ def _update_lambda_metrics(log_request: LogRequest, is_anomaly: bool):
 
 
 # ---------------------------------------------------------------------------
-# CORE DETECTION ENDPOINT — Unified Pipeline
+# CORE DETECTION ENDPOINT
 # ---------------------------------------------------------------------------
 
 @app.post("/process_log")
@@ -236,22 +232,18 @@ def process_log(request: LogRequest):
     """
     Main detection pipeline for Lambda execution events.
 
-    Unified flow:
-        1. SARIMA — feed data point for temporal learning
-        2. Layer 1 Filter — hard rule gate (TTL, DDoS, spoofing, etc.)
-              ↓ PASS → traffic is normal, feed AI model for learning
-              ↓ FAIL → escalate to Layer 2
+    Flow:
+        1. SARIMA — feed data point for temporal learning, auto-train
+        2. Layer 1 Filter — hard rule gate
+            PASS → normal traffic, feed AI model for learning
+            FAIL → escalate to Layer 2
         3. Layer 2 Scanner — deep forensic analysis
-              (IP reputation, packet analysis, attack patterns,
-               network topology, risk scoring)
-        4. AI Model — ML Ensemble (Isolation Forest + Random Forest)
-              Combines its own score with Layer 2 risk score.
-              BLOCK only when both models agree → low false positives.
-        5. If INVESTIGATE or BLOCK → create alert for dashboard
-        6. Feed labeled example back to AI model for continuous learning
+        4. AI Model — ensemble decision (IF + RF)
+        5. Create alert if INVESTIGATE or BLOCK
+        6. Feed labeled example back to AI model
     """
 
-    # Build the full packet dict for all layers
+    # Build full packet dict for all detection layers
     packet = {
         "duration":             request.duration,
         "memory_used":          request.memory_used,
@@ -271,26 +263,25 @@ def process_log(request: LogRequest):
         "network_latency":      request.network_latency,
         "unique_destinations":  request.unique_destinations,
         "region":               request.region,
+        "content_type":         request.content_type,
         "concurrency":          1,
     }
 
-    # ── STEP 0: Feed SARIMA (always, for temporal learning) ───────────────
+    # ── STEP 0: Feed SARIMA + auto-train when ready ──────────────────
     sarima_forecaster.add_data_point(
         request.duration,
         datetime.datetime.utcnow().isoformat(),
     )
+    if (not sarima_forecaster._trained
+            and len(sarima_forecaster.training_data) >= sarima_forecaster.MIN_TRAINING_POINTS):
+        sarima_forecaster.train()
 
-    # ── STEP 1: Layer 1 Filter — hard rule gate ──────────────────────────
+    # ── STEP 1: Layer 1 Filter — hard rule gate ──────────────────────
     l1_result = layer1_filter.check(packet)
 
     if l1_result["pass"]:
-        # ── NORMAL TRAFFIC — passed all hard rules ───────────────────────
-        # Feed the AI model so it keeps learning the normal baseline.
-        # During learning phase, this builds the Isolation Forest training set.
-        # After learning, normal traffic also acts as labeled "normal" examples.
+        # Normal traffic — feed AI model so it keeps learning
         ai_result = ai_model.predict(packet)
-
-        # Also feed as labeled normal example for Random Forest training
         ai_model.add_labeled_example(packet, is_anomaly=False, attack_type="normal")
 
         result = {
@@ -300,20 +291,18 @@ def process_log(request: LogRequest):
             "message":    "Passed Layer 1 — normal traffic",
             "layer1":     l1_result,
             "ai_model": {
-                "phase":    ai_result.get("phase"),
-                "score":    ai_result.get("anomaly_score", 0),
+                "phase": ai_result.get("phase"),
+                "score": ai_result.get("anomaly_score", 0),
             },
         }
         log_storage.append(_build_log_entry(request, result))
         _update_lambda_metrics(request, is_anomaly=False)
         return result
 
-    # ── STEP 2: Layer 2 Scanner — deep forensic analysis ─────────────────
-    # Traffic failed Layer 1, run full deep scan
+    # ── STEP 2: Layer 2 Scanner — deep forensic analysis ─────────────
     l2_result = layer2_scanner.scan(packet, l1_result)
 
-    # ── STEP 3: AI Model — ML Ensemble decision ─────────────────────────
-    # Pass Layer 2 risk score so the ensemble can factor it in
+    # ── STEP 3: AI Model — ensemble decision ─────────────────────────
     l2_risk = l2_result.get("risk", {}).get("adjusted_score", 0)
     ai_result = ai_model.predict(packet, l2_risk_score=l2_risk)
 
@@ -323,7 +312,7 @@ def process_log(request: LogRequest):
     attack_type   = ai_result.get("attack_type")
     is_anomaly    = ai_result["is_anomaly"]
 
-    # Get better threat type from Layer 2 patterns if AI model doesn't have one
+    # Use Layer 2 threat type if AI model doesn't have one
     if not attack_type:
         top_threat = l2_result.get("patterns", {}).get("top_threat")
         if top_threat:
@@ -333,7 +322,7 @@ def process_log(request: LogRequest):
                 "recommendation", {}
             ).get("action", "Unknown")
 
-    # During AI learning phase — fall back to Layer 2 severity for decision
+    # During AI learning phase — fall back to Layer 2 severity
     if ai_result.get("phase") == "learning":
         l2_severity = l2_result.get("severity", "MEDIUM")
         if l2_severity == "CRITICAL":
@@ -346,7 +335,7 @@ def process_log(request: LogRequest):
 
     severity = l2_result.get("severity", "MEDIUM")
 
-    # ── STEP 4: Create alert (only for INVESTIGATE or BLOCK) ─────────────
+    # ── STEP 4: Create alert (only for INVESTIGATE or BLOCK) ─────────
     if is_anomaly:
         alert = _build_alert(
             log_request=request,
@@ -360,16 +349,14 @@ def process_log(request: LogRequest):
         )
         alert_store.add(alert)
 
-    # ── STEP 5: Feed labeled example back to AI model ────────────────────
-    # This is how the Random Forest accumulates training data.
-    # Layer 2's decision acts as the label.
+    # ── STEP 5: Feed labeled example to AI model ─────────────────────
     ai_model.add_labeled_example(
         packet,
         is_anomaly=is_anomaly,
         attack_type=attack_type if is_anomaly else "normal",
     )
 
-    # ── STEP 6: Log everything ───────────────────────────────────────────
+    # ── STEP 6: Log and return ───────────────────────────────────────
     risk = l2_result.get("risk", {})
     result = {
         "decision":       decision,
@@ -381,17 +368,17 @@ def process_log(request: LogRequest):
         "layer":          2,
         "layer1":         l1_result,
         "layer2_summary": {
-            "severity":      l2_result.get("severity"),
-            "risk_score":    risk.get("adjusted_score", 0),
-            "threat_count":  l2_result.get("patterns", {}).get("threat_count", 0),
-            "scan_id":       l2_result.get("scan_id"),
-            "elapsed_ms":    l2_result.get("elapsed_ms"),
+            "severity":     l2_result.get("severity"),
+            "risk_score":   risk.get("adjusted_score", 0),
+            "threat_count": l2_result.get("patterns", {}).get("threat_count", 0),
+            "scan_id":      l2_result.get("scan_id"),
+            "elapsed_ms":   l2_result.get("elapsed_ms"),
         },
         "ai_model": {
-            "phase":         ai_result.get("phase"),
-            "score":         ai_result.get("anomaly_score", 0),
-            "is_anomaly":    ai_result.get("is_anomaly", False),
-            "model_votes":   ai_result.get("model_votes"),
+            "phase":       ai_result.get("phase"),
+            "score":       ai_result.get("anomaly_score", 0),
+            "is_anomaly":  ai_result.get("is_anomaly", False),
+            "model_votes": ai_result.get("model_votes"),
         },
         "message": (
             f"Layer 2 + AI Model complete. Decision: {decision}."
@@ -424,7 +411,6 @@ def get_alerts(
     if status:
         alerts = [a for a in alerts if a.get("status") == status]
 
-    # Sort newest first
     alerts.sort(key=lambda a: a.get("timestamp", ""), reverse=True)
     return alerts[:limit]
 
@@ -454,24 +440,21 @@ def get_alert(alert_id: str):
 
 @app.patch("/api/alerts/{alert_id}/close")
 def close_alert(alert_id: str):
-    """Mark an alert as CLOSED once an analyst has reviewed it."""
+    """Mark an alert as CLOSED."""
     if not alert_store.close(alert_id):
         raise HTTPException(status_code=404, detail=f"Alert '{alert_id}' not found.")
     return {"success": True}
 
 
 # ---------------------------------------------------------------------------
-# NEW: User action endpoints — ALLOW and BLOCK
+# User action endpoints — ALLOW and BLOCK
 # ---------------------------------------------------------------------------
 
 @app.patch("/api/alerts/{alert_id}/allow")
 def allow_alert(alert_id: str):
     """
-    User reviewed the alert and determined it is not a threat.
-    Marks the alert as ALLOWED and CLOSED.
-
-    This is the "false positive" path — the analyst sees the
-    investigation details and decides the traffic is legitimate.
+    Analyst reviewed the alert and determined it's not a threat.
+    Marks as ALLOWED + CLOSED. Feeds false-positive outcome to AI model.
     """
     alert = alert_store.get_by_id(alert_id)
     if not alert:
@@ -482,10 +465,8 @@ def allow_alert(alert_id: str):
     alert["resolved_by"] = "analyst"
     alert["resolved_at"] = datetime.datetime.utcnow().isoformat() + "Z"
 
-    # Feed outcome to AI model — this was a false positive
     ai_model.record_outcome(predicted_anomaly=True, true_anomaly=False)
 
-    # Log the user action
     log_storage.append({
         "timestamp":  datetime.datetime.utcnow().isoformat() + "Z",
         "function":   alert.get("function", "unknown"),
@@ -501,19 +482,15 @@ def allow_alert(alert_id: str):
         "success":    True,
         "alert_id":   alert_id,
         "resolution": "ALLOWED",
-        "message":    f"Alert {alert_id} marked as allowed. Traffic from this source is permitted.",
+        "message":    f"Alert {alert_id} marked as allowed.",
     }
 
 
 @app.patch("/api/alerts/{alert_id}/block")
 def block_alert(alert_id: str):
     """
-    User reviewed the alert and confirmed it is a threat.
-    Marks the alert as BLOCKED and CLOSED.
-
-    This is the "confirmed threat" path — the analyst sees the
-    investigation details and decides to block the traffic.
-    In production, this would trigger a WAF rule or security group update.
+    Analyst confirmed the alert is a real threat.
+    Marks as BLOCKED + CLOSED. Feeds true-positive outcome to AI model.
     """
     alert = alert_store.get_by_id(alert_id)
     if not alert:
@@ -524,10 +501,8 @@ def block_alert(alert_id: str):
     alert["resolved_by"] = "analyst"
     alert["resolved_at"] = datetime.datetime.utcnow().isoformat() + "Z"
 
-    # Feed outcome to AI model — this was a true positive (confirmed threat)
     ai_model.record_outcome(predicted_anomaly=True, true_anomaly=True)
 
-    # Log the user action
     log_storage.append({
         "timestamp":  datetime.datetime.utcnow().isoformat() + "Z",
         "function":   alert.get("function", "unknown"),
@@ -548,23 +523,20 @@ def block_alert(alert_id: str):
 
 
 # ---------------------------------------------------------------------------
-# Investigation endpoint (Layer 2 Investigator)
+# Investigation endpoint
 # ---------------------------------------------------------------------------
 
 @app.post("/api/alerts/{alert_id}/investigate")
 def investigate_alert(alert_id: str):
     """
-    Trigger a Layer 2 forensic investigation on a flagged alert.
-
-    If the alert already has a Layer 2 report attached (from the
-    pipeline), return it directly. Otherwise, delegate to
-    Layer2Investigator for a fresh investigation.
+    Trigger Layer 2 forensic investigation on a flagged alert.
+    Returns existing report if pipeline already produced one.
     """
     alert = alert_store.get_by_id(alert_id)
     if not alert:
         raise HTTPException(status_code=404, detail=f"Alert '{alert_id}' not found.")
 
-    # If the alert already has a Layer 2 report from the pipeline, return it
+    # Return existing Layer 2 report if available
     if alert.get("layer2_report"):
         return {
             "alert_id":   alert_id,
@@ -574,7 +546,7 @@ def investigate_alert(alert_id: str):
             "message":    "Layer 2 report from detection pipeline.",
         }
 
-    # Otherwise, run a fresh Layer 2 investigation
+    # Otherwise run a fresh investigation
     if not _L2_AVAILABLE or layer2 is None:
         raise HTTPException(
             status_code=503,
@@ -609,8 +581,10 @@ def investigate_alert(alert_id: str):
 
 @app.get("/api/logs")
 def get_logs(limit: int = Query(100)):
-    """Return the most recent audit log entries for the Behaviour Logs page."""
-    return log_storage[-limit:]
+    """Return the most recent audit log entries."""
+    # deque doesn't support slicing directly — convert to list
+    all_logs = list(log_storage)
+    return all_logs[-limit:]
 
 
 # ---------------------------------------------------------------------------
@@ -629,9 +603,9 @@ def get_lambda_overview():
             "functions":          [],
         }
 
-    total_inv   = sum(m["invocations"]    for m in lambda_metrics.values())
-    total_dur   = sum(m["total_duration"] for m in lambda_metrics.values())
-    total_err   = sum(m["error_count"]    for m in lambda_metrics.values())
+    total_inv = sum(m["invocations"]    for m in lambda_metrics.values())
+    total_dur = sum(m["total_duration"] for m in lambda_metrics.values())
+    total_err = sum(m["error_count"]    for m in lambda_metrics.values())
 
     return {
         "total_invocations":  total_inv,
@@ -671,9 +645,9 @@ def get_model_health():
     sarima_status = sarima_forecaster.get_status()
 
     return {
-        "accuracy":        perf.get("accuracy", 90.0),
-        "precision":       perf.get("precision", 95.0),
-        "recall":          perf.get("recall", 40.0),
+        "accuracy":        perf.get("accuracy", 0.0),
+        "precision":       perf.get("precision", 0.0),
+        "recall":          perf.get("recall", 0.0),
         "f1":              perf.get("f1", 0.0),
         "trainingActive":  status.get("phase") == "learning",
         "delta":           2.3,
@@ -701,13 +675,13 @@ def get_status():
         "detector_stats":   ai_model.get_status(),
         "sarima_status":    sarima_forecaster.get_status(),
         "layer2_available": _L2_AVAILABLE,
-        "pipeline":         "unified",  # confirms new pipeline is active
+        "pipeline":         "unified",
         "timestamp":        datetime.datetime.utcnow().isoformat() + "Z",
     }
 
 
 # ---------------------------------------------------------------------------
-# Packet report endpoint (for alerts created via old /api/scan path)
+# Packet report endpoint
 # ---------------------------------------------------------------------------
 
 @app.get("/api/alerts/{alert_id}/packet-report")
