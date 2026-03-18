@@ -1,7 +1,9 @@
 fastapi
 uvicorn
+gunicorn
 pydantic
 requests
 numpy
 pandas
 statsmodels
+scikit-learn
