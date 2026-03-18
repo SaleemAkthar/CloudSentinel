@@ -282,7 +282,7 @@ def generate_ddos_record(timestamp: str = None) -> dict:
         "memory_used":     round(random.uniform(80, 150), 2),
         "num_api_calls":   burst_count,
         "error_count":     random.randint(0, 5),
-        "concurrency":     random.randint(20, 50),
+        "concurrency":     random.randint(50, 200),
         "ip_address":      random.choice(SUSPICIOUS_IPS["ddos"]),
         "ttl":             random.randint(50, 64),
         "packet_size_in":  random.randint(64, 256),
