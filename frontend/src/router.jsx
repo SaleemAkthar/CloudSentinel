@@ -9,6 +9,7 @@ import BehaviourLogs from "./components/BehaviourLogs";
 import AWSLambdaMonitorPage from "./pages/AWSLambdaMonitorPage";
 import Settings from "./pages/Settings";
 import SignUp from "./pages/Signup";
+import Signin from "./pages/Signin";
 
 
 const Placeholder = ({ title }) => (
@@ -32,6 +33,7 @@ export const router = createBrowserRouter([
       { path: "profile", element: <Profile /> },
       { path: "notifications", element: <Notifications /> },
       { path: "signup", element: <SignUp /> },
+      { path: "signin", element: <Signin /> },
       
     ],
   },
