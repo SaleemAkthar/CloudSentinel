@@ -8,6 +8,60 @@ export default function Signup() {
   const [submitted, setSubmitted] = useState(false);
 
 
+  const validate = () => {
+  const e = {};
+  if (!form.username.trim()) e.username = "Username is required";
+  else if (form.username.length < 3) e.username = "At least 3 characters";
+  if (!form.email.trim()) e.email = "Email is required";
+  else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Invalid email address";
+  if (!form.password) e.password = "Password is required";
+  else if (form.password.length < 8) e.password = "At least 8 characters";
+  if (!form.confirmPassword) e.confirmPassword = "Please confirm your password";
+  else if (form.password !== form.confirmPassword) e.confirmPassword = "Passwords do not match";
+  return e;
+  };
+
+  const handleChange = (field) => (e) => {
+    setForm((f) => ({ ...f, [field]: e.target.value }));
+    if (errors[field]) setErrors((err) => ({ ...err, [field]: undefined }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const v = validate();
+    if (Object.keys(v).length) { setErrors(v); return; }
+    setSubmitted(true);
+  };
+
+  const getStrength = (pw) => {
+    if (!pw) return 0;
+    if (pw.length < 8) return 1;
+    if (pw.length >= 12 && /[^a-zA-Z0-9]/.test(pw)) return 4;
+    if (pw.length >= 10) return 3;
+    return 2;
+  };
+
+  const strengthColors = ["", "bg-red-500", "bg-yellow-500", "bg-blue-500", "bg-emerald-500"];
+  const strength = getStrength(form.password);
+
+  const EyeIcon = ({ open }) => (
+    <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+      {open ? (
+        <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></>
+      ) : (
+        <><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" /><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" /><line x1="1" y1="1" x2="23" y2="23" /></>
+      )}
+    </svg>
+  );
+
+  const inputCls = (field) =>
+    `w-full rounded-xl px-4 py-3 text-white text-[0.95rem] placeholder-white/20 outline-none transition-all ${
+      errors[field]
+        ? "border border-red-500/60 bg-red-500/5 shadow-[0_0_0_3px_rgba(239,68,68,0.1)]"
+        : "border border-white/10 bg-white/5 focus:border-blue-500/60 focus:bg-blue-500/5 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+    }`;
+
+
 
   return (
     <div className="min-h-screen bg-[#020817] flex items-center justify-center px-4 py-10 relative overflow-hidden">
@@ -195,6 +249,13 @@ export default function Signup() {
                 Create Account →
               </button>
             </form>
+
+            <p className="text-center text-white/35 text-sm mt-6">
+              Already have an account?{" "}
+              <a href="/signin" className="text-blue-400 font-medium hover:underline">
+                Log in
+              </a>
+            </p>
 
 
           </>
