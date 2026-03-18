@@ -192,8 +192,28 @@ class CloudSentinelPipeline:
             "temporal_context": temporal_context,
         }
 
-        # ── STAGE 2A: LAYER 1 FILTER (hard rules) ────────────────────────────
-        # Rebuild Layer1Filter with SARIMA dynamic thresholds
+        # ── STAGE 2A: LAYER 1 SCORER (AI scoring — runs first) ──────────────
+        # Feeds every packet into the AI model to keep baseline updated.
+        # During learning phase: just collects data, no anomaly decision.
+        # After learning:        calculates Z-scores + weighted composite.
+        scorer_features  = self._extract_scorer_features(packet)
+        l1_score, l1_score_details = _ai_model.process_log(scorer_features)
+        stages["layer1_scorer"] = {
+            "score":   round(l1_score, 4),
+            "details": l1_score_details,
+        }
+
+        scorer_is_anomaly = (
+            l1_score_details.get("phase") != "learning"
+            and l1_score_details.get("is_anomaly", False)
+        )
+        scorer_learning = l1_score_details.get("phase") == "learning"
+
+        # ── STAGE 2B: LAYER 1 FILTER (hard rules — runs after scorer) ────────
+        # Always runs regardless of scorer result.
+        # Specifically catches DDoS (API call rate), IP spoofing,
+        # data exfiltration (outbound ratio), and fragmentation attacks.
+        # SARIMA provides dynamic duration threshold.
         dynamic_l1 = Layer1Filter(
             ttl_min         = sarima_thresholds["ttl_min"],
             ttl_max         = sarima_thresholds["ttl_max"],
@@ -203,35 +223,27 @@ class CloudSentinelPipeline:
         l1_filter_result = dynamic_l1.check(packet)
         stages["layer1_filter"] = l1_filter_result
 
-        # ── STAGE 2B: LAYER 1 SCORER (AI scoring) ────────────────────────────
-        # Always feed the scorer so it keeps learning the baseline
-        scorer_features = self._extract_scorer_features(packet)
-        l1_score, l1_score_details = _ai_model.process_log(scorer_features)
-        stages["layer1_scorer"] = {
-            "score":   round(l1_score, 4),
-            "details": l1_score_details,
-        }
+        filter_has_violations = not l1_filter_result["pass"]
 
-        # Combined Layer 1 decision:
-        # ALLOW only if BOTH filter passes AND scorer says normal
-        filter_passed = l1_filter_result["pass"]
-        scorer_normal = (
-            l1_score_details.get("phase") == "learning"
-            or not l1_score_details.get("is_anomaly", False)
-        )
+        # Combined Layer 1 result
+        # ALLOW only if: filter clean AND (scorer says normal OR still learning)
+        # FAIL  if:      filter has violations OR scorer found anomaly
+        l1_pass = (not filter_has_violations) and (not scorer_is_anomaly)
 
         l1_result = {
-            "pass":          filter_passed and scorer_normal,
-            "filter_result": l1_filter_result,
-            "scorer_result": l1_score_details,
-            "filter_passed": filter_passed,
-            "scorer_passed": scorer_normal,
-            "l1_score":      round(l1_score, 4),
+            "pass":              l1_pass,
+            "scorer_anomaly":    scorer_is_anomaly,
+            "scorer_learning":   scorer_learning,
+            "filter_violations": l1_filter_result["violations"],
+            "filter_passed":     l1_filter_result["pass"],
+            "l1_score":          round(l1_score, 4),
+            "filter_result":     l1_filter_result,
+            "scorer_result":     l1_score_details,
         }
         stages["layer1"] = l1_result
 
-        # ALLOW immediately if both Layer 1 checks pass
-        if l1_result["pass"]:
+        # ALLOW immediately if Layer 1 passes
+        if l1_pass:
             elapsed_ms = round((time.perf_counter() - t0) * 1000, 3)
             return self._build_result(
                 pipeline_id = pipeline_id,
@@ -242,7 +254,7 @@ class CloudSentinelPipeline:
                 stages      = stages,
                 elapsed_ms  = elapsed_ms,
                 stopped_at  = "layer1",
-                reason      = "Passed Layer 1 filter and scorer — normal traffic",
+                reason      = "Passed Layer 1 scorer and filter — normal traffic",
             )
 
         # ── STAGE 3: LAYER 2 ─────────────────────────────────────────────────
