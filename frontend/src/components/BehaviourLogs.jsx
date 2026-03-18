@@ -137,7 +137,17 @@ export default function BehaviourLogs() {
 
   // ── Render ──────────────────────────────────────────────────────────
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+
+      {/* Page Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-white">
+          Behaviour Logs
+        </h1>
+        <p className="text-slate-400 mt-1">
+          Comprehensive audit trail of all system activities
+        </p>
+      </div>
 
       {/* Error banner */}
       {error && (
