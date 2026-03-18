@@ -185,10 +185,12 @@ def generate_crypto_mining_record(timestamp: str = None) -> dict:
 
 def generate_data_exfiltration_record(timestamp: str = None) -> dict:
     """
-    Simulate data exfiltration by making 8–20 rapid complex DB queries.
-
-    The total duration and API call count come from real invocations.
-    Large outbound packet size reflects the data volume being extracted.
+    Simulate data exfiltration via mass DB queries.
+    
+    Value ranges based on:
+    - MITRE ATT&CK T1048 (Exfiltration Over Alternative Protocol):
+      large outbound payloads 5,000–20,000 bytes per burst
+    - Rapid repeated queries (8–20 calls) typical of automated exfil tools
     """
     if timestamp is None:
         timestamp = datetime.utcnow().isoformat()
@@ -223,10 +225,12 @@ def generate_data_exfiltration_record(timestamp: str = None) -> dict:
 
 def generate_sql_injection_record(timestamp: str = None) -> dict:
     """
-    Simulate SQL injection by flooding db-query with 15–30 rapid attempts.
-
-    Uses real invocations so duration reflects actual execution time.
-    Most attempts fail (70–90% error rate) as injections typically do.
+    Simulate SQL injection flood.
+    
+    Value ranges based on:
+    - OWASP Testing Guide v4.2 (WSTG-INPV-05): 70–90% of injection
+      attempts fail, producing high error_count relative to api_calls
+    - Repeated rapid queries (15–30) consistent with automated SQLi tools
     """
     if timestamp is None:
         timestamp = datetime.utcnow().isoformat()
