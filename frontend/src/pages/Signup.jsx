@@ -7,7 +7,20 @@ export default function Signup() {
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
 
- 
+
+  const validate = () => {
+  const e = {};
+  if (!form.username.trim()) e.username = "Username is required";
+  else if (form.username.length < 3) e.username = "At least 3 characters";
+  if (!form.email.trim()) e.email = "Email is required";
+  else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Invalid email address";
+  if (!form.password) e.password = "Password is required";
+  else if (form.password.length < 8) e.password = "At least 8 characters";
+  if (!form.confirmPassword) e.confirmPassword = "Please confirm your password";
+  else if (form.password !== form.confirmPassword) e.confirmPassword = "Passwords do not match";
+  return e;
+  };
+
   const handleChange = (field) => (e) => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
     if (errors[field]) setErrors((err) => ({ ...err, [field]: undefined }));
