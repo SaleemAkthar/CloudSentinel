@@ -192,32 +192,57 @@ class CloudSentinelPipeline:
             "temporal_context": temporal_context,
         }
 
-        # ── STAGE 2: LAYER 1 ─────────────────────────────────────────────────
+        # ── STAGE 2A: LAYER 1 FILTER (hard rules) ────────────────────────────
         # Rebuild Layer1Filter with SARIMA dynamic thresholds
         dynamic_l1 = Layer1Filter(
-            ttl_min      = sarima_thresholds["ttl_min"],
-            ttl_max      = sarima_thresholds["ttl_max"],
-            size_max     = sarima_thresholds["size_max"],
+            ttl_min         = sarima_thresholds["ttl_min"],
+            ttl_max         = sarima_thresholds["ttl_max"],
+            size_max        = sarima_thresholds["size_max"],
             duration_max_ms = sarima_thresholds["duration_max"],
         )
-        l1_result = dynamic_l1.check(packet)
+        l1_filter_result = dynamic_l1.check(packet)
+        stages["layer1_filter"] = l1_filter_result
+
+        # ── STAGE 2B: LAYER 1 SCORER (AI scoring) ────────────────────────────
+        # Always feed the scorer so it keeps learning the baseline
+        scorer_features = self._extract_scorer_features(packet)
+        l1_score, l1_score_details = _ai_model.process_log(scorer_features)
+        stages["layer1_scorer"] = {
+            "score":   round(l1_score, 4),
+            "details": l1_score_details,
+        }
+
+        # Combined Layer 1 decision:
+        # ALLOW only if BOTH filter passes AND scorer says normal
+        filter_passed = l1_filter_result["pass"]
+        scorer_normal = (
+            l1_score_details.get("phase") == "learning"
+            or not l1_score_details.get("is_anomaly", False)
+        )
+
+        l1_result = {
+            "pass":          filter_passed and scorer_normal,
+            "filter_result": l1_filter_result,
+            "scorer_result": l1_score_details,
+            "filter_passed": filter_passed,
+            "scorer_passed": scorer_normal,
+            "l1_score":      round(l1_score, 4),
+        }
         stages["layer1"] = l1_result
 
-        # ALLOW immediately if Layer 1 passes
+        # ALLOW immediately if both Layer 1 checks pass
         if l1_result["pass"]:
             elapsed_ms = round((time.perf_counter() - t0) * 1000, 3)
-            # Still feed AI model so it keeps learning normal patterns
-            self._feed_ai_model(packet, is_training_only=True)
             return self._build_result(
                 pipeline_id = pipeline_id,
                 timestamp   = timestamp,
                 decision    = "ALLOW",
                 confidence  = 0.95,
-                severity    = "MEDIUM",   # default — packet never reached L2
+                severity    = "MEDIUM",
                 stages      = stages,
                 elapsed_ms  = elapsed_ms,
                 stopped_at  = "layer1",
-                reason      = "Packet passed all Layer 1 checks",
+                reason      = "Passed Layer 1 filter and scorer — normal traffic",
             )
 
         # ── STAGE 3: LAYER 2 ─────────────────────────────────────────────────
@@ -258,6 +283,24 @@ class CloudSentinelPipeline:
         )
 
     # ── Feed AI model (learning only, no decision) ────────────────────────────
+
+    # ── Extract features for Layer 1 Scorer ───────────────────────────
+
+    def _extract_scorer_features(self, packet: dict) -> dict:
+        """Minimal features for Layer1Scorer baseline learning."""
+        return {
+            "duration":        packet.get("duration", 0),
+            "memory_used":     packet.get("memory_used", 0),
+            "num_api_calls":   packet.get("num_api_calls", 0),
+            "error_count":     packet.get("error_count", 0),
+            "concurrency":     1,
+            "packet_size_in":  packet.get("packet_size_in", 512),
+            "packet_size_out": packet.get("packet_size_out", 0),
+            "latency":         packet.get("network_latency", 0),
+            "fragment_count":  packet.get("fragment_count", 0),
+            "ip_address":      packet.get("ip_address", "10.0.0.1"),
+            "timestamp":       datetime.datetime.utcnow().isoformat(),
+        }
 
     def _feed_ai_model(self, packet: dict, is_training_only: bool = False):
         """Feed normal packets into the AI model to keep the baseline updated."""
