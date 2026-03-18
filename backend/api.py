@@ -232,14 +232,14 @@ def process_log(request: LogRequest):
     Main detection pipeline for Lambda execution events.
 
     Flow:
-        1. SARIMA — feed data point for temporal learning, auto-train
-        2. Layer 1 Filter — hard rule gate
-            PASS → normal traffic, feed AI model for learning
+        1. SARIMA        — dynamic thresholds + temporal context
+        2. Layer1Scorer  — AI scoring, Z-scores, Welford baseline  (runs FIRST)
+        3. Layer1Filter  — hard rule confirmation gate              (runs AFTER scorer)
+            PASS → normal traffic allowed
             FAIL → escalate to Layer 2
-        3. Layer 2 Scanner — deep forensic analysis
-        4. AI Model — ensemble decision (IF + RF)
-        5. Create alert if INVESTIGATE or BLOCK
-        6. Feed labeled example back to AI model
+        4. Layer 2 Scanner — deep forensic analysis
+        5. AI Model — ensemble decision (IF + RF)
+        6. Create alert if INVESTIGATE or BLOCK
     """
 
     # Build full packet dict for all detection layers
@@ -266,97 +266,61 @@ def process_log(request: LogRequest):
         "concurrency":          1,
     }
 
-    # ── STEP 0: Feed SARIMA + auto-train when ready ──────────────────
-    sarima_forecaster.add_data_point(
-        request.duration,
-        datetime.datetime.utcnow().isoformat(),
+    # ── Run the unified pipeline ─────────────────────────────────────
+    # Internally: SARIMA → Layer1Scorer → Layer1Filter → Layer2 → AI Model
+    pipeline_result = sentinel_pipeline.process(packet)
+
+    decision      = pipeline_result["decision"]          # ALLOW / INVESTIGATE / BLOCK
+    confidence    = pipeline_result["confidence"]
+    severity      = pipeline_result["severity"]
+    is_anomaly    = decision in ("INVESTIGATE", "BLOCK")
+
+    # Extract layer details from pipeline stages for the response
+    stages        = pipeline_result.get("stages", {})
+    l1_result     = stages.get("layer1", {})
+    l2_result     = stages.get("layer2", {})
+    ai_stage      = stages.get("ai_model", {})
+    scorer_result = stages.get("layer1_scorer", {})
+
+    anomaly_score = scorer_result.get("score", 0.0)
+    attack_type   = (
+        l2_result.get("patterns", {}).get("top_threat", {}).get("name")
+        if l2_result else None
     )
-    if (not sarima_forecaster._trained
-            and len(sarima_forecaster.training_data) >= sarima_forecaster.MIN_TRAINING_POINTS):
-        sarima_forecaster.train()
 
-    # ── STEP 1: Layer 1 Filter — hard rule gate ──────────────────────
-    l1_result = layer1_filter.check(packet)
-
-    if l1_result["pass"]:
-        # Normal traffic — feed AI model so it keeps learning
-        ai_result = ai_model.predict(packet)
-        ai_model.add_labeled_example(packet, is_anomaly=False, attack_type="normal")
-
+    # Early return for clean traffic (pipeline stopped at Layer 1)
+    if not is_anomaly:
         result = {
             "decision":   "ALLOW",
             "layer":      1,
             "is_anomaly": False,
-            "message":    "Passed Layer 1 — normal traffic",
+            "message":    pipeline_result.get("reason", "Passed Layer 1 — normal traffic"),
             "layer1":     l1_result,
             "ai_model": {
-                "phase": ai_result.get("phase"),
-                "score": ai_result.get("anomaly_score", 0),
+                "phase": scorer_result.get("details", {}).get("phase"),
+                "score": anomaly_score,
             },
         }
         log_storage.append(_build_log_entry(request, result))
         _update_lambda_metrics(request, is_anomaly=False)
         return result
 
-    # ── STEP 2: Layer 2 Scanner — deep forensic analysis ─────────────
-    l2_result = layer2_scanner.scan(packet, l1_result)
-
-    # ── STEP 3: AI Model — ensemble decision ─────────────────────────
-    l2_risk = l2_result.get("risk", {}).get("adjusted_score", 0)
-    ai_result = ai_model.predict(packet, l2_risk_score=l2_risk)
-
-    decision      = ai_result["decision"]
-    anomaly_score = ai_result["anomaly_score"]
-    confidence    = ai_result["confidence"]
-    attack_type   = ai_result.get("attack_type")
-    is_anomaly    = ai_result["is_anomaly"]
-
-    # Use Layer 2 threat type if AI model doesn't have one
-    if not attack_type:
-        top_threat = l2_result.get("patterns", {}).get("top_threat")
-        if top_threat:
-            attack_type = top_threat.get("name", "Unknown")
-        else:
-            attack_type = l2_result.get("risk", {}).get(
-                "recommendation", {}
-            ).get("action", "Unknown")
-
-    # During AI learning phase — fall back to Layer 2 severity
-    if ai_result.get("phase") == "learning":
-        l2_severity = l2_result.get("severity", "MEDIUM")
-        if l2_severity == "CRITICAL":
-            decision, confidence = "BLOCK", 0.85
-        elif l2_severity == "HIGH":
-            decision, confidence = "BLOCK", 0.72
-        else:
-            decision, confidence = "INVESTIGATE", 0.60
-        is_anomaly = decision in ("INVESTIGATE", "BLOCK")
-
-    severity = l2_result.get("severity", "MEDIUM")
-
-    # ── STEP 4: Create alert (only for INVESTIGATE or BLOCK) ─────────
-    if is_anomaly:
-        alert = _build_alert(
-            log_request=request,
-            decision=decision,
-            severity=severity,
-            confidence=confidence,
-            anomaly_score=anomaly_score,
-            threat_type=attack_type,
-            layer2_report=l2_result,
-            ai_result=ai_result,
-        )
-        alert_store.add(alert)
-
-    # ── STEP 5: Feed labeled example to AI model ─────────────────────
-    ai_model.add_labeled_example(
-        packet,
-        is_anomaly=is_anomaly,
-        attack_type=attack_type if is_anomaly else "normal",
+    # ── Create alert (only for INVESTIGATE or BLOCK) ─────────────────
+    ai_details = ai_stage.get("details", {}) if ai_stage else {}
+    alert = _build_alert(
+        log_request=request,
+        decision=decision,
+        severity=severity,
+        confidence=confidence,
+        anomaly_score=anomaly_score,
+        threat_type=attack_type,
+        layer2_report=l2_result,
+        ai_result=ai_details,
     )
+    alert_store.add(alert)
 
-    # ── STEP 6: Log and return ───────────────────────────────────────
-    risk = l2_result.get("risk", {})
+    # ── Log and return ───────────────────────────────────────────────
+    risk = l2_result.get("risk", {}) if l2_result else {}
     result = {
         "decision":       decision,
         "is_anomaly":     is_anomaly,
@@ -367,17 +331,17 @@ def process_log(request: LogRequest):
         "layer":          2,
         "layer1":         l1_result,
         "layer2_summary": {
-            "severity":     l2_result.get("severity"),
+            "severity":     l2_result.get("severity") if l2_result else None,
             "risk_score":   risk.get("adjusted_score", 0),
-            "threat_count": l2_result.get("patterns", {}).get("threat_count", 0),
-            "scan_id":      l2_result.get("scan_id"),
-            "elapsed_ms":   l2_result.get("elapsed_ms"),
+            "threat_count": l2_result.get("patterns", {}).get("threat_count", 0) if l2_result else 0,
+            "scan_id":      l2_result.get("scan_id") if l2_result else None,
+            "elapsed_ms":   l2_result.get("elapsed_ms") if l2_result else None,
         },
         "ai_model": {
-            "phase":       ai_result.get("phase"),
-            "score":       ai_result.get("anomaly_score", 0),
-            "is_anomaly":  ai_result.get("is_anomaly", False),
-            "model_votes": ai_result.get("model_votes"),
+            "phase":       ai_details.get("phase"),
+            "score":       ai_details.get("anomaly_score", 0),
+            "is_anomaly":  ai_details.get("is_anomaly", False),
+            "model_votes": ai_details.get("model_votes"),
         },
         "message": (
             f"Layer 2 + AI Model complete. Decision: {decision}."
