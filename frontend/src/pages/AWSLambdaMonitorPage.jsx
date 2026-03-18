@@ -160,7 +160,7 @@ function buildThreatCounts(alerts) {
 }
 
 
-// ── Fallback synthetic data ─────────────────────────────────────────────
+// ── Fallback synthetic data for charts ───────────────────────────────────
 function fallbackInvocations() {
   const now = new Date();
   const data = [];
@@ -188,13 +188,14 @@ function fallbackThreats() {
   ];
 }
 
+
+// ── Fallback functions (real Lambda functions from LocalStack) ───────────
+
 const FALLBACK_FUNCTIONS = [
-  { name: "ProcessImage",     status: "active",  invocations: 12000, duration: "450ms",  error: "0.5%",  memory: "256MB" },
-  { name: "SendNotification", status: "warning", invocations: 8000,  duration: "600ms",  error: "2.1%",  memory: "128MB" },
-  { name: "DataIngest",       status: "error",   invocations: 500,   duration: "1200ms", error: "12%",   memory: "512MB" },
-  { name: "UserAuth",         status: "active",  invocations: 9000,  duration: "300ms",  error: "0.2%",  memory: "128MB" },
-  { name: "Cleanup",          status: "active",  invocations: 1984,  duration: "700ms",  error: "0.0%",  memory: "64MB"  },
-  { name: "ArchiveLogs",      status: "active",  invocations: 1000,  duration: "900ms",  error: "0.1%",  memory: "256MB" },
+  { name: "api-handler",     status: "active",  invocations: 0, duration: "0ms",  error: "0%",  memory: "128MB" },
+  { name: "file-processor",  status: "active",  invocations: 0, duration: "0ms",  error: "0%",  memory: "128MB" },
+  { name: "db-query",        status: "active",  invocations: 0, duration: "0ms",  error: "0%",  memory: "128MB" },
+  { name: "auth-service",    status: "active",  invocations: 0, duration: "0ms",  error: "0%",  memory: "128MB" },
 ];
 
 
@@ -269,10 +270,10 @@ export default function AWSLambdaMonitorPage() {
   }, [fetchAll]);
 
   // ── Derived values with fallbacks ───────────────────────────────────
-  const totalInvocations = overview?.total_invocations ?? 38484;
-  const avgResponseTime  = overview?.avg_response_time ?? 487;
-  const errorRate        = overview?.error_rate ?? 1.2;
-  const activeFunctions  = overview?.active_functions ?? 5;
+  const totalInvocations = overview?.total_invocations ?? 0;
+  const avgResponseTime  = overview?.avg_response_time ?? 0;
+  const errorRate        = overview?.error_rate ?? 0;
+  const activeFunctions  = overview?.active_functions ?? 4;
   const totalFunctions   = functions.length || 6;
   const errorFunctions   = functions.filter((f) => f.status === "error").length;
 
@@ -308,17 +309,14 @@ export default function AWSLambdaMonitorPage() {
           <div className="bg-[#0f1b3d] p-5 rounded-xl">
             <p className="text-gray-400 text-sm">Total Invocations</p>
             <h2 className="text-3xl font-bold">{totalInvocations.toLocaleString()}</h2>
-            <p className="text-green-400 text-sm">+12.5%</p>
           </div>
           <div className="bg-[#0f1b3d] p-5 rounded-xl">
             <p className="text-gray-400 text-sm">Avg Response Time</p>
             <h2 className="text-3xl font-bold">{avgResponseTime}ms</h2>
-            <p className="text-green-400 text-sm">-8.2%</p>
           </div>
           <div className="bg-[#0f1b3d] p-5 rounded-xl">
             <p className="text-gray-400 text-sm">Error Rate</p>
             <h2 className="text-3xl font-bold">{errorRate}%</h2>
-            <p className="text-red-400 text-sm">+0.3%</p>
           </div>
           <div className="bg-[#0f1b3d] p-5 rounded-xl">
             <p className="text-gray-400 text-sm">Active Functions</p>
