@@ -72,10 +72,10 @@ echo ""
 echo "[5/7] Registering task definition..."
 
 # Replace placeholders in task definition
-sed "s/ACCOUNT_ID/${AWS_ACCOUNT_ID}/g" aws/task-definition.json > /tmp/task-def.json
+sed "s/ACCOUNT_ID/${AWS_ACCOUNT_ID}/g" aws/task-definition.json > /tmp/task-def-generated.json
 
 aws ecs register-task-definition \
-  --cli-input-json file:///tmp/task-def.json \
+  --cli-input-json file:///tmp/task-def-generated.json \
   --region ${AWS_REGION}
 echo "  Task definition registered"
 
