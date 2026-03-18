@@ -58,6 +58,7 @@ export default function AppShell() {
               <SideItem to="/lambda" icon={<ShowChartRoundedIcon fontSize="small" />} label="AWS Lambda Monitor" />
               <SideItem to="/insights" icon={<AutoAwesomeRoundedIcon fontSize="small" />} label="AI Insights" />
               <SideItem to="/signup" icon={<GroupOutlinedIcon fontSize="small" />} label="Sign Up" />
+              <SideItem to="/signin" icon={<GroupOutlinedIcon fontSize="small" />} label="Sign In" />
             </div>
 
             <div className="mt-5 border-t border-white/10 pt-4">
