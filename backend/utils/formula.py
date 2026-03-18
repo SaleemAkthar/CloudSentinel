@@ -418,7 +418,8 @@ def calculate_behavioral_anomaly(
         if request_rate > 100:  # More than 100 req/min from same IP
             S_ddos = min(request_rate / 500, 1.0) * (1 - entropy)
             attack_scores['ddos'] = S_ddos
-
+            
+    #Single-request indicators (works without history)
     # DDoS packets show: high API calls, high concurrency, high fragmentation
     concurrency = features.get('concurrency', 1)
     fragment_count = features.get('fragment_count', 0)
