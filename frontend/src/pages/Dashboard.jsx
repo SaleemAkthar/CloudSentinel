@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import GlassCard from "../components/GlassCard";
 import StatusDot from "../components/StatusDot";
-import MetricBar from "../components/MetricBar";
-import { getAlerts, getModelHealth } from "../services/api";
+import { getAlerts } from "../services/api";
 
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import ShowChartRoundedIcon from "@mui/icons-material/ShowChartRounded";
-import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 
 import {
   AreaChart,
@@ -20,10 +18,6 @@ import {
 } from "recharts";
 
 // --- helpers ---
-// function hourLabel(date) {
-//   const h = String(date.getHours()).padStart(2, "0");
-//   return `${h}:00`;
-// }
 
 function bucket24h(alerts) {
   const maxTs = alerts.length
@@ -32,7 +26,7 @@ function bucket24h(alerts) {
 
   const end = new Date(maxTs);
   const start = new Date(end);
-  start.setHours(end.getHours() - 23, 0, 0, 0); // 24 buckets
+  start.setHours(end.getHours() - 23, 0, 0, 0);
 
   const buckets = Array.from({ length: 24 }, (_, i) => {
     const d = new Date(start);
@@ -61,7 +55,6 @@ function bucket24h(alerts) {
     const idx = Math.floor((t - start) / (60 * 60 * 1000));
     if (idx < 0 || idx > 23) continue;
 
-    // Threat count per hour
     if (
       a.status === "OPEN" &&
       (a.severity === "CRITICAL" || a.severity === "WARNING")
@@ -69,7 +62,6 @@ function bucket24h(alerts) {
       buckets[idx].threats += 1;
     }
 
-    // Anomaly count per hour
     if (
       typeof a.anomaly_score === "number" &&
       a.anomaly_score >= ANOMALY_THRESHOLD
@@ -104,19 +96,14 @@ function TwoLineTick({ x, y, payload }) {
 
 export default function Dashboard() {
   const [alerts, setAlerts] = useState([]);
-  const [health, setHealth] = useState(null);
 
   useEffect(() => {
     getAlerts().then(setAlerts);
-    getModelHealth().then(setHealth);
   }, []);
 
   const stats = useMemo(() => {
     const open = alerts.filter(a => a.status === "OPEN");
     const critical = open.filter(a => a.severity === "CRITICAL").length;
-
-    // High: WARNING with anomaly_score >= 0.70
-    // Medium: WARNING with anomaly_score < 0.70
     const high = open.filter(a => a.severity === "WARNING" && a.anomaly_score >= 0.7).length;
     const medium = open.filter(a => a.severity === "WARNING" && a.anomaly_score < 0.7).length;
 
@@ -124,7 +111,6 @@ export default function Dashboard() {
   }, [alerts]);
 
   const functions = useMemo(() => {
-    // latest alert per function
     const byFn = new Map();
     for (const a of alerts) {
       const prev = byFn.get(a.function);
@@ -136,7 +122,6 @@ export default function Dashboard() {
       ...classifyFunctionStatus(latest),
     }));
 
-    // active count = ok or warn
     const activeCount = items.filter(i => i.tone === "ok" || i.tone === "warn").length;
 
     return { items, activeCount, total: items.length };
@@ -144,12 +129,10 @@ export default function Dashboard() {
 
   const chartData = useMemo(() => bucket24h(alerts), [alerts]);
 
-  const model = health || { accuracy: 0, precision: 0, recall: 0, trainingActive: false, delta: 0 };
-
   return (
     <div className="space-y-6">
       {/* top cards */}
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-2">
         {/* Real-time alerts */}
         <GlassCard
           title="Real-Time Alerts"
@@ -233,35 +216,6 @@ export default function Dashboard() {
             </div>
           </div>
         </GlassCard>
-
-        {/* AI Model Health */}
-        <GlassCard
-          title="AI Model Health"
-          icon={<AutoAwesomeRoundedIcon fontSize="small" />}
-          right={<AutoAwesomeRoundedIcon fontSize="small" />}
-          className="bg-gradient-to-b from-white/5 to-white/0"
-        >
-          <div className="space-y-4">
-            <div className="flex items-end justify-between">
-              <div>
-                <div className="text-4xl font-semibold text-slate-100">{model.accuracy.toFixed(1)}%</div>
-                <div className="mt-1 text-xs text-slate-300">Overall Model Accuracy</div>
-              </div>
-              <div className="pb-2 text-sm text-emerald-300">↗ +{model.delta.toFixed(1)}%</div>
-            </div>
-
-            <MetricBar label="Accuracy" value={model.accuracy} />
-            <MetricBar label="Precision" value={model.precision} />
-            <MetricBar label="Recall" value={model.recall} />
-
-            <div className="pt-2 text-sm text-slate-200 flex items-center gap-2">
-              <span className={`h-2 w-2 rounded-full ${model.trainingActive ? "bg-emerald-400" : "bg-slate-400"}`} />
-              <span className="text-emerald-300">
-                Model Training: {model.trainingActive ? "Active" : "Paused"}
-              </span>
-            </div>
-          </div>
-        </GlassCard>
       </div>
 
       {/* Big chart */}
@@ -272,7 +226,6 @@ export default function Dashboard() {
       >
         <div className="px-5 pt-5 pb-2">
           <div className="flex items-center justify-between">
-            
             <div className="text-xs text-slate-300">Threats • Anomalies</div>
           </div>
         </div>
@@ -299,8 +252,8 @@ export default function Dashboard() {
                 interval={2}
                 height={60}
               />
-              <YAxis stroke="rgba(255,255,255,0.55)" tick={{ fontSize: 12 }}  allowDecimals={false} />
-              
+              <YAxis stroke="rgba(255,255,255,0.55)" tick={{ fontSize: 12 }} allowDecimals={false} />
+
               <Tooltip
                 contentStyle={{
                   background: "rgba(10, 20, 45, 0.95)",
