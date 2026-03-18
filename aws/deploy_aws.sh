@@ -16,18 +16,18 @@ set -e
 
 # ── CONFIGURATION (edit these) ────────────────────────────────────────────
 AWS_REGION="us-east-1"
-AWS_ACCOUNT_ID="YOUR_ACCOUNT_ID"      # Replace with your AWS account ID
+AWS_ACCOUNT_ID="555847395733"
 ECR_REPO="cloud-sentinel-api"
 ECS_CLUSTER="cloud-sentinel-cluster"
 ECS_SERVICE="cloud-sentinel-service"
 ECS_TASK_FAMILY="cloud-sentinel-task"
 ALB_NAME="cloud-sentinel-alb"
 TG_NAME="cs-api-targets"
-VPC_ID="YOUR_VPC_ID"                   # Replace with your VPC ID
-SUBNET_1="YOUR_SUBNET_1"              # Replace with subnet ID (us-east-1a)
-SUBNET_2="YOUR_SUBNET_2"              # Replace with subnet ID (us-east-1b)
-SECURITY_GROUP="YOUR_SG_ID"           # Replace with security group ID
-DESIRED_COUNT=3                        # Number of backend nodes
+VPC_ID="vpc-06591aa6f4723504a"
+SUBNET_1="subnet-064044ba3d45d7f62"
+SUBNET_2="subnet-0963d39d710d10940"
+SECURITY_GROUP="sg-06e9544a4d1bb65fa"
+DESIRED_COUNT=3
 
 ECR_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
 
