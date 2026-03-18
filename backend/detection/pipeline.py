@@ -213,7 +213,7 @@ class CloudSentinelPipeline:
                 timestamp   = timestamp,
                 decision    = "ALLOW",
                 confidence  = 0.95,
-                severity    = "SAFE",
+                severity    = "MEDIUM",   # default — packet never reached L2
                 stages      = stages,
                 elapsed_ms  = elapsed_ms,
                 stopped_at  = "layer1",
@@ -328,15 +328,12 @@ class CloudSentinelPipeline:
         into a final ALLOW / INVESTIGATE / BLOCK decision.
 
         Decision rules:
-          BLOCK       → AI score >= 0.7  OR  L2 severity CRITICAL
-                        OR (AI score >= 0.5 AND L2 severity HIGH)
-          INVESTIGATE → AI score >= 0.4  OR  L2 severity HIGH or MEDIUM
-                        OR temporal off-peak attack
-          ALLOW       → everything else
+          BLOCK       -> CRITICAL or combined >= 0.75 or HIGH
+          INVESTIGATE -> everything else that reached Layer 2
+          ALLOW       -> only returned by Layer 1 fast-pass
         """
-        l2_severity      = l2_result.get("severity", "LOW")
+        l2_severity      = l2_result.get("severity", "MEDIUM")
         l2_risk          = l2_result.get("risk", {}).get("adjusted_score", 0)
-        is_off_peak_atk  = temporal.get("is_off_peak_attack", False)
         ai_phase         = ai_details.get("phase")
 
         # During AI learning phase — rely purely on Layer 2
@@ -344,11 +341,9 @@ class CloudSentinelPipeline:
             if l2_severity == "CRITICAL":
                 return "BLOCK", 0.85
             elif l2_severity == "HIGH":
-                return "INVESTIGATE", 0.72
-            elif l2_severity == "MEDIUM":
-                return "INVESTIGATE", 0.60
+                return "BLOCK", 0.72
             else:
-                return "ALLOW", 0.80
+                return "INVESTIGATE", 0.60
 
         # Full decision with AI score
         combined = (ai_score * 0.5) + (l2_risk * 0.5)
@@ -361,20 +356,17 @@ class CloudSentinelPipeline:
             decision   = "BLOCK"
             confidence = min(0.60 + combined * 0.20, 0.95)
 
-        elif combined >= 0.35 or l2_severity == "MEDIUM" or is_off_peak_atk:
+        else:
+            # Anything reaching Layer 2 is at minimum INVESTIGATE
             decision   = "INVESTIGATE"
             confidence = min(0.50 + combined * 0.20, 0.90)
-
-        else:
-            decision   = "ALLOW"
-            confidence = min(0.80 + (1 - combined) * 0.15, 0.99)
 
         return decision, round(confidence, 4)
 
     # ── Build reason string ───────────────────────────────────────────────────
 
     def _build_reason(self, decision: str, ai_details: dict, l2_result: dict) -> str:
-        severity = l2_result.get("severity", "LOW")
+        severity = l2_result.get("severity", "MEDIUM")
         patterns = l2_result.get("patterns", {})
         top      = patterns.get("top_threat")
         phase    = ai_details.get("phase", "detection")
