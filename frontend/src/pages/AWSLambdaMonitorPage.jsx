@@ -83,10 +83,9 @@ function buildHourlyBuckets(logs) {
 
   for (let i = 23; i >= 0; i--) {
     const bucketTime = new Date(now.getTime() - i * 60 * 60 * 1000);
-    const hourKey = bucketTime.toISOString().slice(0, 13); // "YYYY-MM-DDTHH"
+    const hourKey = bucketTime.toISOString().slice(0, 13);
     const label = `${String(bucketTime.getHours()).padStart(2, "0")}:00`;
 
-    // Count logs whose timestamp falls within this hour
     let actual = 0;
     for (const log of logs) {
       const ts = log.timestamp || "";
@@ -98,7 +97,7 @@ function buildHourlyBuckets(logs) {
     buckets.push({ time: label, actual, predicted: 0 });
   }
 
-  // Compute SARIMA-style predicted line (3-hour rolling average as approximation)
+  // Compute SARIMA-style predicted line (3-hour rolling average)
   for (let i = 0; i < buckets.length; i++) {
     const windowStart = Math.max(0, i - 1);
     const windowEnd = Math.min(buckets.length - 1, i + 1);
@@ -117,7 +116,6 @@ function buildHourlyBuckets(logs) {
 
 // ── Build threat counts from alerts ─────────────────────────────────────
 function buildThreatCounts(alerts) {
-  // Initialise all 6 attack types from layer2_scanner.py → attack_patterns.py
   const counts = {
     "DDoS":           0,
     "IP Spoofing":    0,
@@ -134,7 +132,6 @@ function buildThreatCounts(alerts) {
       counts[label] += 1;
     }
 
-    // Also count from layer2_report matched_patterns if present
     const patterns = alert.layer2_report?.patterns?.matched_patterns;
     if (Array.isArray(patterns)) {
       for (const p of patterns) {
@@ -163,7 +160,7 @@ function buildThreatCounts(alerts) {
 }
 
 
-// ── Fallback synthetic data (shown when backend has 0 packets) ──────────
+// ── Fallback synthetic data ─────────────────────────────────────────────
 function fallbackInvocations() {
   const now = new Date();
   const data = [];
@@ -227,22 +224,18 @@ export default function AWSLambdaMonitorPage() {
         axios.get("/api/alerts?limit=5000"),
       ]);
 
-      // Overview stats
       setOverview(overviewRes.data);
 
-      // ── Invocations chart (from /api/logs) ──────────────────────
       const logs = Array.isArray(logsRes.data) ? logsRes.data : [];
       const hourly = buildHourlyBuckets(logs);
       const hasLogData = hourly.some((b) => b.actual > 0);
       setInvocationData(hasLogData ? hourly : fallbackInvocations());
 
-      // ── Threats chart (from /api/alerts) ────────────────────────
       const alerts = Array.isArray(alertsRes.data) ? alertsRes.data : [];
       const threats = buildThreatCounts(alerts);
       const hasThreats = threats.some((t) => t.packets > 0);
       setThreatData(hasThreats ? threats : fallbackThreats());
 
-      // ── Function details (from /api/lambda/functions) ───────────
       const fnData = functionsRes.data.map((fn) => {
         const errorPct = fn.error_rate_pct;
         let status = "active";
@@ -262,7 +255,6 @@ export default function AWSLambdaMonitorPage() {
       setFunctions(fnData.length > 0 ? fnData : FALLBACK_FUNCTIONS);
     } catch (err) {
       console.error("Lambda Monitor fetch error:", err);
-      // On error, keep fallback data so page isn't blank
       setInvocationData((prev) => prev.length > 0 ? prev : fallbackInvocations());
       setThreatData((prev) => prev.length > 0 ? prev : fallbackThreats());
     } finally {
@@ -301,12 +293,12 @@ export default function AWSLambdaMonitorPage() {
 
   // ── Render ──────────────────────────────────────────────────────────
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-8">
 
       {/* Page Header */}
       <div>
-        <h1 className="text-3xl font-bold">AWS Lambda Monitor</h1>
-        <p className="text-gray-400">Real-time monitoring of serverless functions</p>
+        <h1 className="text-3xl font-bold text-white">AWS Lambda Monitor</h1>
+        <p className="text-slate-400 mt-1">Real-time monitoring of serverless functions</p>
       </div>
 
       <div className="space-y-6">
