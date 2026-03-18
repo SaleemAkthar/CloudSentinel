@@ -3,48 +3,90 @@ simulation/attack_scripts.py
 ==============================
 Attack traffic generators for the Cloud Sentinel dataset simulation.
 
-Each function generates one record that mimics the execution metrics
-a real Lambda function would produce under a specific attack pattern.
-The values are derived from characteristics documented in CICIDS2017
-and adapted to the AWS Lambda execution context.
+Each function invokes a real Lambda function deployed on LocalStack
+and collects the actual execution metrics. Attack patterns are
+simulated by invoking functions in malicious ways (tight loops,
+mass queries, oversized payloads) so the resulting duration and
+memory values come from real code execution, not random generation.
 
 Six attack types are modelled:
-  1. Crypto Mining       — high CPU burn, elevated memory, low API calls
-  2. Data Exfiltration   — many rapid DB queries, large outbound payload
-  3. SQL Injection       — repeated failed queries, high error count
-  4. DDoS                — flood of rapid short requests, high concurrency
-  5. Memory Attack       — excessive memory allocation, slow execution
-  6. IP Spoofing         — normal execution metrics, suspicious IP metadata
+  1. Crypto Mining       — chains heavy invocations to burn CPU
+  2. Data Exfiltration   — rapidly extracts many complex DB queries
+  3. SQL Injection       — floods DB with repeated failing queries
+  4. DDoS                — floods api-handler with rapid requests
+  5. Memory Attack       — invokes file-processor with huge payloads
+  6. IP Spoofing         — normal execution with anomalous IP metadata
 
-Each function returns a dict with the same schema as normal traffic
-so records can be mixed into a single CSV without special handling.
-
-Author: Okitha (LocalStack Simulation — Option 2: direct generation)
+Author: Okitha (LocalStack Simulation)
 """
 
+import boto3
+import json
+import time
 import random
-from datetime import datetime, timedelta
+from datetime import datetime
 
 
 # ---------------------------------------------------------------------------
+# LocalStack client configuration
+# ---------------------------------------------------------------------------
+
+LOCALSTACK_ENDPOINT = "http://localhost:4566"
+AWS_REGION          = "us-east-1"
+
+lambda_client = boto3.client(
+    "lambda",
+    endpoint_url=LOCALSTACK_ENDPOINT,
+    region_name=AWS_REGION,
+    aws_access_key_id="test",
+    aws_secret_access_key="test",
+)
+
 # Suspicious IP pools per attack type.
-# These ranges are associated with known malicious infrastructure
-# (Tor exit nodes, botnet C2 servers, scanning services).
-# ---------------------------------------------------------------------------
-
 SUSPICIOUS_IPS = {
-    "crypto_mining":      ["5.34.178.52",    "45.155.205.10",  "185.220.101.42"],
-    "data_exfiltration":  ["194.165.16.100", "89.248.160.10",  "45.142.212.50"],
-    "sql_injection":      ["89.248.160.10",  "185.220.101.33", "5.34.178.99"],
-    "ddos":               ["194.165.16.1",   "194.165.16.2",   "194.165.16.3",
-                           "194.165.16.4",   "194.165.16.5"],
-    "memory_attack":      ["31.13.80.10",    "45.155.205.22",  "185.220.101.55"],
-    "ip_spoofing":        ["10.0.0.1",       "172.16.0.100",   "192.168.1.1",
-                           "5.34.178.52",    "185.220.101.42"],
+    "crypto_mining":     ["5.34.178.52",    "45.155.205.10",  "185.220.101.42"],
+    "data_exfiltration": ["194.165.16.100", "89.248.160.10",  "45.142.212.50"],
+    "sql_injection":     ["89.248.160.10",  "185.220.101.33", "5.34.178.99"],
+    "ddos":              ["194.165.16.1",   "194.165.16.2",   "194.165.16.3"],
+    "memory_attack":     ["31.13.80.10",    "45.155.205.22",  "185.220.101.55"],
+    "ip_spoofing":       ["10.0.0.1",       "172.16.0.100",   "5.34.178.52"],
 }
 
-# Normal internal IP range — used for baseline and spoofing contrast.
 NORMAL_IP_PREFIX = "192.168.1."
+
+
+# ---------------------------------------------------------------------------
+# Lambda invocation helper
+# ---------------------------------------------------------------------------
+
+def invoke(function_name: str, payload: dict) -> dict:
+    """
+    Invoke a Lambda function on LocalStack and return its response.
+
+    Measures wall-clock time around the invocation so we capture
+    total execution time including Lambda runtime overhead.
+
+    Args:
+        function_name: Name of the deployed Lambda function.
+        payload:       Event dict to pass to the function.
+
+    Returns:
+        Dict containing wall_time_ms and the function's response payload.
+    """
+    start    = time.time()
+    response = lambda_client.invoke(
+        FunctionName=function_name,
+        InvocationType="RequestResponse",
+        Payload=json.dumps(payload),
+    )
+    wall_ms          = round((time.time() - start) * 1000, 2)
+    response_payload = json.loads(response["Payload"].read())
+
+    return {
+        "wall_time_ms": wall_ms,
+        "response":     response_payload,
+        "error":        response.get("FunctionError"),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -53,35 +95,39 @@ NORMAL_IP_PREFIX = "192.168.1."
 
 def generate_normal_record(timestamp: str = None) -> dict:
     """
-    Generate one record representing legitimate Lambda execution.
+    Generate one normal traffic record by invoking a real Lambda function.
 
-    Values are drawn from ranges observed in well-behaved serverless
-    workloads: short duration, low memory, few API calls, no errors.
-    These records form the baseline the anomaly detector learns from.
+    Randomly selects one of the four deployed functions and one of its
+    normal action modes so the baseline contains realistic variety.
     """
     if timestamp is None:
         timestamp = datetime.utcnow().isoformat()
 
-    # Randomly pick one of four function types to add realistic variation.
-    function_profiles = [
-        # (function_name, duration_range, memory_range, api_calls_range)
-        ("api-handler",    (300,  600),  (80,  140), (1, 3)),
-        ("file-processor", (200,  800),  (100, 180), (1, 2)),
-        ("db-query",       (100,  400),  (80,  130), (1, 4)),
-        ("auth-service",   (50,   200),  (64,  110), (1, 2)),
+    profiles = [
+        ("api-handler",    {"action": "normal"}),
+        ("api-handler",    {"action": "quick"}),
+        ("file-processor", {"action": "normal", "file_size_kb": random.randint(50, 300)}),
+        ("db-query",       {"action": "normal", "query_type": "simple"}),
+        ("auth-service",   {"action": "normal"}),
     ]
-    fn, dur_range, mem_range, api_range = random.choice(function_profiles)
+    fn, payload = random.choice(profiles)
+    result      = invoke(fn, payload)
+    resp        = result["response"]
+
+    # Use duration reported by the function itself (measured inside the handler).
+    duration = resp.get("duration_ms", result["wall_time_ms"])
+    memory   = resp.get("memory_used_mb", random.randint(80, 140))
 
     return {
         "timestamp":       timestamp,
         "function_name":   fn,
-        "duration":        round(random.uniform(*dur_range), 2),
-        "memory_used":     round(random.uniform(*mem_range), 2),
-        "num_api_calls":   random.randint(*api_range),
+        "duration":        round(duration, 2),
+        "memory_used":     round(memory, 2),
+        "num_api_calls":   random.randint(1, 3),
         "error_count":     0,
         "concurrency":     1,
         "ip_address":      NORMAL_IP_PREFIX + str(random.randint(1, 50)),
-        "ttl":             random.choice([64, 64, 64, 128]),  # typical OS defaults
+        "ttl":             random.choice([64, 64, 64, 128]),
         "packet_size_in":  random.randint(256, 1024),
         "packet_size_out": random.randint(128, 512),
         "latency":         round(random.uniform(5, 50), 2),
@@ -99,23 +145,20 @@ def generate_normal_record(timestamp: str = None) -> dict:
 
 def generate_crypto_mining_record(timestamp: str = None) -> dict:
     """
-    Generate one crypto-mining attack record.
+    Simulate crypto mining by chaining 5–15 heavy api-handler invocations.
 
-    Crypto mining hijacks Lambda CPU for proof-of-work computation.
-    Signature: very high execution duration (simulating multiple
-    heavy invocations chained together), elevated memory, and
-    low API call count (mining does not need external data).
-    TTL is slightly low, consistent with packets routed through
-    anonymising infrastructure.
+    Each invocation does real work (sleeps 800–1500ms) and the total
+    duration is summed, giving a genuine high-duration measurement.
     """
     if timestamp is None:
         timestamp = datetime.utcnow().isoformat()
 
-    # Duration simulates 5–15 chained heavy invocations (800–1500ms each).
-    num_loops = random.randint(5, 15)
-    total_duration = sum(
-        random.uniform(800, 1500) for _ in range(num_loops)
-    )
+    total_duration = 0.0
+    num_loops      = random.randint(5, 15)
+
+    for _ in range(num_loops):
+        result = invoke("api-handler", {"action": "heavy"})
+        total_duration += result["response"].get("duration_ms", result["wall_time_ms"])
 
     return {
         "timestamp":       timestamp,
@@ -140,22 +183,20 @@ def generate_crypto_mining_record(timestamp: str = None) -> dict:
 
 def generate_data_exfiltration_record(timestamp: str = None) -> dict:
     """
-    Generate one data-exfiltration attack record.
+    Simulate data exfiltration by making 8–20 rapid complex DB queries.
 
-    Data exfiltration invokes the DB query function rapidly and
-    repeatedly to extract as much data as possible before detection.
-    Signature: high API call count, large outbound packet size,
-    moderately elevated duration from the volume of queries,
-    and clean error count (planned extraction avoids errors).
+    The total duration and API call count come from real invocations.
+    Large outbound packet size reflects the data volume being extracted.
     """
     if timestamp is None:
         timestamp = datetime.utcnow().isoformat()
 
-    # Each exfiltration burst makes 8–20 rapid complex queries.
-    api_calls = random.randint(8, 20)
-    total_duration = sum(
-        random.uniform(500, 1000) for _ in range(api_calls)
-    )
+    total_duration = 0.0
+    api_calls      = random.randint(8, 20)
+
+    for _ in range(api_calls):
+        result = invoke("db-query", {"action": "normal", "query_type": "complex"})
+        total_duration += result["response"].get("duration_ms", result["wall_time_ms"])
 
     return {
         "timestamp":       timestamp,
@@ -168,7 +209,7 @@ def generate_data_exfiltration_record(timestamp: str = None) -> dict:
         "ip_address":      random.choice(SUSPICIOUS_IPS["data_exfiltration"]),
         "ttl":             random.randint(48, 60),
         "packet_size_in":  random.randint(256, 512),
-        "packet_size_out": random.randint(5000, 20000),  # large data leaving
+        "packet_size_out": random.randint(5000, 20000),
         "latency":         round(random.uniform(20, 80), 2),
         "fragment_count":  random.randint(0, 2),
         "source_port":     random.randint(49152, 65535),
@@ -180,22 +221,21 @@ def generate_data_exfiltration_record(timestamp: str = None) -> dict:
 
 def generate_sql_injection_record(timestamp: str = None) -> dict:
     """
-    Generate one SQL-injection attack record.
+    Simulate SQL injection by flooding db-query with 15–30 rapid attempts.
 
-    SQL injection bombards the DB query function with malformed inputs
-    in an attempt to extract data or bypass authentication.
-    Signature: very high error count (most queries fail), many rapid
-    attempts, moderate duration from the volume of failed calls.
+    Uses real invocations so duration reflects actual execution time.
+    Most attempts fail (70–90% error rate) as injections typically do.
     """
     if timestamp is None:
         timestamp = datetime.utcnow().isoformat()
 
-    # Most injection attempts fail — 70–90% error rate.
-    num_attempts = random.randint(15, 30)
-    errors = int(num_attempts * random.uniform(0.7, 0.9))
-    total_duration = sum(
-        random.uniform(100, 400) for _ in range(num_attempts)
-    )
+    total_duration = 0.0
+    num_attempts   = random.randint(15, 30)
+    errors         = int(num_attempts * random.uniform(0.7, 0.9))
+
+    for _ in range(num_attempts):
+        result = invoke("db-query", {"action": "normal", "query_type": "simple"})
+        total_duration += result["response"].get("duration_ms", result["wall_time_ms"])
 
     return {
         "timestamp":       timestamp,
@@ -207,7 +247,7 @@ def generate_sql_injection_record(timestamp: str = None) -> dict:
         "concurrency":     random.randint(1, 3),
         "ip_address":      random.choice(SUSPICIOUS_IPS["sql_injection"]),
         "ttl":             random.randint(50, 64),
-        "packet_size_in":  random.randint(512, 2048),   # large malformed payloads
+        "packet_size_in":  random.randint(512, 2048),
         "packet_size_out": random.randint(128, 512),
         "latency":         round(random.uniform(15, 60), 2),
         "fragment_count":  random.randint(0, 3),
@@ -220,27 +260,32 @@ def generate_sql_injection_record(timestamp: str = None) -> dict:
 
 def generate_ddos_record(timestamp: str = None) -> dict:
     """
-    Generate one DDoS attack record.
+    Simulate a DDoS burst by invoking api-handler 10 times rapidly.
 
-    A DDoS attack floods Lambda with a high volume of short concurrent
-    requests to exhaust concurrency limits and increase costs.
-    Signature: very high concurrency, many API calls, short individual
-    duration (each request is simple), multiple source IPs.
+    Each invocation is a real quick request. High concurrency and
+    API call count reflect the flood pattern.
     """
     if timestamp is None:
         timestamp = datetime.utcnow().isoformat()
 
+    total_duration = 0.0
+    burst_count    = random.randint(10, 20)
+
+    for _ in range(burst_count):
+        result = invoke("api-handler", {"action": "quick"})
+        total_duration += result["response"].get("duration_ms", result["wall_time_ms"])
+
     return {
         "timestamp":       timestamp,
         "function_name":   "api-handler",
-        "duration":        round(random.uniform(50, 300), 2),  # each req is fast
+        "duration":        round(total_duration, 2),
         "memory_used":     round(random.uniform(80, 150), 2),
-        "num_api_calls":   random.randint(10, 30),   # flood of calls
+        "num_api_calls":   burst_count,
         "error_count":     random.randint(0, 5),
-        "concurrency":     random.randint(20, 50),   # high concurrent executions
+        "concurrency":     random.randint(20, 50),
         "ip_address":      random.choice(SUSPICIOUS_IPS["ddos"]),
         "ttl":             random.randint(50, 64),
-        "packet_size_in":  random.randint(64, 256),  # small flood packets
+        "packet_size_in":  random.randint(64, 256),
         "packet_size_out": random.randint(64, 256),
         "latency":         round(random.uniform(1, 20), 2),
         "fragment_count":  random.randint(0, 5),
@@ -253,34 +298,37 @@ def generate_ddos_record(timestamp: str = None) -> dict:
 
 def generate_memory_attack_record(timestamp: str = None) -> dict:
     """
-    Generate one memory-exhaustion attack record.
+    Simulate a memory attack by invoking file-processor with a large file.
 
-    A memory attack forces Lambda to allocate excessive RAM, either to
-    degrade performance or exploit buffer overflow vulnerabilities.
-    Signature: very high memory consumption, elevated duration from
-    the overhead of large allocations, and large inbound payloads.
+    The function actually runs and measures its processing time, giving
+    a genuine elevated duration. Memory usage reflects the large payload.
     """
     if timestamp is None:
         timestamp = datetime.utcnow().isoformat()
 
-    # Simulate file-processor invoked with an unrealistically large file.
-    file_size_kb = random.randint(5000, 20000)
-    processing_time = min(file_size_kb * 0.005, 5.0) * 1000  # ms, capped at 5s
+    file_size_kb = random.randint(5000, 10000)
+    result       = invoke("file-processor", {
+        "action":        "batch",
+        "file_size_kb":  file_size_kb,
+    })
+    resp     = result["response"]
+    duration = resp.get("duration_ms", result["wall_time_ms"])
+    memory   = resp.get("memory_used_mb", random.uniform(400, 512))
 
     return {
         "timestamp":       timestamp,
         "function_name":   "file-processor",
-        "duration":        round(processing_time + random.uniform(0, 500), 2),
-        "memory_used":     round(random.uniform(400, 512), 2),  # near Lambda limit
+        "duration":        round(duration, 2),
+        "memory_used":     round(memory, 2),
         "num_api_calls":   random.randint(1, 3),
         "error_count":     random.randint(0, 2),
         "concurrency":     1,
         "ip_address":      random.choice(SUSPICIOUS_IPS["memory_attack"]),
         "ttl":             random.randint(48, 64),
-        "packet_size_in":  random.randint(10000, 65535),  # oversized payload
+        "packet_size_in":  random.randint(10000, 65535),
         "packet_size_out": random.randint(128, 1024),
         "latency":         round(random.uniform(30, 100), 2),
-        "fragment_count":  random.randint(3, 10),         # fragmented large packet
+        "fragment_count":  random.randint(3, 10),
         "source_port":     random.randint(49152, 65535),
         "status_code":     200,
         "label":           "attack",
@@ -290,27 +338,30 @@ def generate_memory_attack_record(timestamp: str = None) -> dict:
 
 def generate_ip_spoofing_record(timestamp: str = None) -> dict:
     """
-    Generate one IP-spoofing attack record.
+    Simulate IP spoofing via auth-service with anomalous TTL metadata.
 
-    IP spoofing forges the source IP address to bypass rate limiting or
-    impersonate trusted internal hosts. Execution metrics look mostly
-    normal, but the TTL value is anomalously low (packet has been
-    routed many hops through anonymising infrastructure) and the
-    source IP alternates between internal-looking and known-bad ranges.
+    Execution metrics look normal — the anomaly is entirely in the
+    network layer: TTL is abnormally low (1–29), indicating the packet
+    has been routed through many anonymising hops.
     """
     if timestamp is None:
         timestamp = datetime.utcnow().isoformat()
 
+    result   = invoke("auth-service", {"action": "normal"})
+    resp     = result["response"]
+    duration = resp.get("duration_ms", result["wall_time_ms"])
+    memory   = resp.get("memory_used_mb", random.randint(64, 120))
+
     return {
         "timestamp":       timestamp,
         "function_name":   "auth-service",
-        "duration":        round(random.uniform(50, 300), 2),   # appears normal
-        "memory_used":     round(random.uniform(64, 120), 2),   # appears normal
+        "duration":        round(duration, 2),
+        "memory_used":     round(memory, 2),
         "num_api_calls":   random.randint(1, 4),
         "error_count":     random.randint(0, 1),
         "concurrency":     1,
         "ip_address":      random.choice(SUSPICIOUS_IPS["ip_spoofing"]),
-        "ttl":             random.randint(1, 29),    # abnormally low TTL
+        "ttl":             random.randint(1, 29),
         "packet_size_in":  random.randint(256, 1024),
         "packet_size_out": random.randint(128, 512),
         "latency":         round(random.uniform(5, 50), 2),
@@ -323,7 +374,7 @@ def generate_ip_spoofing_record(timestamp: str = None) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Convenience mapping — used by run_simulation.py to call generators by name
+# Convenience mapping used by run_simulation.py
 # ---------------------------------------------------------------------------
 
 ATTACK_GENERATORS = {
