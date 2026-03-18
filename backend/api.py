@@ -85,8 +85,7 @@ log_storage = deque(maxlen=LOG_STORAGE_MAX)
 lambda_metrics = {}
 
 # Detection layers
-layer1_filter = Layer1Filter()
-layer2_scanner = Layer2Scanner()
+sentinel_pipeline = CloudSentinelPipeline()
 
 
 # ---------------------------------------------------------------------------
