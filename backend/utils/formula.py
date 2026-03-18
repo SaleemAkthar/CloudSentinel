@@ -13,6 +13,8 @@ Author: Backend Team
 Date: 2026-02-16
 """
 
+from pyexpat import features
+
 import numpy as np
 from typing import Dict, Tuple, List, Optional
 from datetime import datetime
@@ -416,6 +418,17 @@ def calculate_behavioral_anomaly(
         if request_rate > 100:  # More than 100 req/min from same IP
             S_ddos = min(request_rate / 500, 1.0) * (1 - entropy)
             attack_scores['ddos'] = S_ddos
+
+    # DDoS packets show: high API calls, high concurrency, high fragmentation
+    concurrency = features.get('concurrency', 1)
+    fragment_count = features.get('fragment_count', 0)
+    if api_calls > 30 and concurrency > 10:
+        S_ddos_instant = min(api_calls / 60, 1.0) * min(concurrency / 50, 1.0)
+        if fragment_count > 5:
+            S_ddos_instant = min(S_ddos_instant + 0.2, 1.0)
+        # Take the higher of history-based and instant detection
+        existing_ddos = attack_scores.get('ddos', 0)
+        attack_scores['ddos'] = max(existing_ddos, S_ddos_instant)
     
     # Return highest scoring attack
     if attack_scores:
