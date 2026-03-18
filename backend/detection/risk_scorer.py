@@ -23,8 +23,7 @@ from typing import Dict, List, Optional
 
 SEVERITY_CRITICAL = 0.80
 SEVERITY_HIGH     = 0.60
-SEVERITY_MEDIUM   = 0.35
-SEVERITY_LOW      = 0.0
+SEVERITY_MEDIUM   = 0.0    # Everything that reaches Layer 2 is at least MEDIUM
 
 # Component weights for composite risk score
 # Must sum to 1.0
@@ -264,14 +263,14 @@ class RiskScorer:
         Overrides allowed for specific high-confidence attack types.
         """
         # Base classification
+        # Note: anything reaching Layer 2 is at minimum MEDIUM
+        # because it already failed Layer 1 checks
         if score >= SEVERITY_CRITICAL:
             severity = "CRITICAL"
         elif score >= SEVERITY_HIGH:
             severity = "HIGH"
-        elif score >= SEVERITY_MEDIUM:
-            severity = "MEDIUM"
         else:
-            severity = "LOW"
+            severity = "MEDIUM"
 
         # Override: Always CRITICAL for Tor traffic + any pattern match
         matched_types = [p["attack_type"] for p in pattern_results.get("matched_patterns", [])]
@@ -310,14 +309,13 @@ class RiskScorer:
         mitigations = []
 
         # ── Determine action ──────────────────────────────────────────────────
+        # Anything reaching Layer 2 is at minimum INVESTIGATE
         if severity == "CRITICAL" or score >= SEVERITY_CRITICAL:
             action = "BLOCK"
         elif severity == "HIGH" or (score >= SEVERITY_HIGH and confidence >= 0.6):
             action = "BLOCK"
-        elif severity == "MEDIUM":
-            action = "MONITOR"
         else:
-            action = "PASS"
+            action = "INVESTIGATE"
 
         # ── Build reasoning ───────────────────────────────────────────────────
         if top:
