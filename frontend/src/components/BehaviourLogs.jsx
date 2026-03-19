@@ -201,7 +201,7 @@ export default function BehaviourLogs() {
               <option value="success">Success</option>
               <option value="failed">Failed</option>
               <option value="blocked">Blocked</option>
-              <option value="throttled">Throttled</option>
+              <option value="allowed">Allowed</option>
             </select>
 
             <button
