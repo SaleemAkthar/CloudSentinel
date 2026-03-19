@@ -8,3 +8,5 @@ pandas
 statsmodels
 scikit-learn
 anthropic
+python-jose[cryptography]
+passlib[bcrypt]
