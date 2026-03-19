@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import csLogo from "../assets/CS LOGO.png";
+import { useAuth } from "../context/AuthContext";
 
 export default function Signin() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPass, setShowPass] = useState(false);
   const [errors, setErrors] = useState({});
@@ -22,18 +24,24 @@ export default function Signin() {
   const handleChange = (field) => (e) => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
     if (errors[field]) setErrors((err) => ({ ...err, [field]: undefined }));
+    if (errors.server) setErrors((err) => ({ ...err, server: undefined }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const v = validate();
     if (Object.keys(v).length) { setErrors(v); return; }
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    
+    try {
+      setLoading(true);
+      await login(form.email, form.password);
       setSubmitted(true);
       setTimeout(() => navigate("/dashboard"), 1000);
-    }, 1400);
+    } catch (err) {
+      setErrors({ server: err.response?.data?.detail || "Failed to sign in. Check credentials." });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const EyeIcon = ({ open }) => (
