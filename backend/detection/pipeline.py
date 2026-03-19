@@ -309,8 +309,8 @@ class CloudSentinelPipeline:
             "packet_size_in":  packet.get("packet_size_in", 512),
             "packet_size_out": packet.get("packet_size_out", 0),
             "latency":         packet.get("network_latency", 0),
-            "fragment_count":  packet.get("fragment_count", 0),
-            "ip_address":      packet.get("ip_address", "10.0.0.1"),
+            "fragment_count":  packet.get("fragment_count") or packet.get("fragment_count", 0),
+            "ip_address":      packet.get("ip_address", ""),
             "timestamp":       datetime.datetime.utcnow().isoformat(),
         }
 
