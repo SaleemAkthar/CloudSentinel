@@ -59,3 +59,20 @@ def register(body: RegisterRequest, response: Response):
     )
     _set_auth_cookie(response, user["id"])
     return UserResponse(id=user["id"], username=user["username"], email=user["email"])
+
+
+# POST /api/auth/login
+
+@router.post("/login", response_model=UserResponse)
+def login(body: LoginRequest, response: Response):
+    """
+    Authenticate an existing user.
+    Looks up by email, verifies bcrypt hash, issues a fresh JWT cookie.
+    Uses a generic error message to avoid exposing whether the email exists.
+    """
+    user = get_user_by_email(body.email)
+    if not user or not verify_password(body.password, user["hashed_password"]):
+        raise HTTPException(status_code=401, detail="Invalid email or password.")
+
+    _set_auth_cookie(response, user["id"])
+    return UserResponse(id=user["id"], username=user["username"], email=user["email"])
