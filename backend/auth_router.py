@@ -100,3 +100,16 @@ def get_me(request: Request):
         raise HTTPException(status_code=401, detail="User not found.")
 
     return UserResponse(id=user["id"], username=user["username"], email=user["email"])
+
+
+# POST /api/auth/logout
+
+@router.post("/logout", response_model=MessageResponse)
+def logout(response: Response):
+    """
+    Sign the user out by clearing the httpOnly cookie.
+    Sets Max-Age=0 so the browser deletes it immediately.
+    Frontend JS cannot do this itself — only the server can clear an httpOnly cookie.
+    """
+    response.delete_cookie(key=COOKIE_NAME, path="/", samesite="lax")
+    return MessageResponse(message="Signed out successfully.", success=True)
