@@ -10,6 +10,7 @@ import AWSLambdaMonitorPage from "./pages/AWSLambdaMonitorPage";
 import Settings from "./pages/Settings";
 import SignIn from "./pages/Signin";
 import SignUp from "./pages/Signup";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const Placeholder = ({ title }) => (
   <div className="text-slate-200">
@@ -26,7 +27,11 @@ export const router = createBrowserRouter([
   // ── App shell — sidebar + dashboard ──────────────────────────────────────
   {
     path: "/",
-    element: <AppShell />,
+    element: (
+      <ProtectedRoute>
+        <AppShell />
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: <Navigate to="/dashboard" replace /> },
       { path: "dashboard", element: <Dashboard /> },
