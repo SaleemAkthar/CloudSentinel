@@ -38,7 +38,7 @@ export default function AppShell() {
     <div className="h-screen overflow-hidden bg-[#050B1A] text-white">
       <div className="mx-auto flex h-full w-full">
         {/* Sidebar */}
-        <aside className="w-[260px] h-full shrink-0 overflow-y-auto border-r border-white/10 bg-gradient-to-b from-[#071A3A] via-[#06122B] to-[#050B1A]">          {/* Brand */}
+        <aside className="w-[260px] h-full shrink-0 flex flex-col border-r border-white/10 bg-gradient-to-b from-[#071A3A] via-[#06122B] to-[#050B1A]">          {/* Brand */}
           <div className="flex items-center gap-3 px-5 py-5">
             <div className="grid h-11 w-11 place-items-center rounded-2xl ring-1 ring-white/15">
               <img src={csLogo} alt="CS Logo" className="h-7 w-7" />
@@ -49,8 +49,8 @@ export default function AppShell() {
             </div>
           </div>
 
-          {/* Nav */}
-          <nav className="px-3 pt-2">
+          {/* Nav — scrollable main links */}
+          <nav className="px-3 pt-2 flex-1 overflow-y-auto">
             <div className="space-y-1">
               <SideItem to="/dashboard" icon={<GridViewRoundedIcon fontSize="small" />} label="Overview" />
               <SideItem to="/alerts" icon={<WarningAmberRoundedIcon fontSize="small" />} label="Real-Time Alerts" />
@@ -58,22 +58,21 @@ export default function AppShell() {
               <SideItem to="/lambda" icon={<ShowChartRoundedIcon fontSize="small" />} label="AWS Lambda Monitor" />
               <SideItem to="/insights" icon={<AutoAwesomeRoundedIcon fontSize="small" />} label="AI Insights" />
             </div>
-
-            <div className="mt-5 border-t border-white/10 pt-4 space-y-1">
-              <SideItem to="/settings" icon={<SettingsOutlinedIcon fontSize="small" />} label="Settings" />
-              <button
-                onClick={() => navigate("/signin")}
-                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
-              >
-                <GroupOutlinedIcon fontSize="small" className="opacity-90" />
-                <span className="font-medium">Sign Out</span>
-              </button>
-            </div>
           </nav>
 
-          {/* Status Card */}
-          <div className="mt-auto px-4 pb-5 pt-6">
-            <div className="rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
+          {/* Bottom section — always pinned to the bottom */}
+          <div className="px-3 pb-5 pt-4 border-t border-white/10 space-y-1">
+            <SideItem to="/settings" icon={<SettingsOutlinedIcon fontSize="small" />} label="Settings" />
+            <button
+              onClick={() => navigate("/signin")}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
+            >
+              <GroupOutlinedIcon fontSize="small" className="opacity-90" />
+              <span className="font-medium">Sign Out</span>
+            </button>
+
+            {/* Status Card */}
+            <div className="mt-3 rounded-2xl bg-white/5 p-4 ring-1 ring-white/10">
               <div className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
                 <div className="text-sm font-semibold text-white">System Online</div>
