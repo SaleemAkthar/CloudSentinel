@@ -1,0 +1,61 @@
+"""
+Auth Router
+===========
+FastAPI router for all /api/auth/* endpoints.
+
+POST /api/auth/register  — create account, set httpOnly cookie
+POST /api/auth/login     — verify credentials, set httpOnly cookie  (Commit 6)
+GET  /api/auth/me        — decode cookie, return current user       (Commit 7)
+POST /api/auth/logout    — clear the httpOnly cookie                (Commit 8)
+"""
+
+from fastapi import APIRouter, HTTPException, Request, Response
+
+from backend.auth_models import LoginRequest, RegisterRequest, UserResponse, MessageResponse
+from backend.user_store import create_user, email_exists, get_user_by_email, get_user_by_id
+from backend.auth_utils import create_access_token, decode_access_token, hash_password, verify_password
+
+router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+COOKIE_NAME = "cs_token"
+
+
+def _set_auth_cookie(response: Response, user_id: str) -> None:
+    """Sign a JWT and attach it as an httpOnly cookie."""
+    token = create_access_token(user_id)
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=token,
+        httponly=True,           # JS cannot read this
+        samesite="lax",          # CSRF protection
+        secure=False,            # Set True in production (HTTPS)
+        max_age=7 * 24 * 3600,  # 7 days in seconds
+        path="/",
+    )
+
+
+# POST /api/auth/register
+
+@router.post("/register", response_model=UserResponse)
+def register(body: RegisterRequest, response: Response):
+    """
+    Register a new user.
+    Hashes password with bcrypt, stores user in memory,
+    then sets a signed JWT as an httpOnly cookie.
+    """
+    if not body.username.strip() or len(body.username.strip()) < 3:
+        raise HTTPException(status_code=422, detail="Username must be at least 3 characters.")
+    if not body.email.strip():
+        raise HTTPException(status_code=422, detail="Email is required.")
+    if not body.password or len(body.password) < 8:
+        raise HTTPException(status_code=422, detail="Password must be at least 8 characters.")
+    if email_exists(body.email):
+        raise HTTPException(status_code=409, detail="An account with this email already exists.")
+
+    user = create_user(
+        username=body.username.strip(),
+        email=body.email.strip(),
+        hashed_password=hash_password(body.password),
+    )
+    _set_auth_cookie(response, user["id"])
+    return UserResponse(id=user["id"], username=user["username"], email=user["email"])
