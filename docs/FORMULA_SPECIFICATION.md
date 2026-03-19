@@ -109,3 +109,62 @@ M2 = 0 + (10 × 5) = 50
 Result: mean = 505, variance = 50 / 1 = 50, std = 7.07
 
 ```
+- **Request 3: x=495**
+
+```text
+n = 3
+delta = 495 - 505 = -10
+mean = 505 + (-10 / 3) = 501.67
+delta2 = 495 - 501.67 = -6.67
+M2 = 50 + (-10 × -6.67) = 116.67
+
+Result: mean = 501.67, variance = 58.33, std = 7.64
+
+```
+- **After processing all 5 values**
+
+```text
+Final mean = 500
+Final standard deviation = 7.91
+
+```
+---
+
+## Feature Normalization
+
+### The problem
+
+Different features have different scales:
+
+- Duration: measured in milliseconds
+- Memory: measured in megabytes
+- API calls: count
+
+We cannot directly compare a duratio of 500ms to a memory of usage of 130MB.
+We need to normalize them to a common scale.
+
+### Z-Score Transformation
+
+Purpose: Convert each feature value to a standardized score that represnts "how many standard deviations away from the mean."
+
+- **Formula**
+
+```text
+Z = (x - μ) / σ
+
+Where:
+- Z = Z-score (standardized value)
+- x = observed value
+- μ = mean (from baseline)
+- σ = standard deviation (from baseline)
+
+```
+- **Interpretation**
+
+- Z=0:Value is exactly at the mean(perfectly normal)
+- Z=1:Value is 1 standard deviations above mean(slightly unusual)
+- Z=2:Value is 2 standard deviations above mean(unusual)
+- Z=3:Value is 3 standard deviations above mean(very unusual)
+-Z>3: Value is extremely outlier(highly anomalous)
+
+
