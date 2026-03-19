@@ -1,20 +1,20 @@
-## Formula Specification
+# Formula Specification
 
 ---
 
-# Overview
+## Overview
 
 This document provides a comprehensive explanation of the mathematical formulas used in Cloud Sentinel's Layer 1 anomaly detection system. The formulas are designed to detect security threats in AWS Lambda functions through statistical analysis of execution metrics.
 Target Audience: This specification is written for technical reviewers, security analysts, and developers who need to understand how anomaly scores are calculated.
 
-# System Overview
+## System Overview
 
 Cloud Sentinel uses a weighted composite scoring system to detect anomalies in serverless function execution. The system combines four detection components:
 
 1. **Feature Analysis** - Statistical analysis of execution metrics
 2. **Packet Analysis** - Network behavior examination
-3.Temporal Analysis - Time-series pattern detection
-4.Behavioral Analysis - Attack signature matching
+3. **Temporal Analysis** - Time-series pattern detection
+4. **Behavioral Analysis** - Attack signature matching
 
 Each component produces a score between 0 and 1, which are then weighted and combined into a final composite score that determines if a request is anomalous.
 
@@ -22,6 +22,50 @@ Each component produces a score between 0 and 1, which are then weighted and com
 
 ## BaseLine Learning
 
-# Purpose
+### Purpose
 
 Before detecting anomalies, the system must first learn what "normal" behavior looks like for a specific Lambda function. This baseline is established by observing the first 100 requests.
+
+### Welford's Online Algorithm
+
+Why This Algorithm:
+Traditional statistical methods require storing all historical values to calculate mean and variance, which consumes memory that grows linearly with the number of observations. Welford's algorithm solves this by maintaining running statistics using only three numbers per feature, regardless of how many requests have been processed
+
+### Space Complexity:
+
+* **Traditional method:** $O(n)$ - stores all $n$ values
+* **Welford's method:** $O(1)$ - stores only 3 values
+
+### Memory Usage:
+
+* **Traditional:** 800MB for 100,000 requests
+* **Welford's:** 24 bytes (constant, regardless of request count)
+
+### Algorithm Explanation
+
+For each feature (duration, memory, API calls, etc.), we maintain three values:
+
+* **n** - count of observations
+* **mean** - running average
+* **M2** - sum of squared deviations from the mean
+
+### Update Process:
+
+when a new value `x` arrives:
+
+```text
+Step 1: Increment count
+n = n + 1
+
+Step 2: Calculate deviation from old mean
+delta = x - mean
+
+Step 3: Update mean with new value
+mean = mean + (delta / n)
+
+Step 4: Calculate deviation from new mean
+delta2 = x - mean
+
+Step 5: Update sum of squared deviations
+M2 = M2 + (delta × delta2)
+
