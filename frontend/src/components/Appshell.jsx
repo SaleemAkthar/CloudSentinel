@@ -110,13 +110,19 @@ export default function AppShell() {
                 <SettingsOutlinedIcon />
               </button>
 
-              <button
-                className="grid h-10 w-10 place-items-center rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10"
-                title="Profile"
-                onClick={() => navigate("/profile")}
-              >
-                <PersonOutlineRoundedIcon />
-              </button>
+              <div className="flex items-center gap-2 pl-2 border-l border-white/10 ml-1">
+                <div className="text-right hidden sm:block">
+                  <div className="text-sm font-medium leading-none">{user?.username}</div>
+                  <div className="text-[0.65rem] text-slate-400 mt-1 leading-none">{user?.email}</div>
+                </div>
+                <button
+                  className="grid h-10 w-10 place-items-center rounded-xl bg-white/5 ring-1 ring-white/10 hover:bg-white/10"
+                  title="Profile"
+                  onClick={() => navigate("/profile")}
+                >
+                  <PersonOutlineRoundedIcon />
+                </button>
+              </div>
             </div>
           </header>
 
