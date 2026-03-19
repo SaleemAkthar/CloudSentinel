@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import csLogo from "../assets/CS LOGO.png";
+import { useAuth } from "../context/AuthContext";
 
 // MUI Icons
 import GridViewRoundedIcon from "@mui/icons-material/GridViewRounded";
@@ -34,6 +35,7 @@ function SideItem({ to, icon, label }) {
 
 export default function AppShell() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
   return (
     <div className="h-screen overflow-hidden bg-[#050B1A] text-white">
       <div className="mx-auto flex h-full w-full">
