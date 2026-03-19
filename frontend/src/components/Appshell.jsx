@@ -64,7 +64,10 @@ export default function AppShell() {
           <div className="px-3 pb-5 pt-4 border-t border-white/10 space-y-1">
             <SideItem to="/settings" icon={<SettingsOutlinedIcon fontSize="small" />} label="Settings" />
             <button
-              onClick={() => navigate("/signin")}
+              onClick={async () => {
+                await logout();
+                navigate("/signin");
+              }}
               className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
             >
               <GroupOutlinedIcon fontSize="small" className="opacity-90" />
