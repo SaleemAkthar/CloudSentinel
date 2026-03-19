@@ -33,6 +33,7 @@ from backend.detection.sarima_forecaster import SARIMAForecaster
 from backend.storage.in_memory_store import AlertStore
 from backend.detection.ai_model import EnsembleAnomalyDetector
 from backend.detection.pipeline import CloudSentinelPipeline
+from backend.auth_router import router as auth_router
 
 # Layer2Investigator is optional — API starts without it.
 try:
@@ -42,6 +43,9 @@ except ImportError:
     _L2_AVAILABLE = False
 
 app = FastAPI(title="Cloud Sentinel API", version="3.0")
+
+# Mount Auth router
+app.include_router(auth_router)
 
 # ---------------------------------------------------------------------------
 # CORS configuration (env-based for flexibility)
