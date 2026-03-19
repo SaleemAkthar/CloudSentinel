@@ -1,13 +1,23 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import csLogo from "../assets/CS LOGO.png";
 
 export default function Signin() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPass, setShowPass] = useState(false);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  const validate = () => {
+    const v = {};
+    if (!form.email.trim()) v.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(form.email)) v.email = "Enter a valid email";
+    if (!form.password) v.password = "Password is required";
+    else if (form.password.length < 6) v.password = "Password must be at least 6 characters";
+    return v;
+  };
 
   const handleChange = (field) => (e) => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
@@ -19,7 +29,11 @@ export default function Signin() {
     const v = validate();
     if (Object.keys(v).length) { setErrors(v); return; }
     setLoading(true);
-    setTimeout(() => { setLoading(false); setSubmitted(true); }, 1400);
+    setTimeout(() => {
+      setLoading(false);
+      setSubmitted(true);
+      setTimeout(() => navigate("/dashboard"), 1000);
+    }, 1400);
   };
 
   const EyeIcon = ({ open }) => (

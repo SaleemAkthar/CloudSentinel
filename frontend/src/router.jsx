@@ -21,6 +21,7 @@ const Placeholder = ({ title }) => (
 export const router = createBrowserRouter([
   // ── Auth pages — full screen, no sidebar ─────────────────────────────────
   { path: "/signup",  element: <SignUp /> },
+  { path: "/signin",  element: <SignIn /> },
 
   // ── App shell — sidebar + dashboard ──────────────────────────────────────
   {
@@ -39,5 +40,7 @@ export const router = createBrowserRouter([
     ],
   },
 
-
+  // Fallback: anything unknown → sign in
+  { path: "*", element: <Navigate to="/signin" replace /> }, 
+  
 ]);
