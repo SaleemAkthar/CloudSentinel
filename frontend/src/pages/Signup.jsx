@@ -155,6 +155,16 @@ export default function Signup() {
 
             <form onSubmit={handleSubmit} noValidate className="space-y-4">
 
+              {/* Server Error Banner */}
+              {errors.server && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl flex items-start gap-3">
+                  <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p>{errors.server}</p>
+                </div>
+              )}
+
               {/* Username */}
               <div>
                 <label className="block text-[0.72rem] font-medium text-white/50 uppercase tracking-widest mb-1.5">
@@ -254,13 +264,24 @@ export default function Signup() {
               {/* Submit */}
               <button
                 type="submit"
-                className="w-full mt-2 py-3.5 rounded-xl text-white font-bold text-[1rem] tracking-wide transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0"
+                disabled={loading}
+                className="w-full mt-2 py-3.5 rounded-xl text-white font-bold text-[1rem] tracking-wide transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 style={{
                   background: "linear-gradient(135deg, #3B82F6, #8B5CF6)",
                   boxShadow: "0 4px 24px rgba(59,130,246,0.35)",
                 }}
               >
-                Create Account →
+                {loading ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="white" strokeWidth="4" />
+                      <path className="opacity-75" fill="white" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                    </svg>
+                    Creating Account…
+                  </>
+                ) : (
+                  <>Create Account →</>
+                )}
               </button>
             </form>
 
