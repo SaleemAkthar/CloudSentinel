@@ -21,10 +21,10 @@ def evaluate():
     logs = generator.generate_batch(1000)
 
     # Counters
-    tp = 0  # true positive: attack detected as attack
-    fp = 0  # false positive: normal detected as attack
-    tn = 0  # true negative: normal detected as normal
-    fn = 0  # false negative: attack detected as normal
+    tp = 0  #  attack detected as attack
+    fp = 0  #  normal detected as attack
+    tn = 0  #  normal detected as normal
+    fn = 0  # attack detected as normal
 
     # Per-attack-type tracking
     per_type = defaultdict(lambda: {"tp": 0, "fn": 0, "fp": 0})
@@ -32,17 +32,19 @@ def evaluate():
     for i, log in enumerate(logs):
         # Build features dict matching what layer1_scorer expects
         features = {
-            "duration": float(log.get("duration", 500)),
-            "memory_used": float(log.get("memoryUsed", 130)),
-            "num_api_calls": len(log.get("apiCalls", [])) if isinstance(log.get("apiCalls"), list) else int(log.get("num_api_calls", 3)),
-            "error_count": 1 if log.get("errorMessage") else 0,
-            "concurrency": 1,
-            "packet_size_in": 512,
+            "duration":        float(log.get("duration", 500)),
+            "memory_used":     float(log.get("memoryUsed", 130)),
+            "num_api_calls":   len(log.get("apiCalls", [])) if isinstance(log.get("apiCalls"), list) else int(log.get("num_api_calls", 3)),
+            "error_count":     1 if log.get("errorMessage") else 0,
+            "concurrency":     1,
+            "packet_size_in":  512,
             "packet_size_out": 256,
-            "latency": 50,
-            "fragment_count": 0,
-            "ip_address": "192.168.1.1",
-            "timestamp": datetime.now().isoformat(),
+            "latency":         50,
+            "fragment_count":  int(log.get("fragment_count", 0)),
+            "ip_address":      log.get("ip_address", "192.168.1.1"),
+            "ttl":             int(log.get("ttl", 55)),
+            "source_port":     int(log.get("source_port", 443)),
+            "timestamp":       datetime.now().isoformat(),
         }
 
         score, details = scorer.process_log(features)
