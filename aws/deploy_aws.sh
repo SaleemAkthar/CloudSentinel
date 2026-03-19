@@ -71,11 +71,8 @@ aws ecs create-cluster \
 echo ""
 echo "[5/7] Registering task definition..."
 
-# Replace placeholders in task definition
-sed "s/ACCOUNT_ID/${AWS_ACCOUNT_ID}/g" aws/task-definition.json > /tmp/task-def-generated.json
-
 aws ecs register-task-definition \
-  --cli-input-json file:///tmp/task-def-generated.json \
+  --cli-input-json file://aws/task-definition.json \
   --region ${AWS_REGION}
 echo "  Task definition registered"
 
@@ -102,6 +99,7 @@ ALB_ARN=$(aws elbv2 create-load-balancer \
 echo "  ALB ARN: ${ALB_ARN}"
 
 # Create Target Group
+# Create Target Group
 TG_ARN=$(aws elbv2 create-target-group \
   --name ${TG_NAME} \
   --protocol HTTP \
@@ -112,14 +110,15 @@ TG_ARN=$(aws elbv2 create-target-group \
   --health-check-interval-seconds 30 \
   --region ${AWS_REGION} \
   --query 'TargetGroups[0].TargetGroupArn' \
-  --output text 2>/dev/null || \
-  aws elbv2 describe-target-groups \
+  --output text 2>/dev/null)
+
+if [ -z "$TG_ARN" ]; then
+  TG_ARN=$(aws elbv2 describe-target-groups \
     --names ${TG_NAME} \
     --region ${AWS_REGION} \
     --query 'TargetGroups[0].TargetGroupArn' \
     --output text)
-
-echo "  Target Group ARN: ${TG_ARN}"
+fi
 
 # Enable sticky sessions
 aws elbv2 modify-target-group-attributes \
