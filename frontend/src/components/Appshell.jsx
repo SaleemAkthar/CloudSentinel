@@ -52,17 +52,22 @@ export default function AppShell() {
           {/* Nav */}
           <nav className="px-3 pt-2">
             <div className="space-y-1">
-              <SideItem to="/" icon={<GridViewRoundedIcon fontSize="small" />} label="Overview" />
+              <SideItem to="/dashboard" icon={<GridViewRoundedIcon fontSize="small" />} label="Overview" />
               <SideItem to="/alerts" icon={<WarningAmberRoundedIcon fontSize="small" />} label="Real-Time Alerts" />
               <SideItem to="/logs" icon={<DescriptionOutlinedIcon fontSize="small" />} label="Behaviour Logs" />
               <SideItem to="/lambda" icon={<ShowChartRoundedIcon fontSize="small" />} label="AWS Lambda Monitor" />
               <SideItem to="/insights" icon={<AutoAwesomeRoundedIcon fontSize="small" />} label="AI Insights" />
-              <SideItem to="/signup" icon={<GroupOutlinedIcon fontSize="small" />} label="Sign Up" />
-              <SideItem to="/signin" icon={<GroupOutlinedIcon fontSize="small" />} label="Sign In" />
             </div>
 
-            <div className="mt-5 border-t border-white/10 pt-4">
+            <div className="mt-5 border-t border-white/10 pt-4 space-y-1">
               <SideItem to="/settings" icon={<SettingsOutlinedIcon fontSize="small" />} label="Settings" />
+              <button
+                onClick={() => navigate("/signin")}
+                className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
+              >
+                <GroupOutlinedIcon fontSize="small" className="opacity-90" />
+                <span className="font-medium">Sign Out</span>
+              </button>
             </div>
           </nav>
 

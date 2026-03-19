@@ -1,7 +1,10 @@
 import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import csLogo from "../assets/CS LOGO.png";
 
 export default function Signup() {
+  const navigate = useNavigate();
+
   const [form, setForm] = useState({ username: "", email: "", password: "", confirmPassword: "" });
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -111,11 +114,11 @@ export default function Signup() {
               Welcome to Cloud Sentinel.<br />Check your email to verify your account.
             </p>
             <button
-              onClick={() => setSubmitted(false)}
+              onClick={() => navigate("/signin")}
               className="mt-2 px-8 py-3 rounded-xl text-white font-bold text-sm transition-all hover:opacity-90 hover:-translate-y-0.5"
               style={{ background: "linear-gradient(135deg, #3B82F6, #8B5CF6)", boxShadow: "0 4px 24px rgba(59,130,246,0.35)" }}
             >
-              Back to Sign Up
+              Go to Sign In
             </button>
           </div>
         ) : (
@@ -249,9 +252,9 @@ export default function Signup() {
 
             <p className="text-center text-white/35 text-sm mt-6">
               Already have an account?{" "}
-              <a href="/signin" className="text-blue-400 font-medium hover:underline">
+              <Link to="/signin" className="text-blue-400 font-medium hover:underline">
                 Log in
-              </a>
+              </Link>
             </p>
 
 

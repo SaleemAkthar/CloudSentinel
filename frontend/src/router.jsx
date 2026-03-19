@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import AppShell from "./components/Appshell";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
@@ -8,9 +8,8 @@ import AIInsights from "./pages/AIInsights";
 import BehaviourLogs from "./components/BehaviourLogs";
 import AWSLambdaMonitorPage from "./pages/AWSLambdaMonitorPage";
 import Settings from "./pages/Settings";
+import SignIn from "./pages/Signin";
 import SignUp from "./pages/Signup";
-import Signin from "./pages/Signin";
-
 
 const Placeholder = ({ title }) => (
   <div className="text-slate-200">
@@ -20,11 +19,16 @@ const Placeholder = ({ title }) => (
 );
 
 export const router = createBrowserRouter([
+  // ── Auth pages — full screen, no sidebar ─────────────────────────────────
+  { path: "/signup",  element: <SignUp /> },
+
+  // ── App shell — sidebar + dashboard ──────────────────────────────────────
   {
     path: "/",
     element: <AppShell />,
     children: [
-      { index: true, element: <Dashboard /> },
+      { index: true, element: <Navigate to="/dashboard" replace /> },
+      { path: "dashboard", element: <Dashboard /> },
       { path: "alerts", element: <RealTimeAlerts /> },
       { path: "logs", element: <BehaviourLogs /> },
       { path: "lambda", element: <AWSLambdaMonitorPage /> },
@@ -32,9 +36,8 @@ export const router = createBrowserRouter([
       { path: "settings", element: <Settings /> },
       { path: "profile", element: <Profile /> },
       { path: "notifications", element: <Notifications /> },
-      { path: "signup", element: <SignUp /> },
-      { path: "signin", element: <Signin /> },
-      
     ],
   },
+
+
 ]);
