@@ -167,4 +167,31 @@ Where:
 - Z=3:Value is 3 standard deviations above mean(very unusual)
 -Z>3: Value is extremely outlier(highly anomalous)
 
+- **Example**
+
+Baseline for duration:
+- Mean=500ms
+- Standard deviation=15ms
+
+- **Normal Request**
+```text
+Observed duration = 510ms
+Z = (510 - 500) / 15 = 0.67
+
+Interpretation: 0.67 standard deviations above mean (normal variation)
+ 
+```
+- **Crypt-mining attack**
+```text
+Observed duration = 10,000ms
+Z = (10,000 - 500) / 15 = 633.33
+
+Interpretation: 633 standard deviations above mean (extreme anomaly)
+```
+
+
+
+
+## Component Scoring
+
 
