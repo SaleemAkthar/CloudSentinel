@@ -76,3 +76,27 @@ def login(body: LoginRequest, response: Response):
 
     _set_auth_cookie(response, user["id"])
     return UserResponse(id=user["id"], username=user["username"], email=user["email"])
+
+
+# GET /api/auth/me
+
+@router.get("/me", response_model=UserResponse)
+def get_me(request: Request):
+    """
+    Return the currently authenticated user.
+    Reads the JWT from the httpOnly cookie, verifies it,
+    then looks up the user in the store by id.
+    """
+    token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+
+    user_id = decode_access_token(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid or expired session. Please sign in again.")
+
+    user = get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found.")
+
+    return UserResponse(id=user["id"], username=user["username"], email=user["email"])
