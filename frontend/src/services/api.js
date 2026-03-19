@@ -1,10 +1,11 @@
 import axios from "axios";
 import mockAlerts from "../test/alerts.json";
 
+// Must be true so cookies are automatically sent with every request
+axios.defaults.withCredentials = true;
+
 // Toggle this when backend is ready:
 const USE_MOCK = false;
-
-// If we using backend later, we can call:
 // GET /api/alerts
 // GET /api/alerts/:id
 // and set vite proxy to forward /api to backend.
@@ -41,5 +42,44 @@ export async function getModelHealth() {
     };
   }
   const res = await axios.get("/api/model/health");
+  return res.data;
+}
+
+// Auth Endpoints
+
+
+export async function authRegister(username, email, password) {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 500));
+    return { id: "mock-id", username, email };
+  }
+  const res = await axios.post("/api/auth/register", { username, email, password });
+  return res.data;
+}
+
+export async function authLogin(email, password) {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 500));
+    return { id: "mock-id", username: "Mock User", email };
+  }
+  const res = await axios.post("/api/auth/login", { email, password });
+  return res.data;
+}
+
+export async function getMe() {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 200));
+    return { id: "mock-id", username: "Mock User", email: "mock@user.com" };
+  }
+  const res = await axios.get("/api/auth/me");
+  return res.data;
+}
+
+export async function authLogout() {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 200));
+    return { success: true };
+  }
+  const res = await axios.post("/api/auth/logout");
   return res.data;
 }
