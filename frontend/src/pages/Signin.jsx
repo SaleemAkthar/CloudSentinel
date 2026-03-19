@@ -137,6 +137,16 @@ export default function Signin() {
 
             <form  onSubmit={handleSubmit} noValidate className="space-y-4">
 
+              {/* Server Error Banner */}
+              {errors.server && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm px-4 py-3 rounded-xl flex items-start gap-3">
+                  <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p>{errors.server}</p>
+                </div>
+              )}
+
               {/* Email */}
               <div>
                 <label className="block text-[0.72rem] font-medium text-white/50 uppercase tracking-widest mb-1.5">
