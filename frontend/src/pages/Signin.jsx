@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import csLogo from "../assets/CS LOGO.png";
 
 export default function Signin() {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -63,7 +64,7 @@ export default function Signin() {
 
       {/* Card */}
       <div
-        className="relative z-10 w-full max-w-[420px] rounded-3xl px-10 py-11"
+        className="relative z-10 w-full max-w-[460px] rounded-3xl px-10 py-11"
         style={{
           background: "rgba(255,255,255,0.035)",
           border: "1px solid rgba(255,255,255,0.09)",
@@ -97,15 +98,11 @@ export default function Signin() {
         ) : (
           <>
             {/* Brand row */}
+            <div className="flex items-center justify-center">
+              <img src={csLogo} alt="Cloud Sentinel" className="w-16 h-16 object-contain flex-shrink-0" />
+              
+            </div>
             <div className="flex items-center justify-center gap-2.5 mb-7">
-              <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                style={{ background: "linear-gradient(135deg, #3B82F6, #8B5CF6)" }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-              </div>
               <span className="text-white font-bold text-xl tracking-tight">Cloud Sentinel</span>
             </div>
 

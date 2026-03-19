@@ -185,7 +185,7 @@ export default function Settings() {
               />
             </div>
 
-            {/* Anomaly threshold */}
+            {/* Anomaly threshold
             <div className="rounded-xl border border-white/10 bg-white/0 px-4 py-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -216,7 +216,7 @@ export default function Settings() {
                   <span>0.95 (Strict)</span>
                 </div>
               </div>
-            </div>
+            </div> */}
 
             {/* Notifications */}
             <div className="rounded-xl border border-white/10 bg-white/0 px-4 py-4">
