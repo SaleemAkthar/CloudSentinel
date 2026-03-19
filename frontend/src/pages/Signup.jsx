@@ -1,14 +1,17 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import csLogo from "../assets/CS LOGO.png";
+import { useAuth } from "../context/AuthContext";
 
 export default function Signup() {
   const navigate = useNavigate();
-
+  const { register } = useAuth();
+  
   const [form, setForm] = useState({ username: "", email: "", password: "", confirmPassword: "" });
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
 
@@ -28,13 +31,24 @@ export default function Signup() {
   const handleChange = (field) => (e) => {
     setForm((f) => ({ ...f, [field]: e.target.value }));
     if (errors[field]) setErrors((err) => ({ ...err, [field]: undefined }));
+    if (errors.server) setErrors((err) => ({ ...err, server: undefined }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const v = validate();
     if (Object.keys(v).length) { setErrors(v); return; }
-    setSubmitted(true);
+    
+    try {
+      setLoading(true);
+      await register(form.username, form.email, form.password);
+      setSubmitted(true);
+      setTimeout(() => navigate("/dashboard"), 1500);
+    } catch (err) {
+      setErrors({ server: err.response?.data?.detail || "Failed to create account." });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getStrength = (pw) => {
