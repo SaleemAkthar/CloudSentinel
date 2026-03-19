@@ -63,7 +63,7 @@ export default function Signin() {
 
       {/* Card */}
       <div
-        className="relative z-10 w-full max-w-[420px] rounded-3xl px-10 py-11"
+        className="relative z-10 w-full max-w-[460px] rounded-3xl px-10 py-11"
         style={{
           background: "rgba(255,255,255,0.035)",
           border: "1px solid rgba(255,255,255,0.09)",
