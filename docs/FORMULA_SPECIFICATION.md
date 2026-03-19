@@ -33,21 +33,21 @@ Traditional statistical methods require storing all historical values to calcula
 
 ### Space Complexity:
 
-* **Traditional method:** $O(n)$ - stores all $n$ values
-* **Welford's method:** $O(1)$ - stores only 3 values
+- **Traditional method:** $O(n)$ - stores all $n$ values
+- **Welford's method:** $O(1)$ - stores only 3 values
 
 ### Memory Usage:
 
-* **Traditional:** 800MB for 100,000 requests
-* **Welford's:** 24 bytes (constant, regardless of request count)
+- **Traditional:** 800MB for 100,000 requests
+- **Welford's:** 24 bytes (constant, regardless of request count)
 
 ### Algorithm Explanation
 
 For each feature (duration, memory, API calls, etc.), we maintain three values:
 
-* **n** - count of observations
-* **mean** - running average
-* **M2** - sum of squared deviations from the mean
+- **n** - count of observations
+- **mean** - running average
+- **M2** - sum of squared deviations from the mean
 
 ### Update Process:
 
@@ -69,3 +69,43 @@ delta2 = x - mean
 Step 5: Update sum of squared deviations
 M2 = M2 + (delta × delta2)
 
+```
+
+### Calculate Statistics:
+
+After each update, we can compute:
+
+```text
+Variance = M2 / (n - 1)
+Standard Deviation = √Variance
+```
+
+### Example Walkthrough
+
+Lets track duration values: [500, 510, 495, 505, 490]
+
+- **Request 1: x= 500**
+
+```text
+n = 1
+delta = 500 - 0 = 500
+mean = 0 + (500 / 1) = 500
+delta2 = 500 - 500 = 0
+M2 = 0 + (500 × 0) = 0
+
+Result: mean = 500, variance = 0 (only one sample)
+
+```
+
+- **Request 2: x=510**
+
+```text
+n = 2
+delta = 510 - 500 = 10
+mean = 500 + (10 / 2) = 505
+delta2 = 510 - 505 = 5
+M2 = 0 + (10 × 5) = 50
+
+Result: mean = 505, variance = 50 / 1 = 50, std = 7.07
+
+```
