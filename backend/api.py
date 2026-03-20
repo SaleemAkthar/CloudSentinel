@@ -69,7 +69,7 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 # SARIMA for temporal anomaly detection
-sarima_forecaster = SARIMAForecaster()
+from backend.detection.pipeline import _sarima as sarima_forecaster
 
 # AI Ensemble: Isolation Forest (unsupervised) + Random Forest (supervised)
 # Phase 1 (first 200 requests): learns normal baseline
