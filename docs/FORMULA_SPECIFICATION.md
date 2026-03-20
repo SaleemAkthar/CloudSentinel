@@ -165,7 +165,7 @@ Where:
 - Z=1:Value is 1 standard deviations above mean(slightly unusual)
 - Z=2:Value is 2 standard deviations above mean(unusual)
 - Z=3:Value is 3 standard deviations above mean(very unusual)
--Z>3: Value is extremely outlier(highly anomalous)
+- Z>3: Value is extremely outlier(highly anomalous)
 
 - **Example**
 
