@@ -654,6 +654,47 @@ def get_status():
 
 
 # ---------------------------------------------------------------------------
+# SARIMA status endpoint
+# ---------------------------------------------------------------------------
+
+@app.get("/sarima/status")
+def get_sarima_status():
+    """Detailed SARIMA forecaster status — data points, training state, current prediction."""
+    status     = sarima_forecaster.get_status()
+    prediction = sarima_forecaster.predict()
+
+    now  = datetime.datetime.utcnow()
+    hour = now.hour
+
+    return {
+        "trained":          status["trained"],
+        "sarima_available": status["sarima_available"],
+        "sarima_fitted":    status["sarima_fitted"],
+        "using_fallback":   status["using_fallback"],
+        "data_points":      status["data_points"],
+        "min_required":     status["min_required"],
+        "progress_pct":     status["progress_pct"],
+        "current_prediction": {
+            "value": prediction["value"],
+            "std":   prediction["std"],
+        },
+        "time_context": {
+            "hour":       hour,
+            "is_peak":    8 <= hour <= 20,
+            "time_window": (
+                "night"          if hour < 6  else
+                "early_morning"  if hour < 8  else
+                "morning_peak"   if hour < 12 else
+                "midday_peak"    if hour < 14 else
+                "afternoon_peak" if hour < 18 else
+                "evening_peak"   if hour < 20 else
+                "evening"        if hour < 22 else
+                "late_night"
+            ),
+        },
+        "timestamp": now.isoformat() + "Z",
+    }
+# ---------------------------------------------------------------------------
 # Packet report endpoint
 # ---------------------------------------------------------------------------
 
