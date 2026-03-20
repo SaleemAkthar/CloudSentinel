@@ -12,6 +12,12 @@ from backend.data_generator import EnhancedLogGenerator
 from datetime import datetime
 from collections import defaultdict
 
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use("Agg")          # save to file without needing a display
+import seaborn as sns
+
 
 def evaluate():
     scorer = Layer1Scorer(learning_window=100)
@@ -102,6 +108,111 @@ def evaluate():
               f"({type_recall*100:.0f}% recall)")
 
     print("\n" + "=" * 60)
+
+    # ── Visual confusion matrix (seaborn heatmap — same as Google Colab) ────
+    plot_confusion_matrix(tp, fp, fn, tn)
+
+    # ── Per-attack-type recall bar chart ─────────────────────────────────────
+    plot_per_type_recall(per_type)
+
+
+def plot_confusion_matrix(tp: int, fp: int, fn: int, tn: int):
+    """
+    Render a colour-coded confusion matrix heatmap identical to the one
+    produced by sklearn + seaborn in Google Colab.
+    Saves → simulation/confusion_matrix.png
+    """
+    cm = np.array([[tp, fn],
+                   [fp, tn]])
+
+    labels = ["Attack", "Normal"]
+
+    fig, ax = plt.subplots(figsize=(6, 5))
+    sns.heatmap(
+        cm,
+        annot=True,
+        fmt="d",
+        cmap="Blues",
+        xticklabels=["Predicted Attack", "Predicted Normal"],
+        yticklabels=["Actual Attack",    "Actual Normal"],
+        linewidths=0.5,
+        linecolor="grey",
+        ax=ax,
+    )
+
+    # Annotate each cell with label (TP / FN / FP / TN)
+    cell_labels = [["TP", "FN"], ["FP", "TN"]]
+    for i in range(2):
+        for j in range(2):
+            ax.text(
+                j + 0.5, i + 0.75,
+                cell_labels[i][j],
+                ha="center", va="center",
+                fontsize=9, color="grey",
+            )
+
+    ax.set_title("Cloud Sentinel — Confusion Matrix", fontsize=14, fontweight="bold", pad=12)
+    ax.set_ylabel("Actual Label",    fontsize=11)
+    ax.set_xlabel("Predicted Label", fontsize=11)
+    plt.tight_layout()
+
+    out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "confusion_matrix.png")
+    plt.savefig(out_path, dpi=150)
+    plt.close()
+    print(f"\n  Confusion matrix saved → {out_path}")
+
+
+def plot_per_type_recall(per_type: dict):
+    """
+    Horizontal bar chart showing recall % per attack type.
+    Saves → simulation/per_type_recall.png
+    """
+    type_order = [
+        "crypto_mining", "data_exfiltration", "ddos_loop",
+        "sql_injection",  "ip_spoofing",       "memory_attack",
+    ]
+
+    labels, recalls, totals = [], [], []
+    for atype in type_order:
+        if atype not in per_type:
+            continue
+        d = per_type[atype]
+        total = d["tp"] + d["fn"]
+        if total == 0:
+            continue
+        recall = d["tp"] / total * 100
+        labels.append(atype.replace("_", " ").title())
+        recalls.append(recall)
+        totals.append(total)
+
+    if not labels:
+        return
+
+    colours = ["#2ecc71" if r >= 80 else "#f39c12" if r >= 50 else "#e74c3c" for r in recalls]
+
+    fig, ax = plt.subplots(figsize=(8, max(3, len(labels) * 0.7)))
+    bars = ax.barh(labels, recalls, color=colours, edgecolor="white", height=0.55)
+
+    # Value labels on bars
+    for bar, recall, total in zip(bars, recalls, totals):
+        ax.text(
+            min(recall + 1, 97), bar.get_y() + bar.get_height() / 2,
+            f"{recall:.0f}%  (n={total})",
+            va="center", fontsize=9,
+        )
+
+    ax.set_xlim(0, 110)
+    ax.set_xlabel("Recall (%)", fontsize=11)
+    ax.set_title("Cloud Sentinel — Detection Rate per Attack Type", fontsize=13, fontweight="bold")
+    ax.axvline(80, color="grey", linestyle="--", linewidth=0.8, label="80% target")
+    ax.legend(fontsize=9)
+    ax.invert_yaxis()
+    plt.tight_layout()
+
+    out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "per_type_recall.png")
+    plt.savefig(out_path, dpi=150)
+    plt.close()
+    print(f"  Per-type recall chart saved → {out_path}\n")
 
 
 if __name__ == "__main__":
