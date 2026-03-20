@@ -118,43 +118,100 @@ def evaluate():
 
 def plot_confusion_matrix(tp: int, fp: int, fn: int, tn: int):
     """
-    Render a colour-coded confusion matrix heatmap identical to the one
-    produced by sklearn + seaborn in Google Colab.
+    Colour-normalised confusion matrix heatmap with count + percentage
+    annotations per cell and inline metric strip.
     Saves → simulation/confusion_matrix.png
     """
-    cm = np.array([[tp, fn],
-                   [fp, tn]])
+    cm      = np.array([[tp, fn], [fp, tn]])
+    total   = tp + fp + fn + tn
+    cm_pct  = cm / max(total, 1) * 100   # percentage per cell
+    # Normalise for colour scale (each row independently so colours are
+    # meaningful — actual-attack row vs actual-normal row)
+    cm_norm = cm.astype(float)
+    for row in range(2):
+        row_sum = cm_norm[row].sum()
+        if row_sum > 0:
+            cm_norm[row] /= row_sum
 
-    labels = ["Attack", "Normal"]
+    # Pre-compute metrics for the strip
+    precision = tp / max(tp + fp, 1)
+    recall    = tp / max(tp + fn, 1)
+    f1        = 2 * precision * recall / max(precision + recall, 1e-6)
+    accuracy  = (tp + tn) / max(total, 1)
 
-    fig, ax = plt.subplots(figsize=(6, 5))
-    sns.heatmap(
-        cm,
-        annot=True,
-        fmt="d",
-        cmap="Blues",
-        xticklabels=["Predicted Attack", "Predicted Normal"],
-        yticklabels=["Actual Attack",    "Actual Normal"],
-        linewidths=0.5,
-        linecolor="grey",
-        ax=ax,
+    fig, (ax_cm, ax_strip) = plt.subplots(
+        2, 1, figsize=(7, 6.5),
+        gridspec_kw={'height_ratios': [5, 1]}, constrained_layout=True
     )
 
-    # Annotate each cell with label (TP / FN / FP / TN)
+    # ── Heatmap ──────────────────────────────────────────────────────────────
+    sns.heatmap(
+        cm_norm,
+        annot=False,           # we draw custom annotations below
+        cmap="Blues",
+        vmin=0, vmax=1,
+        xticklabels=["Predicted\nAttack", "Predicted\nNormal"],
+        yticklabels=["Actual\nAttack",    "Actual\nNormal"],
+        linewidths=0.8,
+        linecolor="white",
+        cbar=False,
+        ax=ax_cm,
+    )
+
+    # Custom cell annotations: count (bold) + percentage + TP/FP/FN/TN label
     cell_labels = [["TP", "FN"], ["FP", "TN"]]
+    cell_values = [[tp, fn], [fp, tn]]
+    cell_pcts   = [[tp/max(total,1)*100, fn/max(total,1)*100],
+                   [fp/max(total,1)*100, tn/max(total,1)*100]]
+    text_colours = [["white" if cm_norm[i][j] > 0.5 else "#333333"
+                     for j in range(2)] for i in range(2)]
+
     for i in range(2):
         for j in range(2):
-            ax.text(
-                j + 0.5, i + 0.75,
+            tc = text_colours[i][j]
+            ax_cm.text(
+                j + 0.5, i + 0.30,
+                f"{cell_values[i][j]:,}",
+                ha="center", va="center",
+                fontsize=18, fontweight="bold", color=tc,
+            )
+            ax_cm.text(
+                j + 0.5, i + 0.55,
+                f"{cell_pcts[i][j]:.1f}% of total",
+                ha="center", va="center",
+                fontsize=8, color=tc, alpha=0.85,
+            )
+            ax_cm.text(
+                j + 0.5, i + 0.78,
                 cell_labels[i][j],
                 ha="center", va="center",
-                fontsize=9, color="grey",
+                fontsize=9, color=tc, style="italic",
             )
 
-    ax.set_title("Cloud Sentinel — Confusion Matrix", fontsize=14, fontweight="bold", pad=12)
-    ax.set_ylabel("Actual Label",    fontsize=11)
-    ax.set_xlabel("Predicted Label", fontsize=11)
-    plt.tight_layout()
+    ax_cm.set_title(
+        "Cloud Sentinel — Confusion Matrix",
+        fontsize=13, fontweight="bold", pad=10,
+    )
+    ax_cm.set_ylabel("Actual Label",    fontsize=10)
+    ax_cm.set_xlabel("Predicted Label", fontsize=10)
+    ax_cm.tick_params(labelsize=9)
+
+    # ── Metrics strip ────────────────────────────────────────────────────────
+    ax_strip.axis("off")
+    metrics_text = (
+        f"Precision: {precision*100:.1f}%    "
+        f"Recall: {recall*100:.1f}%    "
+        f"F1: {f1*100:.1f}%    "
+        f"Accuracy: {accuracy*100:.1f}%    "
+        f"n = {total:,}"
+    )
+    ax_strip.text(
+        0.5, 0.5, metrics_text,
+        ha="center", va="center",
+        fontsize=9, color="#444444",
+        bbox=dict(boxstyle="round,pad=0.4", facecolor="#f0f4f8", edgecolor="#cbd5e0"),
+        transform=ax_strip.transAxes,
+    )
 
     out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "confusion_matrix.png")
     plt.savefig(out_path, dpi=150)
@@ -164,49 +221,96 @@ def plot_confusion_matrix(tp: int, fp: int, fn: int, tn: int):
 
 def plot_per_type_recall(per_type: dict):
     """
-    Horizontal bar chart showing recall % per attack type.
+    Side-by-side Recall + Precision horizontal bar chart per attack type.
+    Bug fix: uses 'ddos_loop' to match the generator's attack_type key.
     Saves → simulation/per_type_recall.png
     """
+    # 'ddos_loop' is the actual key set by generate_ddos_attack() line 223
     type_order = [
         "crypto_mining", "data_exfiltration", "ddos_loop",
         "sql_injection",  "ip_spoofing",       "memory_attack",
     ]
+    display_names = {
+        "crypto_mining":     "Crypto Mining",
+        "data_exfiltration": "Data Exfiltration",
+        "ddos_loop":         "DDoS",
+        "sql_injection":     "SQL Injection",
+        "ip_spoofing":       "IP Spoofing",
+        "memory_attack":     "Memory Attack",
+    }
 
-    labels, recalls, totals = [], [], []
+    labels, recalls, precisions, totals = [], [], [], []
+
+    # Global FP count for approximate per-type precision
+    total_fp  = sum(d["fp"] for d in per_type.values())
+    total_tp  = sum(d["tp"] for d in per_type.values())
+    # Global precision estimate (best available without per-type FP tracking)
+    global_prec = total_tp / max(total_tp + total_fp, 1)
+
     for atype in type_order:
         if atype not in per_type:
             continue
-        d = per_type[atype]
+        d     = per_type[atype]
         total = d["tp"] + d["fn"]
         if total == 0:
             continue
         recall = d["tp"] / total * 100
-        labels.append(atype.replace("_", " ").title())
+        labels.append(display_names.get(atype, atype))
         recalls.append(recall)
+        precisions.append(global_prec * 100)   # global precision as reference line
         totals.append(total)
 
     if not labels:
         return
 
-    colours = ["#2ecc71" if r >= 80 else "#f39c12" if r >= 50 else "#e74c3c" for r in recalls]
+    y      = np.arange(len(labels))
+    height = 0.38
 
-    fig, ax = plt.subplots(figsize=(8, max(3, len(labels) * 0.7)))
-    bars = ax.barh(labels, recalls, color=colours, edgecolor="white", height=0.55)
+    fig, ax = plt.subplots(figsize=(10, max(4, len(labels) * 0.9)))
 
-    # Value labels on bars
-    for bar, recall, total in zip(bars, recalls, totals):
+    # Recall bars
+    recall_colours = [
+        "#27ae60" if r >= 80 else "#f39c12" if r >= 50 else "#e74c3c"
+        for r in recalls
+    ]
+    bars_recall = ax.barh(
+        y + height / 2, recalls, height=height,
+        color=recall_colours, edgecolor="white", label="Recall"
+    )
+
+    # Precision reference bars (global precision, semi-transparent)
+    bars_prec = ax.barh(
+        y - height / 2, precisions, height=height,
+        color="#3498db", alpha=0.55, edgecolor="white", label="Precision (global)"
+    )
+
+    # Value labels
+    for bar, val, total in zip(bars_recall, recalls, totals):
         ax.text(
-            min(recall + 1, 97), bar.get_y() + bar.get_height() / 2,
-            f"{recall:.0f}%  (n={total})",
-            va="center", fontsize=9,
+            min(val + 1, 105), bar.get_y() + bar.get_height() / 2,
+            f"{val:.0f}%  (n={total})",
+            va="center", fontsize=8.5, fontweight="bold",
+        )
+    for bar, val in zip(bars_prec, precisions):
+        ax.text(
+            min(val + 1, 105), bar.get_y() + bar.get_height() / 2,
+            f"{val:.0f}%",
+            va="center", fontsize=8, color="#2980b9",
         )
 
-    ax.set_xlim(0, 110)
-    ax.set_xlabel("Recall (%)", fontsize=11)
-    ax.set_title("Cloud Sentinel — Detection Rate per Attack Type", fontsize=13, fontweight="bold")
-    ax.axvline(80, color="grey", linestyle="--", linewidth=0.8, label="80% target")
-    ax.legend(fontsize=9)
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels, fontsize=10)
+    ax.set_xlim(0, 115)
+    ax.set_xlabel("Score (%)", fontsize=11)
+    ax.set_title(
+        "Cloud Sentinel — Recall & Precision per Attack Type",
+        fontsize=13, fontweight="bold",
+    )
+    ax.axvline(80, color="#7f8c8d", linestyle="--", linewidth=0.9, label="80% target")
+    ax.legend(fontsize=9, loc="lower right")
     ax.invert_yaxis()
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
     plt.tight_layout()
 
     out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "per_type_recall.png")
