@@ -69,7 +69,7 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 # SARIMA for temporal anomaly detection
-sarima_forecaster = SARIMAForecaster()
+from backend.detection.pipeline import _sarima as sarima_forecaster
 
 # AI Ensemble: Isolation Forest (unsupervised) + Random Forest (supervised)
 # Phase 1 (first 200 requests): learns normal baseline
@@ -294,7 +294,7 @@ def process_log(request: LogRequest):
 
     anomaly_score = scorer_result.get("score", 0.0)
     attack_type   = (
-        l2_result.get("patterns", {}).get("top_threat", {}).get("name")
+        (l2_result.get("patterns", {}).get("top_threat") or {}).get("name")
         if l2_result else None
     )
 
@@ -653,6 +653,47 @@ def get_status():
     }
 
 
+# ---------------------------------------------------------------------------
+# SARIMA status endpoint
+# ---------------------------------------------------------------------------
+
+@app.get("/sarima/status")
+def get_sarima_status():
+    """Detailed SARIMA forecaster status — data points, training state, current prediction."""
+    status     = sarima_forecaster.get_status()
+    prediction = sarima_forecaster.predict()
+
+    now  = datetime.datetime.utcnow()
+    hour = now.hour
+
+    return {
+        "trained":          status["trained"],
+        "sarima_available": status["sarima_available"],
+        "sarima_fitted":    status["sarima_fitted"],
+        "using_fallback":   status["using_fallback"],
+        "data_points":      status["data_points"],
+        "min_required":     status["min_required"],
+        "progress_pct":     status["progress_pct"],
+        "current_prediction": {
+            "value": prediction["value"],
+            "std":   prediction["std"],
+        },
+        "time_context": {
+            "hour":       hour,
+            "is_peak":    8 <= hour <= 20,
+            "time_window": (
+                "night"          if hour < 6  else
+                "early_morning"  if hour < 8  else
+                "morning_peak"   if hour < 12 else
+                "midday_peak"    if hour < 14 else
+                "afternoon_peak" if hour < 18 else
+                "evening_peak"   if hour < 20 else
+                "evening"        if hour < 22 else
+                "late_night"
+            ),
+        },
+        "timestamp": now.isoformat() + "Z",
+    }
 # ---------------------------------------------------------------------------
 # Packet report endpoint
 # ---------------------------------------------------------------------------
