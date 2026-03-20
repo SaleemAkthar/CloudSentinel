@@ -109,13 +109,13 @@ export default function Signin() {
             <p className="text-white/40 text-sm leading-relaxed">
               You've signed in successfully.<br />Redirecting to your dashboard…
             </p>
-            <button
+            {/* <button
               onClick={() => (setSubmitted(false))}
               className="mt-2 px-8 py-3 rounded-xl text-white font-bold text-sm transition-all hover:opacity-90 hover:-translate-y-0.5"
               style={{ background: "linear-gradient(135deg, #3B82F6, #8B5CF6)", boxShadow: "0 4px 24px rgba(59,130,246,0.35)" }}
             >
               Back to Sign In
-            </button>
+            </button> */}
           </div>
         ) : (
           <>
@@ -193,7 +193,7 @@ export default function Signin() {
                 {errors.password && <p className="text-red-400 text-[0.75rem] mt-1.5">⚠ {errors.password}</p>}
               </div>
 
-              {/* Remember me */}
+              {/* Remember me
               <div className="flex items-center gap-2.5">
                 <input
                   type="checkbox"
@@ -203,13 +203,13 @@ export default function Signin() {
                 <label htmlFor="remember" className="text-white/40 text-sm cursor-pointer select-none">
                   Remember me for 30 days
                 </label>
-              </div>
+              </div> */}
 
               {/* Submit */}
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full mt-2 py-3.5 rounded-xl text-white font-bold text-[1rem] tracking-wide transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className=" mt-50 pt-50 w-full mt-2 py-3.5 rounded-xl text-white font-bold text-[1rem] tracking-wide transition-all hover:opacity-90 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 style={{
                   background: "linear-gradient(135deg, #3B82F6, #8B5CF6)",
                   boxShadow: "0 4px 24px rgba(59,130,246,0.35)",
@@ -229,14 +229,14 @@ export default function Signin() {
               </button>
             </form>
 
-            {/* Divider */}
+            {/* Divider
             <div className="flex items-center gap-3 my-6">
               <span className="flex-1 h-px bg-white/[0.08]" />
               <p className="text-white/[0.22] text-[0.75rem] whitespace-nowrap">or continue with</p>
               <span className="flex-1 h-px bg-white/[0.08]" />
-            </div>
+            </div> */}
 
-            {/* Google OAuth */}
+            {/* Google OAuth
             <button
               type="button"
               className="w-full py-3 rounded-xl text-white/70 text-sm flex items-center justify-center gap-2.5 transition-all hover:bg-white/[0.07]"
@@ -249,7 +249,7 @@ export default function Signin() {
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
               </svg>
               Continue with Google
-            </button>
+            </button> */}
 
             <p className="text-center text-white/35 text-sm mt-6">
               Don't have an account?{" "}

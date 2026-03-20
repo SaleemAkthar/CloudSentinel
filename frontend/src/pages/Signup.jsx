@@ -127,13 +127,13 @@ export default function Signup() {
             <p className="text-white/40 text-sm leading-relaxed">
               Welcome to Cloud Sentinel.<br />Check your email to verify your account.
             </p>
-            <button
+            {/* <button
               onClick={() => navigate("/signin")}
               className="mt-2 px-8 py-3 rounded-xl text-white font-bold text-sm transition-all hover:opacity-90 hover:-translate-y-0.5"
               style={{ background: "linear-gradient(135deg, #3B82F6, #8B5CF6)", boxShadow: "0 4px 24px rgba(59,130,246,0.35)" }}
             >
               Go to Sign In
-            </button>
+            </button> */}
           </div>
         ) : (
           <>
