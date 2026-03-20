@@ -4,5 +4,11 @@
     "username": "adddd",
     "email": "ashanbandara407@gmail.com",
     "hashed_password": "$2b$12$K5Cbq5rQb1aK4AYOfErIYe0Pjv5c3GrQZHb0RhsUGAxJ9LUdG6EKm"
+  },
+  "raneesharanasinghe@gmail.com": {
+    "id": "a4c64b5a-ec09-4dbc-8e6a-a53cf7444a09",
+    "username": "raneesha",
+    "email": "raneesharanasinghe@gmail.com",
+    "hashed_password": "$2b$12$mMiiottQEX.vyGZ6bIQCs.Rt2h280ql.EdXVWrkOx.41RkRj3U.za"
   }
 }
