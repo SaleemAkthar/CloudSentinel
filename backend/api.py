@@ -294,7 +294,7 @@ def process_log(request: LogRequest):
 
     anomaly_score = scorer_result.get("score", 0.0)
     attack_type   = (
-        l2_result.get("patterns", {}).get("top_threat", {}).get("name")
+        (l2_result.get("patterns", {}).get("top_threat") or {}).get("name")
         if l2_result else None
     )
 
