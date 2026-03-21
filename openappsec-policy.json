@@ -1,0 +1,62 @@
+{
+    "practices": [
+        {
+            "name": "CloudSentinelWAFProtection",
+            "web-attacks": {
+                "override-mode": "prevent-learn",
+                "minimum-confidence": "medium",
+                "max-body-size-kb": 1024,
+                "max-header-size-bytes": 8192,
+                "max-url-size-bytes": 32768,
+                "max-object-depth": 40,
+                "high-confidence": "prevent",
+                "medium-confidence": "prevent",
+                "low-confidence": "detect"
+            },
+            "snort-signatures": {
+                "override-mode": "detect"
+            },
+            "openapi-schema-validation": {
+                "override-mode": "detect"
+            }
+        }
+    ],
+    "triggers": [
+        {
+            "name": "CloudSentinelWAFLogger",
+            "log": {
+                "verbosity": "standard",
+                "response-body": false,
+                "http-headers": true,
+                "request-body": true,
+                "log-to-agent": true
+            },
+            "web-user-response": {
+                "mode": "custom-response",
+                "response-code": 403,
+                "response-body": "{\"blocked\": true, \"waf\": \"OpenAppsec\", \"reason\": \"Request blocked by ML WAF\"}"
+            }
+        }
+    ],
+    "rules": [
+        {
+            "host": "*",
+            "practice": "CloudSentinelWAFProtection",
+            "trigger": "CloudSentinelWAFLogger"
+        }
+    ],
+    "exceptions": [
+        {
+            "comment": "Allow health checks without WAF inspection",
+            "url": "/health",
+            "practice": "CloudSentinelWAFProtection",
+            "action": "accept"
+        },
+        {
+            "comment": "Allow status checks",
+            "url": "/status",
+            "practice": "CloudSentinelWAFProtection",
+            "action": "accept"
+        }
+    ]
+}
