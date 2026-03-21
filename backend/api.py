@@ -28,6 +28,9 @@ import uvicorn
 import datetime
 import uuid
 import os
+import time
+import threading
+import boto3
 
 from backend.detection.sarima_forecaster import SARIMAForecaster
 from backend.storage.in_memory_store import AlertStore
@@ -800,6 +803,122 @@ def get_packet_report(alert_id: str):
 
     return report
 
+
+# ---------------------------------------------------------------------------
+# AWS CloudWatch Live Monitoring
+# ---------------------------------------------------------------------------
+
+_aws_monitor_running = False
+_aws_monitor_thread: threading.Thread | None = None
+
+
+def _parse_report_line(message: str) -> dict:
+    """
+    Parse a CloudWatch REPORT line into LogRequest-compatible fields.
+    Example line:
+      REPORT RequestId: abc  Duration: 123.45 ms  Billed Duration: 124 ms
+      Memory Size: 512 MB  Max Memory Used: 78 MB
+    """
+    duration    = 100.0
+    memory_used = 128.0
+
+    for part in message.split("\t"):
+        part = part.strip()
+        if part.startswith("Duration:") and "Billed" not in part:
+            try:
+                duration = float(part.split(":")[1].replace("ms", "").strip())
+            except ValueError:
+                pass
+        elif part.startswith("Max Memory Used:"):
+            try:
+                memory_used = float(part.split(":")[1].replace("MB", "").strip())
+            except ValueError:
+                pass
+
+    return {"duration": duration, "memory_used": memory_used}
+
+
+def _aws_monitor_worker(log_group_name: str):
+    """
+    Background thread: polls CloudWatch every 10 s and feeds REPORT lines
+    through the existing process_log pipeline so they appear in the dashboard.
+    """
+    global _aws_monitor_running
+
+    try:
+        logs_client = boto3.client("logs")
+    except Exception as exc:
+        print(f"[AWS Monitor] Failed to create boto3 client: {exc}")
+        _aws_monitor_running = False
+        return
+
+    last_seen_time = int((time.time() - 60) * 1000)
+    print(f"[AWS Monitor] Started — watching {log_group_name}")
+
+    while _aws_monitor_running:
+        try:
+            response = logs_client.filter_log_events(
+                logGroupName=log_group_name,
+                startTime=last_seen_time + 1,
+                filterPattern="REPORT",
+            )
+            for event in response.get("events", []):
+                parsed = _parse_report_line(event["message"])
+                fake_request = LogRequest(
+                    duration      = parsed["duration"],
+                    memory_used   = parsed["memory_used"],
+                    num_api_calls = 1,
+                    function_name = log_group_name.split("/")[-1],
+                )
+                try:
+                    process_log(fake_request)
+                except Exception as pipeline_exc:
+                    print(f"[AWS Monitor] Pipeline error: {pipeline_exc}")
+
+                if event["timestamp"] > last_seen_time:
+                    last_seen_time = event["timestamp"]
+
+        except Exception as exc:
+            print(f"[AWS Monitor] Fetch warning: {exc}")
+
+        time.sleep(10)
+
+    print("[AWS Monitor] Stopped.")
+
+
+@app.post("/api/aws/start")
+def start_aws_monitoring(log_group: str = "/aws/lambda/cloud-sentinel-test"):
+    """
+    Start the background CloudWatch polling thread.
+    The log_group query param lets the frontend pass a specific function name.
+    """
+    global _aws_monitor_running, _aws_monitor_thread
+
+    if _aws_monitor_running:
+        return {"status": "already_running", "log_group": log_group}
+
+    _aws_monitor_running = True
+    _aws_monitor_thread = threading.Thread(
+        target=_aws_monitor_worker,
+        args=(log_group,),
+        daemon=True,
+    )
+    _aws_monitor_thread.start()
+    return {"status": "started", "log_group": log_group}
+
+
+@app.post("/api/aws/stop")
+def stop_aws_monitoring():
+    """Stop the CloudWatch polling thread."""
+    global _aws_monitor_running
+    _aws_monitor_running = False
+    return {"status": "stopped"}
+
+
+@app.get("/api/aws/status")
+def aws_monitor_status():
+    """Return whether live AWS monitoring is currently active."""
+    return {"running": _aws_monitor_running}
 
 # ---------------------------------------------------------------------------
 # Entry point
