@@ -28,3 +28,14 @@ class NetworkAnalysis(BaseModel):
     hop_count: int                           # Total number of hops in the path
     hops: List[NetworkHop]                   # Ordered list of routing hops
     transit_providers: List[str]             # Distinct ISPs/providers in the path
+
+ 
+    # Risk signals derived from routing behaviour
+    crosses_high_risk_country: bool          # True if path routes through a flagged country
+    uses_tor_or_vpn: bool                    # True if a Tor exit node or known VPN detected
+    asymmetric_routing: bool                 # True if return path differs significantly
+    routing_anomaly_score: float             # 0.0 – 1.0; higher = more suspicious routing
+ 
+    # Summary
+    risk_level: str                          # "low", "medium", "high", "critical"
+    notes: Optional[str] = None             # Free-text explanation of any anomalies found
