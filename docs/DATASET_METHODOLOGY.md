@@ -87,4 +87,77 @@ The attack script invokes the api-handler function 5--15 times consecutively wit
 **References:**
 - Muir, M. (2022). "Denonia: The First Malware Specifically Targeting AWS Lambda." Cado Security Labs Technical Report.
 - Sysdig. (2024). "2024 Cloud-Native Security and Usage Report." Sysdig Inc.
+
+### 4.2 Data Exfiltration
+ 
+**Real-world basis:** Data exfiltration through Lambda functions involves the attacker invoking database query functions repeatedly to extract sensitive data. The OWASP Serverless Top 10 lists "broken authentication" and "over-privileged function permissions" as primary enablers of exfiltration attacks.
+ 
+**How we simulate it:**
+The attack script rapidly invokes the db-query function 8--20 times with complex query payloads, simulating an attacker dumping database contents. The high number of real invocations produces genuinely elevated API call counts and large cumulative output sizes.
+ 
+**Expected metrics:**
+- Duration: 4,000--20,000 ms (cumulative from many queries)
+- Memory: 150--250 MB (moderate)
+- API calls: 8--20 (the primary indicator)
+- Packet size out: 5,000--20,000 bytes (large data extraction)
+- Errors: 0 (clean execution, planned exfiltration)
+ 
+**References:**
+- OWASP. (2024). "OWASP Serverless Top 10." Open Web Application Security Project.
+- Sysdig. (2024). "2024 Cloud-Native Security and Usage Report." Sysdig Inc.
+ 
+### 4.3 SQL Injection
+ 
+**Real-world basis:** SQL injection remains among the most prevalent web application vulnerabilities. OWASP Top 10 2025 (A05: Injection) reports that 100% of applications were tested for injection flaws, with SQL injection accounting for over 14,000 CVEs. In a serverless context, injection attacks target Lambda functions that construct database queries from user input.
+ 
+**How we simulate it:**
+The attack script invokes the db-query function 15--30 times with varied payloads (including deliberately invalid query types). Most invocations produce errors because injection attempts typically fail before finding a successful payload. The high error count combined with numerous database queries is the primary detection signature.
+ 
+**Expected metrics:**
+- Duration: 1,500--8,000 ms (cumulative)
+- Memory: 100--200 MB (normal range)
+- API calls: 15--30 (many query attempts)
+- Errors: 5--15 (most injection attempts fail)
+- Status code: 500 (server errors from malformed queries)
+ 
+**References:**
+- OWASP. (2025). "A05:2025 -- Injection." OWASP Top 10:2025. https://owasp.org/Top10/2025/A05_2025-Injection/
+- OWASP. (2021). "SQL Injection." OWASP Community Attacks Reference. https://owasp.org/www-community/attacks/SQL_Injection
+ 
+### 4.4 DDoS (Distributed Denial of Service)
+ 
+**Real-world basis:** PureSec's serverless security report (2018) demonstrated that attackers can exploit Lambda's auto-scaling to create a self-replicating DDoS amplification effect. A single vulnerable function can be scaled to thousands of concurrent instances by flooding it with requests. AWS Lambda's default concurrent execution limit is 1,000 instances per region.
+ 
+**How we simulate it:**
+The attack script sends 30--60 rapid invocations to the api-handler function with minimal payloads. This produces genuinely rapid request rates, and we set high concurrency values (20--100) to reflect the auto-scaling effect. Fragment counts are elevated to simulate packet fragmentation common in volumetric DDoS attacks.
+ 
+**Expected metrics:**
+- Duration: 1,500--9,000 ms (cumulative from flood)
+- Memory: 80--150 MB (normal per invocation)
+- API calls: 30--60 (the flood itself)
+- Concurrency: 20--100 (auto-scaled instances)
+- Fragment count: 3--10
+- Latency: 1--10 ms (rapid-fire, low per-request latency)
+ 
+**References:**
+- PureSec. (2018). "Serverless Security Report: Hacked Serverless Functions Are a Crypto-Gold Mine for Miscreants." PureSec Ltd.
+- AWS. (2024). "Lambda Quotas." AWS Documentation. https://docs.aws.amazon.com/lambda/latest/dg/gettingstarted-limits.html
+ 
+### 4.5 Memory Attack
+ 
+**Real-world basis:** Memory exhaustion attacks force a Lambda function to allocate memory near its configured limit, causing either degraded performance or Out-Of-Memory (OOM) termination. AWS Lambda functions can be configured with 128 MB to 10,240 MB of memory. The execution environment reports memory usage through CloudWatch, and approaching the limit triggers OOM errors.
+ 
+**How we simulate it:**
+The attack script invokes the file-processor function with extremely large file payloads (5,000--10,000 KB), forcing the function to allocate significant memory for processing. Memory values are set to 460--510 MB against a 512 MB limit, reflecting near-exhaustion conditions.
+ 
+**Expected metrics:**
+- Duration: 1,500--3,000 ms
+- Memory: 460--510 MB (90--100% of 512 MB limit)
+- API calls: 2--5
+- Errors: 0--2 (OOM may or may not trigger)
+- Status code: 200 or 500 (depending on whether OOM occurs)
+ 
+**References:**
+- AWS. (2024). "Lambda Memory and Computing Power." AWS Documentation.
+- Hassan, H.B. et al. (2023). "Rise of the Planet of Serverless Computing: A Systematic Review." ACM Transactions on Software Engineering and Methodology, Vol. 32, No. 5.
  
