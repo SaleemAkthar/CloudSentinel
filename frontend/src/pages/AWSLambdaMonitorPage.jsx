@@ -189,8 +189,8 @@ export default function AWSLambdaMonitorPage() {
   const [selectedFn, setSelectedFn]         = useState(null);
   const [fnAlerts, setFnAlerts]             = useState([]);
   const [fnLogs, setFnLogs]                 = useState([]);
-  const [awsLive, setAwsLive]   = useState(false);
-  const [awsLoading, setAwsLoading] = useState(false);
+  const [awsLive, setAwsLive]               = useState(false);
+  const [awsLoading, setAwsLoading]         = useState(false);
 
   // ── Fetch from existing backend endpoints ───────────────────────────
   const fetchAll = useCallback(async () => {
@@ -273,20 +273,20 @@ export default function AWSLambdaMonitorPage() {
   }, []);
 
   const toggleAwsMonitor = async () => {
-  setAwsLoading(true);
-  try {
-    if (awsLive) {
-      await axios.post("/api/aws/stop");
-      setAwsLive(false);
-    } else {
-      await axios.post("/api/aws/start");
-      setAwsLive(true);
+    setAwsLoading(true);
+    try {
+      if (awsLive) {
+        await axios.post("/api/aws/stop");
+        setAwsLive(false);
+      } else {
+        await axios.post("/api/aws/start");
+        setAwsLive(true);
+      }
+    } catch (err) {
+      console.error("AWS monitor toggle failed:", err);
+    } finally {
+      setAwsLoading(false);
     }
-  } catch (err) {
-    console.error("AWS monitor toggle failed:", err);
-  } finally {
-    setAwsLoading(false);
-  }
   };
 
   // ── Derived values with fallbacks ───────────────────────────────────
@@ -317,9 +317,23 @@ export default function AWSLambdaMonitorPage() {
     <div className="space-y-8">
 
       {/* Page Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-white">AWS Lambda Monitor</h1>
-        <p className="text-slate-400 mt-1">Real-time monitoring of serverless functions</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-white">AWS Lambda Monitor</h1>
+          <p className="text-slate-400 mt-1">Real-time monitoring of serverless functions</p>
+        </div>
+        <button
+          onClick={toggleAwsMonitor}
+          disabled={awsLoading}
+          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm transition-all
+            ${awsLive
+              ? "bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30"
+              : "bg-green-500/20 text-green-400 border border-green-500/40 hover:bg-green-500/30"
+            } disabled:opacity-50`}
+        >
+          <span className={`w-2 h-2 rounded-full ${awsLive ? "bg-red-400 animate-pulse" : "bg-green-400"}`} />
+          {awsLoading ? "Connecting..." : awsLive ? "Stop Live Monitoring" : "Start Live Monitoring"}
+        </button>
       </div>
 
       <div className="space-y-6">
