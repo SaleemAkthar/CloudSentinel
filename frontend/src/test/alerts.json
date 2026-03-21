@@ -1,7 +1,4 @@
 [
-  
-
-
   {
     "id": "ALERT-1001",
     "timestamp": "2026-02-07T00:12:00Z",
@@ -58,7 +55,6 @@
       "error_count": 0
     }
   },
-
   {
     "id": "ALERT-1005",
     "timestamp": "2026-02-07T04:10:00Z",
@@ -297,9 +293,6 @@
       "error_count": 1
     }
   },
-
-
-  
   {
     "id": "ALERT-1022",
     "timestamp": "2026-02-08T01:10:00Z",
@@ -482,7 +475,7 @@
       "error_count": 1
     }
   },
-    {
+  {
     "id": "ALERT-1035",
     "timestamp": "2026-02-10T01:07:00Z",
     "function": "paymentHandler",
@@ -496,5 +489,4 @@
       "error_count": 1
     }
   }
-
 ]
