@@ -1,0 +1,18 @@
+# Cloud Sentinel — ModSecurity WAF Container
+# ============================================
+# ModSecurity is a rules-based WAF.
+# It reads the OWASP CRS rulebook of 3000+ known attack signatures
+# and blocks any request that matches.
+#
+# Think of it as a bouncer with a list of every known troublemaker.
+# If your request matches any known attack pattern it gets blocked
+# before it ever reaches your Lambda functions or Cloud Sentinel.
+
+FROM owasp/modsecurity-crs:nginx-alpine
+
+# Copy our custom configuration
+COPY nginx-modsecurity.conf /etc/nginx/templates/conf.d/default.conf.template
+COPY modsec-main.conf        /etc/modsecurity.d/modsec-override.conf
+
+# Port 80 inside the container
+EXPOSE 80
