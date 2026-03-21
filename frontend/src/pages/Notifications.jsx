@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import axios from "axios";
 import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
 import CheckCircleOutlineRoundedIcon from "@mui/icons-material/CheckCircleOutlineRounded";
@@ -14,12 +15,11 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from "recharts";
-import alertsData from "../test/alerts.json"; 
 
+// ── Polling interval — refresh every 500ms (Matches RealTimeAlerts) ─────────
+const POLL_INTERVAL = 5000;
 
-// Notifications page component
-
-// static chart data for last 7 days
+// ── Static Chart Data (Historical Context) ─────────────────────────────
 const chartData = [
   { day: "Mon", notifications: 3 },
   { day: "Tue", notifications: 7 },
@@ -30,7 +30,7 @@ const chartData = [
   { day: "Sun", notifications: 4 },
 ];
 
-// styles for each notification type
+// ── Styles for each notification type ──────────────────────────────────
 const typeStyles = {
   CRITICAL: {
     icon: <WarningAmberRoundedIcon fontSize="small" />,
@@ -52,6 +52,7 @@ const typeStyles = {
   },
 };
 
+// ── Helper Functions ─────────────────────────────────────────────────
 function timeAgo(iso) {
   const t = new Date(iso).getTime();
   const now = Date.now();
@@ -71,7 +72,6 @@ function buildMessageFromAlert(a) {
   const f = a.features || {};
   const score = typeof a.anomaly_score === "number" ? a.anomaly_score : 0;
 
-  // Message templates based on severity + features
   if (a.severity === "CRITICAL") {
     if ((f.outbound_calls || 0) >= 4) {
       return `${a.function} made unusually high outbound calls (${f.outbound_calls}).`;
@@ -95,7 +95,6 @@ function buildMessageFromAlert(a) {
     return `${a.function} showed unusual behaviour (score=${score.toFixed(2)}).`;
   }
 
-  // INFO
   if ((f.duration_ms || 0) > 0) {
     return `${a.function} ran normally (duration ${f.duration_ms}ms).`;
   }
@@ -109,6 +108,8 @@ function buildTitleFromAlert(a) {
 }
 
 function alertsToNotifications(alerts) {
+  if (!Array.isArray(alerts)) return [];
+  
   // Sort newest first
   const sorted = alerts
     .slice()
@@ -126,33 +127,64 @@ function alertsToNotifications(alerts) {
   }));
 }
 
-
-
 export default function Notifications() {
-  // state for notifications list and active filter
-  const [notifications, setNotifications] = useState(() =>alertsToNotifications(alertsData));
+  // ── Local State (UI Preferences & Transformations) ────────────────────
+  const [notifications, setNotifications] = useState([]);
   const [filter, setFilter] = useState("ALL");
+  
+  // ── Backend Connection States ─────────────────────────────────────────
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // mark all notifications as read
+  // ── Fetch Alerts from Live Backend ────────────────────────────────────
+  const fetchNotifications = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const res = await axios.get("/api/alerts?limit=500");
+      const data = Array.isArray(res.data) ? res.data : [];
+
+      // Transform and Set State
+      const transformed = alertsToNotifications(data);
+      setNotifications(transformed);
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+      setError("Backend unavailable — please ensure the server is running");
+      // Optional: Keep showing old data instead of clearing on error
+      // Or clear data to indicate disconnect
+      // setNotifications([]); 
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // ── Initial Fetch + Polling Loop ──────────────────────────────────────
+  useEffect(() => {
+    fetchNotifications();
+    
+    const interval = setInterval(fetchNotifications, POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  // ── UI Interaction Handlers ───────────────────────────────────────────
   const markAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
-  // mark a single notification as read
   const markRead = (id) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
   };
 
-  // toggle pin status of a notification
   const togglePin = (id) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n))
     );
   };
 
-  // derived values
+  // ── Derived Values ────────────────────────────────────────────────────
   const unreadCount = notifications.filter((n) => !n.read).length;
   const pinnedNotifications = notifications.filter((n) => n.pinned);
   const filtered = notifications.filter((n) =>
@@ -161,7 +193,7 @@ export default function Notifications() {
 
   return (
     <div className="space-y-6 text-white">
-      {/* page header */}
+      {/* HEADER */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold">Notifications</h1>
@@ -170,18 +202,27 @@ export default function Notifications() {
           </p>
         </div>
 
-        {unreadCount > 0 && (
-          <button
-            onClick={markAllRead}
-            className="flex items-center gap-2 px-4 py-2 text-sm rounded-xl bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 transition-colors"
-          >
-            <CheckCircleOutlineRoundedIcon fontSize="small" />
-            Mark all as read
-          </button>
-        )}
+        {/* Live Status Indicator (Mirroring RealTimeAlerts) */}
+        <div className="flex items-center gap-2">
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${
+              error ? "bg-red-400" : "bg-emerald-400 animate-pulse"
+            }`}
+          />
+          <span className="text-xs text-slate-400">
+            {error ? "Disconnected" : `Live • Polling ${POLL_INTERVAL / 1000}s`}
+          </span>
+        </div>
       </div>
 
-      {/* summary cards */}
+      {/* Error Banner */}
+      {error && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
+
+      {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           {
@@ -217,14 +258,11 @@ export default function Notifications() {
         ))}
       </div>
 
-      {/* pinned notifications section */}
+      {/* Pinned Notifications Section */}
       {pinnedNotifications.length > 0 && (
         <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
           <div className="px-5 py-3 border-b border-white/10 flex items-center gap-2 text-sm font-semibold text-slate-300">
-            <PushPinRoundedIcon
-              fontSize="small"
-              className="text-yellow-400"
-            />
+            <PushPinRoundedIcon fontSize="small" className="text-yellow-400" />
             <span>Pinned</span>
             <span className="ml-auto text-xs text-slate-500">
               {pinnedNotifications.length} pinned
@@ -234,7 +272,6 @@ export default function Notifications() {
           <div className="divide-y divide-white/5">
             {pinnedNotifications.map((n) => {
               const style = typeStyles[n.type];
-
               return (
                 <div
                   key={n.id}
@@ -245,18 +282,15 @@ export default function Notifications() {
                       <span className="text-sm font-semibold text-white">
                         {n.title}
                       </span>
-
                       <span
                         className={`px-2 py-0.5 text-xs rounded-full font-medium ${style.badge}`}
                       >
                         {n.type}
                       </span>
                     </div>
-
                     <p className="text-sm text-slate-400">{n.message}</p>
                     <p className="text-xs text-slate-500 mt-1">{n.time}</p>
                   </div>
-
                   <button
                     onClick={() => togglePin(n.id)}
                     className="shrink-0 mt-1 text-yellow-400 hover:text-slate-400 transition-colors"
@@ -271,26 +305,24 @@ export default function Notifications() {
         </div>
       )}
 
-      {/* chart and notification list grid */}
+      {/* Main Content Grid: Chart (Static) + Notifications List (Dynamic) */}
       <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 items-start">
-
-
-        {/* notification list */}
+        
+        {/* Notification List Container */}
         <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden h-[70vh] flex flex-col">
-
-          {/* filter tabs */}
+          
+          {/* Filter Tabs Header */}
           <div className="sticky top-0 z-10 border-b border-white/10 bg-[#0a1328]/90 backdrop-blur">
             <div className="flex items-center gap-3 px-5 py-3">
-              {/* left icon */}
+              {/* Icon Badge */}
               <div className="grid h-9 w-9 place-items-center rounded-xl bg-white/5 ring-1 ring-white/10 text-slate-300">
                 <NotificationsNoneRoundedIcon fontSize="small" />
               </div>
 
-              {/* pills */}
+              {/* Pills */}
               <div className="flex flex-wrap items-center gap-2">
                 {["ALL", "CRITICAL", "WARNING", "INFO"].map((tab) => {
                   const active = filter === tab;
-
                   const activeCls =
                     "bg-white/15 text-white ring-1 ring-white/20 shadow-[0_0_0_1px_rgba(255,255,255,0.08)]";
                   const idleCls =
@@ -312,7 +344,7 @@ export default function Notifications() {
                 })}
               </div>
 
-              {/* right: optional count */}
+              {/* Count */}
               <div className="ml-auto text-xs text-slate-400">
                 Showing{" "}
                 <span className="text-slate-200 font-semibold">
@@ -323,83 +355,102 @@ export default function Notifications() {
             </div>
           </div>
           
-          {/* notification items */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="divide-y divide-white/5"></div>
-              {filtered.length === 0 ? (
-                <div className="p-8 text-center text-slate-400">
-                  No notifications found
+          {/* Notification Items Area */}
+          <div className="flex-1 overflow-y-auto relative">
+             {/* Top Action Button for Unreads */}
+             {unreadCount > 0 && (
+                <div className="absolute top-0 right-0 z-20 px-4 pt-2 hidden lg:block">
+                   <button
+                    onClick={markAllRead}
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 transition-colors"
+                  >
+                    <CheckCircleOutlineRoundedIcon fontSize="small" />
+                    Mark all as read
+                  </button>
+                </div>
+             )}
+
+             {!loading ? (
+                <div className="divide-y divide-white/5 h-full">
+                  {filtered.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-3">
+                        <NotificationsNoneRoundedIcon fontSize="large" className="opacity-20"/>
+                        <span>No notifications found</span>
+                    </div>
+                  ) : (
+                    filtered.map((n) => {
+                      const style = typeStyles[n.type];
+                      return (
+                        <div
+                          key={n.id}
+                          onClick={() => markRead(n.id)}
+                          className={`flex items-start gap-4 px-5 py-4 border-l-4 ${style.border} cursor-pointer transition-colors ${
+                            n.read
+                              ? "opacity-60 hover:opacity-80"
+                              : "bg-white/3 hover:bg-white/5"
+                          }`}
+                        >
+                          {/* Dot Indicator */}
+                          <div className="mt-1 shrink-0">
+                            {!n.read ? (
+                              <span
+                                className={`block w-2 h-2 rounded-full ${style.dot}`}
+                              />
+                            ) : (
+                              <span className="block w-2 h-2 rounded-full bg-transparent" />
+                            )}
+                          </div>
+
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span className="text-sm font-semibold text-white">
+                                {n.title}
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 text-xs rounded-full font-medium ${style.badge}`}
+                              >
+                                {n.type}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-400">{n.message}</p>
+                            <p className="text-xs text-slate-500 mt-1">{n.time}</p>
+                          </div>
+
+                          {/* Pin Button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              togglePin(n.id);
+                            }}
+                            className={`shrink-0 mt-1 transition-colors ${
+                              n.pinned
+                                ? "text-yellow-400"
+                                : "text-slate-600 hover:text-slate-300"
+                            }`}
+                            title={n.pinned ? "Unpin" : "Pin"}
+                          >
+                            {n.pinned ? (
+                              <PushPinRoundedIcon fontSize="small" />
+                            ) : (
+                              <PushPinOutlinedIcon fontSize="small" />
+                            )}
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               ) : (
-                filtered.map((n) => {
-                  const style = typeStyles[n.type];
-
-                  return (
-                    <div
-                      key={n.id}
-                      onClick={() => markRead(n.id)}
-                      className={`flex items-start gap-4 px-5 py-4 border-l-4 ${style.border} cursor-pointer transition-colors ${
-                        n.read
-                          ? "opacity-60 hover:opacity-80"
-                          : "bg-white/3 hover:bg-white/5"
-                      }`}
-                    >
-                      {/* unread dot */}
-                      <div className="mt-1 shrink-0">
-                        {!n.read ? (
-                          <span
-                            className={`block w-2 h-2 rounded-full ${style.dot}`}
-                          />
-                        ) : (
-                          <span className="block w-2 h-2 rounded-full bg-transparent" />
-                        )}
-                      </div>
-
-                      {/* content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <span className="text-sm font-semibold text-white">
-                            {n.title}
-                          </span>
-
-                          <span
-                            className={`px-2 py-0.5 text-xs rounded-full font-medium ${style.badge}`}
-                          >
-                            {n.type}
-                          </span>
-                        </div>
-
-                        <p className="text-sm text-slate-400">{n.message}</p>
-                        <p className="text-xs text-slate-500 mt-1">{n.time}</p>
-                      </div>
-
-                      {/* pin button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          togglePin(n.id);
-                        }}
-                        className={`shrink-0 mt-1 transition-colors ${
-                          n.pinned
-                            ? "text-yellow-400"
-                            : "text-slate-600 hover:text-slate-300"
-                        }`}
-                        title={n.pinned ? "Unpin" : "Pin"}
-                      >
-                        {n.pinned ? (
-                          <PushPinRoundedIcon fontSize="small" />
-                        ) : (
-                          <PushPinOutlinedIcon fontSize="small" />
-                        )}
-                      </button>
-                    </div>
-                  );
-                })
+                // Loading Skeleton
+                <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-2">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-400"></div>
+                    <span>Loading notifications...</span>
+                </div>
               )}
-            </div>
           </div>
         </div>
       </div>
-    // </div>
+    </div>
   );
 }
