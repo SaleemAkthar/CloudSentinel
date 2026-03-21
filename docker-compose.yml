@@ -102,3 +102,40 @@ services:
     depends_on:
       - backend-lb
     restart: unless-stopped
+    
+# ── ModSecurity WAF ─────────────────────────────────────────────────
+  # Rules-based WAF. Blocks known attack signatures.
+  # Sits in front of your backend load balancer.
+  # Traffic comes in on port 8081 → WAF inspects → forwards to backend-lb
+  modsecurity-waf:
+    build:
+      context: .
+      dockerfile: Dockerfile.modsecurity
+    container_name: cs-modsecurity
+    ports:
+      - "8081:80"
+    depends_on:
+      backend-lb:
+        condition: service_started
+    restart: unless-stopped
+    volumes:
+      - ./nginx-modsecurity.conf:/etc/nginx/templates/conf.d/default.conf.template:ro
+      - ./modsec-main.conf:/etc/modsecurity.d/modsec-override.conf:ro
+
+  # ── OpenAppsec WAF ───────────────────────────────────────────────────
+  # ML-based WAF. Learns your traffic and blocks anomalies.
+  # Sits in front of ModSecurity.
+  # Traffic comes in on port 8082 → OpenAppsec → ModSecurity → backend-lb
+  open-appsec:
+    image: openappsec/agent:latest
+    container_name: cs-openappsec
+    ports:
+      - "8082:80"
+    environment:
+      - APPSEC_MODE=prevent-learn
+      - UPSTREAM_URL=http://modsecurity-waf:80
+    volumes:
+      - ./openappsec-policy.json:/ext/appsec/local_policy.json:ro
+    depends_on:
+      - modsecurity-waf
+    restart: unless-stopped
