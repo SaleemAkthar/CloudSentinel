@@ -132,7 +132,8 @@ class LogRequest(BaseModel):
 
 def _build_alert(log_request: LogRequest, decision: str, severity: str,
                  confidence: float, anomaly_score: float, threat_type: str,
-                 layer2_report: dict = None, ai_result: dict = None) -> dict:
+                 layer2_report: dict = None, ai_result: dict = None,
+                 raw_packet: dict = None, layer1_result: dict = None) -> dict:
     """Build a frontend-compatible alert record."""
 
     # Map backend severity to frontend contract (CRITICAL / WARNING / INFO)
@@ -160,6 +161,8 @@ def _build_alert(log_request: LogRequest, decision: str, severity: str,
             "error_count":         log_request.error_count,
             "ip_address":          log_request.ip_address,
             "ttl":                 log_request.ttl,
+            "raw_packet":    layer2_report.get("raw_packet") if layer2_report else None,
+            "layer1_result": layer2_report.get("layer1") if layer2_report else None,
         },
     }
 
