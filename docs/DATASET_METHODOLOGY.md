@@ -160,4 +160,123 @@ The attack script invokes the file-processor function with extremely large file 
 **References:**
 - AWS. (2024). "Lambda Memory and Computing Power." AWS Documentation.
 - Hassan, H.B. et al. (2023). "Rise of the Planet of Serverless Computing: A Systematic Review." ACM Transactions on Software Engineering and Methodology, Vol. 32, No. 5.
+ ### 4.6 IP Spoofing
  
+**Real-world basis:** IP spoofing involves forging the source IP address of network packets to impersonate a trusted source or hide the attacker's identity. Unlike the other 5 attack types, IP spoofing does not alter the Lambda function's execution behaviour. The function runs normally, but the network metadata is anomalous. Detection relies on examining IP headers: impossible TTL values, private IP addresses arriving from public internet, and suspiciously low source ports.
+ 
+**How we simulate it:**
+The attack script invokes the auth-service function with a normal payload (producing normal execution metrics), but attaches metadata with suspicious network characteristics: TTL values that no real operating system uses (0, 1, 3, 250, 254), private RFC-1918 addresses (10.x.x.x, 172.16.x.x, 192.168.x.x), and source ports below 1024 (reserved range, unusual for client traffic).
+ 
+**Expected metrics:**
+- Duration: 50--500 ms (normal -- execution itself is not suspicious)
+- Memory: 80--140 MB (normal)
+- TTL: 0, 1, 3, 250, or 254 (impossible for real OS -- Linux defaults to 64, Windows to 128)
+- Source port: 1--1023 (reserved range, normal clients use 49152--65535)
+- Fragment count: 2--6 (fragmentation used to evade inspection)
+ 
+**Note:** IP Spoofing is intentionally designed to have weak separation on execution features (duration, memory). It is detected by Layer 2's IP analysis module, not by Layer 1's feature-based scoring. This is documented in our detection architecture.
+ 
+**References:**
+- IETF. (2000). "RFC 2827 -- Network Ingress Filtering: Defeating Denial of Service Attacks which employ IP Source Address Spoofing." Internet Engineering Task Force.
+- Standard TTL defaults: Linux kernel = 64, Windows = 128, Cisco IOS = 255.
+ 
+ 
+## 5. Dataset Composition
+ 
+| Category | Count | Percentage |
+|---|---|---|
+| Normal traffic | 700 | 70% |
+| Crypto Mining | 50 | 5% |
+| Data Exfiltration | 50 | 5% |
+| SQL Injection | 50 | 5% |
+| DDoS | 50 | 5% |
+| Memory Attack | 50 | 5% |
+| IP Spoofing | 50 | 5% |
+| **Total** | **1000** | **100%** |
+ 
+The 70/30 split between normal and attack traffic follows the convention established in CICIDS2017, where the majority of traffic is benign. Attack samples are distributed equally across 6 types to prevent evaluation bias toward any single attack category.
+ 
+All records are shuffled randomly after generation to prevent ordering effects during sequential processing.
+ 
+ 
+## 6. Feature Schema
+ 
+Each record in the dataset contains the following fields:
+ 
+| Field | Type | Description | Source |
+|---|---|---|---|
+| timestamp | string | ISO 8601 timestamp of invocation | System clock |
+| function_name | string | Lambda function that was invoked | LocalStack |
+| duration | float | Execution time in milliseconds | Measured from invocation |
+| memory_used | float | Memory consumption in megabytes | Reported by function |
+| num_api_calls | int | Number of API/DB calls made | Counted per invocation |
+| error_count | int | Number of errors encountered | Counted per invocation |
+| concurrency | int | Concurrent execution instances | Simulated |
+| ip_address | string | Source IP address | Assigned per traffic type |
+| ttl | int | IP Time-To-Live value | Assigned per traffic type |
+| packet_size_in | int | Inbound packet size in bytes | Simulated |
+| packet_size_out | int | Outbound packet size in bytes | Simulated |
+| latency | float | Network latency in milliseconds | Simulated |
+| fragment_count | int | IP packet fragment count | Simulated |
+| source_port | int | TCP source port number | Assigned per traffic type |
+| status_code | int | HTTP response status code | Returned by function |
+| label | string | Ground truth: "normal" or "attack" | Known from generation |
+| attack_type | string | Attack type or empty for normal | Known from generation |
+ 
+ 
+## 7. Validation
+ 
+The dataset is validated using `simulation/validate_dataset.py`, which checks:
+ 
+1. **Record distribution** -- confirms the expected 700/300 split
+2. **Descriptive statistics** -- mean, standard deviation, min, max for all features per traffic type
+3. **Cluster separation** -- Cohen's d effect size measuring how statistically distinct each attack type is from normal traffic
+4. **Weak separation warnings** -- flags any attack type that overlaps with normal traffic on primary features
+ 
+We expect strong separation (Cohen's d > 0.8) between normal traffic and crypto-mining, data exfiltration, SQL injection, DDoS, and memory attacks on at least one primary feature (duration or memory). IP spoofing is expected to show weak separation on execution features but strong separation on network metadata (TTL, source port).
+ 
+ 
+## 8. Limitations
+ 
+1. **Simulated environment:** LocalStack emulates AWS services but does not perfectly replicate production Lambda performance characteristics such as cold starts, regional latency, or multi-AZ routing.
+ 
+2. **Controlled attack patterns:** Real attacks exhibit greater variation than our simulation. For example, sophisticated crypto-mining malware (like Denonia) intentionally keeps CPU at moderate levels to evade detection, while our simulation generates more obvious high-duration patterns.
+ 
+3. **No real attacker behaviour:** The dataset does not capture genuine adversarial adaptation, where attackers modify their approach based on detection feedback.
+ 
+4. **Network metadata is assigned, not measured:** Fields like TTL, source port, and packet sizes are assigned based on documented values rather than captured from actual network traffic. In production, these would come from VPC Flow Logs or CloudWatch.
+ 
+5. **Single-region simulation:** All traffic originates from the same machine, eliminating geographic and routing diversity that would exist in a real deployment.
+ 
+Despite these limitations, the simulation approach is a recognised methodology in security research when real attack data is unavailable. CICIDS2017 itself was generated in a controlled lab environment with simulated attack traffic, not captured from production networks (Sharafaldin et al., 2018).
+ 
+ 
+## 9. References
+ 
+1. Sharafaldin, I., Habibi Lashkari, A., and Ghorbani, A.A. (2018). "Toward Generating a New Intrusion Detection Dataset and Intrusion Traffic Characterization." 4th International Conference on Information Systems Security and Privacy (ICISSP), Portugal.
+ 
+2. Muir, M. (2022). "Denonia: The First Malware Specifically Targeting AWS Lambda." Cado Security Labs. https://www.cadosecurity.com/denonia/
+ 
+3. Sysdig. (2024). "2024 Cloud-Native Security and Usage Report." Sysdig Inc.
+ 
+4. PureSec. (2018). "Serverless Architectures Security Top 10." PureSec Ltd.
+ 
+5. OWASP. (2025). "A05:2025 -- Injection." OWASP Top 10:2025. https://owasp.org/Top10/2025/A05_2025-Injection/
+ 
+6. OWASP. (2024). "OWASP Serverless Top 10." Open Web Application Security Project.
+ 
+7. Hassan, H.B., Barakat, S.A., and Rezgui, Q.T. (2023). "Rise of the Planet of Serverless Computing: A Systematic Review." ACM Transactions on Software Engineering and Methodology, Vol. 32, No. 5.
+ 
+8. Adzic, N. and Chatley, R. (2017). "Serverless Computing: Economic and Architectural Impact." IEEE International Conference on Cloud Computing Technology and Science, pp. 142--149.
+ 
+9. Lloyd, W. et al. (2018). "Serverless Computing: An Investigation of Factors Influencing Microservice Performance." IEEE International Conference on Cloud Engineering, pp. 159--169.
+ 
+10. AWS. (2025). "Enhance the local testing experience for serverless applications with LocalStack." AWS Compute Blog.
+ 
+11. Cohen, J. (1988). "Statistical Power Analysis for the Behavioral Sciences." 2nd Edition. Lawrence Erlbaum Associates.
+ 
+12. IETF. (2000). "RFC 2827 -- Network Ingress Filtering: Defeating Denial of Service Attacks which employ IP Source Address Spoofing." Internet Engineering Task Force.
+ 
+13. Shafi, M., Habibi Lashkari, A., Rodriguez, V., and Nevo, R. (2024). "Toward Generating a New Cloud-Based Distributed Denial of Service (DDoS) Dataset and Cloud Intrusion Traffic Characterization." Information, Vol. 15, No. 4.
+ 
+14. Welford, B.P. (1962). "Note on a Method for Calculating Corrected Sums of Squares and Products." Technometrics, Vol. 4, No. 3, pp. 419--420.
