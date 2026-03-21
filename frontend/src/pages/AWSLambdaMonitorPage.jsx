@@ -189,6 +189,8 @@ export default function AWSLambdaMonitorPage() {
   const [selectedFn, setSelectedFn]         = useState(null);
   const [fnAlerts, setFnAlerts]             = useState([]);
   const [fnLogs, setFnLogs]                 = useState([]);
+  const [awsLive, setAwsLive]   = useState(false);
+  const [awsLoading, setAwsLoading] = useState(false);
 
   // ── Fetch from existing backend endpoints ───────────────────────────
   const fetchAll = useCallback(async () => {
