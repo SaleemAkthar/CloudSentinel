@@ -27,65 +27,102 @@ def continuous_aws_monitoring():
     try:
         while True:
             try:
-                # Fetch logs newer than our last_seen_time
+                # Fetch ALL logs (removed filterPattern='REPORT' so we can see app logs)
                 response = logs_client.filter_log_events(
                     logGroupName=LOG_GROUP_NAME,
-                    startTime=last_seen_time + 1,  # +1ms to avoid duplicates
-                    filterPattern='REPORT'
+                    startTime=last_seen_time + 1
                 )
                 
                 events = response.get('events', [])
                 
                 if events:
+                    # We will group logs by RequestId to combine the REPORT line 
+                    # with the custom application log line.
+                    requests_data = {}
+                    
                     for event in events:
-                        # 1. Update timestamp tracker
                         if event['timestamp'] > last_seen_time:
                             last_seen_time = event['timestamp']
                             
                         raw_msg = event['message'].strip()
                         
-                        try:
-                            # 2. Extract values from AWS REPORT string
-                            # Format: REPORT RequestId: 123... Duration: 45 ms ... Max Memory Used: 64 MB
-                            req_id = raw_msg.split('RequestId: ')[1].split('\t')[0]
-                            duration = float(raw_msg.split('Duration: ')[1].split(' ms')[0])
-                            memory = int(raw_msg.split('Max Memory Used: ')[1].split(' MB')[0])
-                            
-                            # 3. Format it so your LogParser accepts it
-                            log_data_dict = {
-                                "timestamp": datetime.fromtimestamp(event['timestamp']/1000.0).isoformat(),
-                                "requestId": req_id,
-                                "functionName": LOG_GROUP_NAME.split('/')[-1],
-                                "duration": duration,
-                                "memoryUsed": memory,
-                                "memorySize": 512,
-                                "statusCode": 200,
-                                "apiCalls": ["dynamodb:Query"], # Simulated metric
-                                "ip_address": "8.8.8.8"         # Simulated metric
-                            }
-                            
-                            # 4. Run through Layer 1 and 2 Pipeline!
-                            parsed_log = parse_log(log_data_dict)
-                            decision, details, metrics = pipeline.process(parsed_log)
-                            
-                            # 5. Print a beautiful summary for the Industry Professionals
-                            score = details.get('anomaly_score', 0.0)
-                            attack = details.get('attack_type', 'none')
-                            
-                            if decision == 'ALLOW':
-                                status = f"🟢 [ALLOW  ] Score: {score:.2f} | Normal Traffic"
-                            elif decision == 'INVESTIGATE':
-                                status = f"🟡 [INVEST ] Score: {score:.2f} | Anomaly Detected: {attack}"
-                            else:
-                                status = f"🔴 [BLOCK  ] Score: {score:.2f} | ATTACK BLOCKED: {attack}"
+                        # 1. Look for the Custom JSON Metadata log you will print from your Lambda
+                        if 'SENTINEL_METADATA:' in raw_msg:
+                            try:
+                                json_str = raw_msg.split('SENTINEL_METADATA:')[1].strip()
+                                import json
+                                metadata = json.loads(json_str)
+                                req_id = metadata.get('requestId', 'unknown')
                                 
-                            print(f"{status} (Duration: {duration}ms, Memory: {memory}MB)")
-                            
-                        except Exception as parse_err:
-                            print(f"Failed to parse AWS log string: {parse_err}")
+                                if req_id not in requests_data:
+                                    requests_data[req_id] = {}
+                                    
+                                requests_data[req_id]['api_calls'] = metadata.get('api_calls', [])
+                                requests_data[req_id]['error_count'] = metadata.get('error_count', 0)
+                                requests_data[req_id]['concurrency'] = metadata.get('concurrency', 1)
+                            except:
+                                pass
+                                
+                        # 2. Look for the AWS REPORT line for the official Duration & Memory
+                        elif raw_msg.startswith('REPORT RequestId:'):
+                            try:
+                                req_id = raw_msg.split('RequestId: ')[1].split('\t')[0]
+                                duration = float(raw_msg.split('Duration: ')[1].split(' ms')[0])
+                                memory = int(raw_msg.split('Max Memory Used: ')[1].split(' MB')[0])
+                                
+                                if req_id not in requests_data:
+                                    requests_data[req_id] = {}
+                                    
+                                requests_data[req_id]['duration'] = duration
+                                requests_data[req_id]['memory'] = memory
+                                requests_data[req_id]['timestamp'] = event['timestamp']
+                            except:
+                                pass
+
+                    # 3. Now process the requests where we found the REPORT metrics
+                    current_log_count = 0
+                    for req_id, data in requests_data.items():
+                        if 'duration' in data and 'memory' in data:
+                            current_log_count += 1
+                            try:
+                                # Build the final format for Layer 1 Scorer
+                                log_data_dict = {
+                                    "timestamp": datetime.fromtimestamp(data['timestamp']/1000.0).isoformat(),
+                                    "requestId": req_id,
+                                    "functionName": LOG_GROUP_NAME.split('/')[-1],
+                                    "duration": data['duration'],
+                                    "memoryUsed": data['memory'],
+                                    "memorySize": 512,
+                                    "apiCalls": data.get('api_calls', []),     # Extracted!
+                                    "error_count": data.get('error_count', 0), # Extracted!
+                                    "concurrency": data.get('concurrency', 1), # Extracted!
+                                    "statusCode": 500 if data.get('error_count', 0) > 0 else 200,
+                                    "ip_address": "8.8.8.8"
+                                }
+                                
+                                # Run Pipeline!
+                                parsed_log = parse_log(log_data_dict)
+                                decision, details, metrics = pipeline.process(parsed_log)
+                                
+                                score = details.get('anomaly_score', 0.0)
+                                attack = details.get('attack_type', 'none')
+                                
+                                if decision == 'ALLOW':
+                                    status = f"🟢 [ALLOW  ] Score: {score:.2f} | Normal Traffic"
+                                elif decision == 'INVESTIGATE':
+                                    status = f"🟡 [INVEST ] Score: {score:.2f} | Anomaly: {attack}"
+                                else:
+                                    status = f"🔴 [BLOCK  ] Score: {score:.2f} | ATTACK: {attack}"
+                                    
+                                print(f"{status} (Dur: {data['duration']}ms, Mem: {data['memory']}MB, APIs: {len(log_data_dict['apiCalls'])}, Errors: {log_data_dict['error_count']})")
+                                
+                            except Exception as parse_err:
+                                print(f"Failed to process Request {req_id}: {parse_err}")
+                                
+                    if current_log_count > 0:
+                        print("-" * 50)
                             
                 # Sleep for 10 seconds before asking AWS again
-                # (prevents AWS API rate limiting and saves money)
                 time.sleep(10)
                 
             except logs_client.exceptions.ResourceNotFoundException:
