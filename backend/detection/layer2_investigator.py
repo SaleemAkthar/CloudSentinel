@@ -56,3 +56,7 @@ class Layer2Investigator:
         scan_report["triggered_by"]    = "analyst"  # vs "automatic" in future
 
         return scan_report
+
+    def is_available(self) -> bool:
+        """Returns True — confirms this module loaded successfully."""
+        return True
