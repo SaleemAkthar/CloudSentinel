@@ -14,3 +14,18 @@ class AttackIndicator(BaseModel):
     description: str             # Human-readable indicator, e.g. "High API call rate"
     severity: str                # "low", "medium", "high", "critical"
     value: Optional[str] = None  # The raw value that triggered this indicator
+ 
+ 
+class AttackSignature(BaseModel):
+    """
+    Represents a single matched attack pattern from Layer 2 analysis.
+    Produced by attack_patterns.py and stored inside an alert's layer2_report.
+    """
+    attack_type: str                        # e.g. "ddos", "sql_injection", "crypto_mining"
+    name: str                               # Human-readable name, e.g. "DDoS Attack"
+    matched: bool                           # Whether this pattern was triggered
+    confidence: float                       # Match confidence score: 0.0 – 1.0
+    indicators: List[str]                   # List of indicator descriptions
+    details: dict                           # Raw pattern-specific detail fields
+ 
+ 
