@@ -257,41 +257,26 @@ class CloudSentinelPipeline:
                 reason      = "Passed Layer 1 scorer and filter — normal traffic",
             )
 
-        # ── STAGE 3: LAYER 2 ─────────────────────────────────────────────────
-        # Inject temporal context so risk scorer can use it
-        packet["_temporal_context"] = temporal_context
-
-        l2_result = _layer2_scanner.scan(packet, l1_result)
-        stages["layer2"] = l2_result
-
-        # ── STAGE 4: AI MODEL ─────────────────────────────────────────────────
-        ai_features = self._extract_ai_features(packet, l1_result, l2_result, temporal_context)
-        ai_score, ai_details = _ai_model.process_log(ai_features)
-        stages["ai_model"] = {
-            "score":    round(ai_score, 4),
-            "details":  ai_details,
-        }
-
-        # ── FINAL DECISION ───────────────────────────────────────────────────
-        decision, confidence = self._make_final_decision(
-            ai_score     = ai_score,
-            ai_details   = ai_details,
-            l2_result    = l2_result,
-            temporal     = temporal_context,
-        )
-
+        # ── STAGE 3: RETURN INVESTIGATE — Layer 2 runs on-demand only ────────
+        # Layer 2 is NOT run here. It only runs when the analyst clicks
+        # "Investigate" in the frontend, which calls POST /api/alerts/{id}/investigate
+        # Store the raw packet so Layer 2 can use it later.
         elapsed_ms = round((time.perf_counter() - t0) * 1000, 3)
+
+        # Determine initial severity from Layer 1 scorer result
+        l1_severity = l1_score_details.get("severity") or "MEDIUM"
 
         return self._build_result(
             pipeline_id = pipeline_id,
             timestamp   = timestamp,
-            decision    = decision,
-            confidence  = confidence,
-            severity    = l2_result.get("severity", "MEDIUM"),
+            decision    = "INVESTIGATE",
+            confidence  = 0.60,
+            severity    = l1_severity,
             stages      = stages,
             elapsed_ms  = elapsed_ms,
-            stopped_at  = "ai_model",
-            reason      = self._build_reason(decision, ai_details, l2_result),
+            stopped_at  = "layer1",
+            reason      = self._build_reason_l1_only(l1_score_details, l1_result),
+            raw_packet  = packet,
         )
 
     # ── Feed AI model (learning only, no decision) ────────────────────────────
