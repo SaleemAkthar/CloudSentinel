@@ -16,7 +16,6 @@
 #   http://localhost:8080/status      → Health check (routed to one node)
 #   http://localhost:8080/health      → Load balancer health
 
-version: "3.8"
 
 services:
 
@@ -127,7 +126,7 @@ services:
   # Sits in front of ModSecurity.
   # Traffic comes in on port 8082 → OpenAppsec → ModSecurity → backend-lb
   open-appsec:
-    image: openappsec/agent:latest
+    image: ghcr.io/openappsec/agent:latest
     container_name: cs-openappsec
     ports:
       - "8082:80"
