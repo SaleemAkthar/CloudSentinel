@@ -1,0 +1,21 @@
+# Cloud Sentinel — OpenAppsec WAF Container
+# ===========================================
+# OpenAppsec is a machine learning WAF.
+# Unlike ModSecurity which uses fixed rules,
+# OpenAppsec LEARNS what normal traffic looks like
+# for YOUR specific application.
+#
+# Think of it as a bouncer who has worked at your club
+# for months and knows all your regular customers.
+# If someone new shows up acting strange — even if they
+# are not on any known bad list — the bouncer flags them.
+#
+# This catches zero-day attacks that ModSecurity cannot
+# because they have never been seen before.
+
+FROM openappsec/agent:latest
+
+# Copy our policy defining what to protect
+COPY openappsec-policy.json /ext/appsec/local_policy.json
+
+EXPOSE 80
