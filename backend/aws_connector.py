@@ -9,33 +9,50 @@ logs_client = boto3.client('logs')
 # CHANGE THIS to your actual Lambda function's name
 LOG_GROUP_NAME = '/aws/lambda/cloud-sentinel-test'
 
-def check_aws_connection():
-    print(f"Attempting to connect to AWS CloudWatch: {LOG_GROUP_NAME}...")
+def continuous_aws_monitoring():
+    print(f"Starting continuous CloudWatch monitoring for: {LOG_GROUP_NAME}")
+    print("Press Ctrl+C to stop.\n")
     
-    # Look for logs from the last 15 minutes
-    start_time = int((time.time() - 900) * 1000)
+    # Start looking from 1 minute ago to catch recent activity
+    last_seen_time = int((time.time() - 60) * 1000)
     
     try:
-        # Fetch the logs
-        response = logs_client.filter_log_events(
-            logGroupName=LOG_GROUP_NAME,
-            startTime=start_time,
-            filterPattern='REPORT' # Only get the execution summaries
-        )
-        
-        events = response.get('events', [])
-        print(f"\n SUCCESS! Connected to AWS securely.")
-        print(f"Found {len(events)} real log events in the last 15 minutes.\n")
-        
-        # Print the first 3 logs so you can see what they look like
-        for event in events[:3]:
-            print(f"- {event['message'].strip()}")
-            
-    except logs_client.exceptions.ResourceNotFoundException:
-        print("\n Connected to AWS, but the Log Group was not found.")
-        print("Did you type the LOG_GROUP_NAME exactly right? Have you 'Tested' the Lambda function at least once?")
-    except Exception as e:
-        print(f"\n Failed to connect to AWS. Error details:\n{e}")
+        while True:
+            try:
+                # Fetch logs newer than our last_seen_time
+                response = logs_client.filter_log_events(
+                    logGroupName=LOG_GROUP_NAME,
+                    startTime=last_seen_time + 1,  # +1ms to avoid duplicates
+                    filterPattern='REPORT'
+                )
+                
+                events = response.get('events', [])
+                
+                if events:
+                    print(f"[{datetime.now().strftime('%H:%M:%S')}] Found {len(events)} new execution logs!")
+                    
+                    for event in events:
+                        log_time = datetime.fromtimestamp(event['timestamp'] / 1000.0).strftime('%H:%M:%S')
+                        print(f"  -> [{log_time}] {event['message'].strip()}")
+                        
+                        # Update our tracker so we don't fetch this event again
+                        if event['timestamp'] > last_seen_time:
+                            last_seen_time = event['timestamp']
+                            
+                # Sleep for 10 seconds before asking AWS again
+                # (prevents AWS API rate limiting and saves money)
+                time.sleep(10)
+                
+            except logs_client.exceptions.ResourceNotFoundException:
+                print(f"\n❌ Error: Log Group '{LOG_GROUP_NAME}' not found in AWS.")
+                print("Stopping monitor. Please check the name and region.")
+                break
+            except Exception as e:
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] Warning: AWS fetch failed: {e}")
+                time.sleep(10) # Sleep and try again on transient errors
+                
+    except KeyboardInterrupt:
+        print("\n\n⏹️ Monitoring stopped by user. Exiting cleanly.")
 
 if __name__ == "__main__":
-    check_aws_connection()
+    continuous_aws_monitoring()
