@@ -4,18 +4,18 @@ Attack Signature Models — Cloud Sentinel
 Pydantic models for representing matched attack signatures
 returned by the Layer 2 attack pattern matcher.
 """
- 
+
 from pydantic import BaseModel
 from typing import Optional, List
- 
- 
+
+
 class AttackIndicator(BaseModel):
     """A single piece of evidence that contributed to an attack match."""
     description: str             # Human-readable indicator, e.g. "High API call rate"
     severity: str                # "low", "medium", "high", "critical"
     value: Optional[str] = None  # The raw value that triggered this indicator
- 
- 
+
+
 class AttackSignature(BaseModel):
     """
     Represents a single matched attack pattern from Layer 2 analysis.
@@ -27,8 +27,8 @@ class AttackSignature(BaseModel):
     confidence: float                       # Match confidence score: 0.0 – 1.0
     indicators: List[str]                   # List of indicator descriptions
     details: dict                           # Raw pattern-specific detail fields
- 
- 
+
+
 class AttackSignatureSummary(BaseModel):
     """
     Summary of all pattern matches for a single Layer 2 scan.
