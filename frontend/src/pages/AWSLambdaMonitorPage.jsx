@@ -272,6 +272,23 @@ export default function AWSLambdaMonitorPage() {
     }
   }, []);
 
+  const toggleAwsMonitor = async () => {
+  setAwsLoading(true);
+  try {
+    if (awsLive) {
+      await axios.post("/api/aws/stop");
+      setAwsLive(false);
+    } else {
+      await axios.post("/api/aws/start");
+      setAwsLive(true);
+    }
+  } catch (err) {
+    console.error("AWS monitor toggle failed:", err);
+  } finally {
+    setAwsLoading(false);
+  }
+  };
+
   // ── Derived values with fallbacks ───────────────────────────────────
   const totalInvocations = overview?.total_invocations ?? 0;
   const avgResponseTime  = overview?.avg_response_time ?? 0;
