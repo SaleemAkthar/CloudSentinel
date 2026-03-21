@@ -5,10 +5,14 @@ Single entry point that runs every stage in the correct order:
 
   1. SARIMA        — get dynamic thresholds + temporal context
   2. Layer 1       — fast gate using SARIMA-adjusted thresholds
-  3. Layer 2       — deep forensic scan (only if Layer 1 fails)
-  4. AI Model      — final anomaly decision using all evidence
+                     (Layer1Scorer AI scoring + Layer1Filter hard rules)
+  3. STOP          — if Layer 1 flags the packet, return INVESTIGATE
+                     with raw_packet stored for on-demand Layer 2
 
-Output:  ALLOW / INVESTIGATE / BLOCK  + full evidence report
+Layer 2 is NOT run here. It only runs when the analyst clicks
+"Investigate" in the frontend → POST /api/alerts/{id}/investigate
+
+Output:  ALLOW / INVESTIGATE  + full Layer 1 evidence + raw_packet
 
 Author: Backend Team
 """
@@ -45,8 +49,8 @@ class SARIMAThresholdAdapter:
     BASE_TTL_MAX        = 128
 
     # How much to relax thresholds during peak hours (multipliers)
-    PEAK_DURATION_MULT  = 1.8     # allow up to 1.8x longer during peak
-    PEAK_SIZE_MULT      = 1.5
+    PEAK_DURATION_MULT    = 1.8   # allow up to 1.8x longer during peak
+    PEAK_SIZE_MULT        = 1.5
     OFFPEAK_DURATION_MULT = 0.7   # tighten to 0.7x during off-peak
 
     def get_layer1_thresholds(self, sarima: SARIMAForecaster) -> dict:
@@ -74,13 +78,13 @@ class SARIMAThresholdAdapter:
             duration_max = self.BASE_DURATION_MAX * mult
 
         return {
-            "ttl_min":      self.BASE_TTL_MIN,
-            "ttl_max":      self.BASE_TTL_MAX,
-            "size_max":     int(self.BASE_SIZE_MAX * (self.PEAK_SIZE_MULT if is_peak else 1.0)),
-            "duration_max": round(duration_max, 1),
-            "is_peak_hour": is_peak,
-            "hour":         hour,
-            "sarima_trained": sarima._trained,
+            "ttl_min":            self.BASE_TTL_MIN,
+            "ttl_max":            self.BASE_TTL_MAX,
+            "size_max":           int(self.BASE_SIZE_MAX * (self.PEAK_SIZE_MULT if is_peak else 1.0)),
+            "duration_max":       round(duration_max, 1),
+            "is_peak_hour":       is_peak,
+            "hour":               hour,
+            "sarima_trained":     sarima._trained,
             "predicted_duration": round(predicted_duration, 2),
             "predicted_std":      round(pred_std, 2),
         }
@@ -91,7 +95,7 @@ class SARIMAThresholdAdapter:
         actual_duration: float,
     ) -> dict:
         """
-        Return temporal context for Layer 2 risk scorer.
+        Return temporal context for later use by Layer 2 risk scorer.
         Shows how anomalous this packet is relative to the current time window.
         """
         temporal_score = sarima.detect_temporal_anomaly(actual_duration)
@@ -106,16 +110,16 @@ class SARIMAThresholdAdapter:
         offpeak_boost = 0.15 if (not is_peak and temporal_score > 0.5) else 0.0
 
         return {
-            "temporal_anomaly_score":  round(temporal_score, 4),
+            "temporal_anomaly_score":   round(temporal_score, 4),
             "temporal_risk_adjustment": round(
                 min(temporal_score * 0.25 + offpeak_boost, 0.40), 4
             ),
-            "expected_duration":       round(expected, 2),
-            "actual_duration":         actual_duration,
+            "expected_duration":        round(expected, 2),
+            "actual_duration":          actual_duration,
             "actual_vs_expected_ratio": round(ratio, 2),
-            "is_peak_hour":            is_peak,
-            "is_off_peak_attack":      not is_peak and temporal_score > 0.5,
-            "time_window":             self._get_time_window(now.hour),
+            "is_peak_hour":             is_peak,
+            "is_off_peak_attack":       not is_peak and temporal_score > 0.5,
+            "time_window":              self._get_time_window(now.hour),
         }
 
     def _is_peak_hour(self, hour: int) -> bool:
@@ -134,16 +138,20 @@ class SARIMAThresholdAdapter:
 
 
 # ============================================================================
-# PIPELINE
+# MODULE-LEVEL SINGLETONS
+# Instantiated once at import time, shared across all requests
 # ============================================================================
 
-# Module-level singletons — instantiated once, reused across all requests
-_layer1_filter   = Layer1Filter()
-_layer2_scanner  = Layer2Scanner()
-_sarima          = SARIMAForecaster()
-_ai_model        = Layer1Scorer(learning_window=100)
+_layer1_filter     = Layer1Filter()
+_layer2_scanner    = Layer2Scanner()   # kept for reference; pipeline no longer calls it
+_sarima            = SARIMAForecaster()
+_ai_model          = Layer1Scorer(learning_window=100)
 _threshold_adapter = SARIMAThresholdAdapter()
 
+
+# ============================================================================
+# PIPELINE
+# ============================================================================
 
 class CloudSentinelPipeline:
     """
@@ -152,24 +160,29 @@ class CloudSentinelPipeline:
     Usage:
         pipeline = CloudSentinelPipeline()
         result   = pipeline.process(packet)
-        # result["decision"] → "ALLOW" | "INVESTIGATE" | "BLOCK"
+        # result["decision"] → "ALLOW" | "INVESTIGATE"
+        # result["raw_packet"] → stored for on-demand Layer 2
     """
 
     def process(self, packet: dict) -> dict:
         """
-        Run the full pipeline on a single packet.
+        Run the detection pipeline on a single packet.
 
         Pipeline stages:
           1. SARIMA    → dynamic thresholds + temporal context
-          2. Layer 1   → fast gate with SARIMA-adjusted thresholds
-          3. Layer 2   → deep scan (only if Layer 1 fails)
-          4. AI Model  → final ALLOW / INVESTIGATE / BLOCK decision
+          2. Layer1Scorer → AI scoring, Z-scores, Welford baseline
+          3. Layer1Filter → hard rule confirmation gate
+              PASS → ALLOW
+              FAIL → INVESTIGATE (raw_packet stored for on-demand L2)
+
+        Layer 2 is intentionally NOT run here.
+        It runs on-demand via POST /api/alerts/{id}/investigate.
 
         Args:
             packet: Lambda execution metadata dict
 
         Returns:
-            Full pipeline result with decision + evidence
+            Full pipeline result with decision + evidence + raw_packet
         """
         t0          = time.perf_counter()
         pipeline_id = f"CS-{uuid.uuid4().hex[:10].upper()}"
@@ -196,7 +209,7 @@ class CloudSentinelPipeline:
         # Feeds every packet into the AI model to keep baseline updated.
         # During learning phase: just collects data, no anomaly decision.
         # After learning:        calculates Z-scores + weighted composite.
-        scorer_features  = self._extract_scorer_features(packet)
+        scorer_features         = self._extract_scorer_features(packet)
         l1_score, l1_score_details = _ai_model.process_log(scorer_features)
         stages["layer1_scorer"] = {
             "score":   round(l1_score, 4),
@@ -242,7 +255,7 @@ class CloudSentinelPipeline:
         }
         stages["layer1"] = l1_result
 
-        # ALLOW immediately if Layer 1 passes
+        # ── ALLOW: Layer 1 passed ─────────────────────────────────────────────
         if l1_pass:
             elapsed_ms = round((time.perf_counter() - t0) * 1000, 3)
             return self._build_result(
@@ -255,12 +268,16 @@ class CloudSentinelPipeline:
                 elapsed_ms  = elapsed_ms,
                 stopped_at  = "layer1",
                 reason      = "Passed Layer 1 scorer and filter — normal traffic",
+                raw_packet  = None,   # not stored for ALLOW decisions
             )
 
-        # ── STAGE 3: RETURN INVESTIGATE — Layer 2 runs on-demand only ────────
+        # ── INVESTIGATE: Layer 1 flagged this packet ──────────────────────────
         # Layer 2 is NOT run here. It only runs when the analyst clicks
-        # "Investigate" in the frontend, which calls POST /api/alerts/{id}/investigate
-        # Store the raw packet so Layer 2 can use it later.
+        # "Investigate" in the frontend → POST /api/alerts/{id}/investigate
+        #
+        # We store raw_packet in the result so api.py can attach it to the
+        # alert. When investigate_alert() is called later, it reads
+        # alert["_raw_packet"] and passes it to Layer2Scanner.scan().
         elapsed_ms = round((time.perf_counter() - t0) * 1000, 3)
 
         # Determine initial severity from Layer 1 scorer result
@@ -276,15 +293,13 @@ class CloudSentinelPipeline:
             elapsed_ms  = elapsed_ms,
             stopped_at  = "layer1",
             reason      = self._build_reason_l1_only(l1_score_details, l1_result),
-            raw_packet  = packet,
+            raw_packet  = packet,   # stored so Layer 2 can use it on-demand
         )
 
-    # ── Feed AI model (learning only, no decision) ────────────────────────────
-
-    # ── Extract features for Layer 1 Scorer ───────────────────────────
+    # ── Extract features for Layer 1 Scorer ──────────────────────────────────
 
     def _extract_scorer_features(self, packet: dict) -> dict:
-        """Minimal features for Layer1Scorer baseline learning."""
+        """Build feature dict for Layer1Scorer baseline learning and scoring."""
         return {
             "duration":        packet.get("duration", 0),
             "memory_used":     packet.get("memory_used", 0),
@@ -299,133 +314,34 @@ class CloudSentinelPipeline:
             "timestamp":       datetime.datetime.utcnow().isoformat(),
         }
 
-    def _feed_ai_model(self, packet: dict, is_training_only: bool = False):
-        """Feed normal packets into the AI model to keep the baseline updated."""
-        features = {
-            "duration":       packet.get("duration", 0),
-            "memory_used":    packet.get("memory_used", 0),
-            "num_api_calls":  packet.get("num_api_calls", 0),
-            "error_count":    packet.get("error_count", 0),
-            "concurrency":    1,
-            "packet_size_in": packet.get("packet_size_in", 512),
-            "packet_size_out":packet.get("packet_size_out", 0),
-            "latency":        packet.get("network_latency", 0),
-            "fragment_count": packet.get("fragment_count", 0),
-            "ip_address":     packet.get("ip_address", ""),
-            "timestamp":      datetime.datetime.utcnow().isoformat(),
-        }
-        _ai_model.process_log(features)
+    # ── Build reason string from Layer 1 data only ───────────────────────────
 
-    # ── Extract features for AI model ─────────────────────────────────────────
-
-    def _extract_ai_features(
-        self,
-        packet: dict,
-        l1_result: dict,
-        l2_result: dict,
-        temporal: dict,
-    ) -> dict:
+    def _build_reason_l1_only(self, ai_details: dict, l1_result: dict) -> str:
         """
-        Build the feature dict for the AI model.
-        Combines raw packet fields with Layer 2 risk scores
-        so the AI model has the full picture.
+        Build a human-readable reason string using only Layer 1 data.
+        Layer 2 has not run yet so we cannot reference L2 findings here.
         """
-        risk = l2_result.get("risk", {})
-        return {
-            # Raw execution metrics
-            "duration":        packet.get("duration", 0),
-            "memory_used":     packet.get("memory_used", 0),
-            "num_api_calls":   packet.get("num_api_calls", 0),
-            "error_count":     packet.get("error_count", 0),
-            "concurrency":     1,
-            # Packet-level
-            "packet_size_in":  packet.get("packet_size_in", 512),
-            "packet_size_out": packet.get("packet_size_out", 0),
-            "latency":         packet.get("network_latency", 0),
-            "fragment_count":  packet.get("fragment_count", 0),
-            # Layer 2 enrichment
-            "l2_risk_score":   risk.get("adjusted_score", 0),
-            "l2_confidence":   risk.get("confidence", 0),
-            "threat_count":    l2_result.get("patterns", {}).get("threat_count", 0),
-            # SARIMA temporal
-            "temporal_score":  temporal.get("temporal_anomaly_score", 0),
-            # Meta
-            "ip_address":      packet.get("ip_address", ""),
-            "timestamp":       datetime.datetime.utcnow().isoformat(),
-        }
-
-    # ── Final decision logic ──────────────────────────────────────────────────
-
-    def _make_final_decision(
-        self,
-        ai_score:   float,
-        ai_details: dict,
-        l2_result:  dict,
-        temporal:   dict,
-    ) -> Tuple[str, float]:
-        """
-        Combine AI model score + Layer 2 severity + temporal context
-        into a final ALLOW / INVESTIGATE / BLOCK decision.
-
-        Decision rules:
-          BLOCK       -> CRITICAL or combined >= 0.75 or HIGH
-          INVESTIGATE -> everything else that reached Layer 2
-          ALLOW       -> only returned by Layer 1 fast-pass
-        """
-        l2_severity      = l2_result.get("severity", "MEDIUM")
-        l2_risk          = l2_result.get("risk", {}).get("adjusted_score", 0)
-        ai_phase         = ai_details.get("phase")
-
-        # During AI learning phase — rely purely on Layer 2
-        if ai_phase == "learning":
-            if l2_severity == "CRITICAL":
-                return "BLOCK", 0.85
-            elif l2_severity == "HIGH":
-                return "BLOCK", 0.72
-            else:
-                return "INVESTIGATE", 0.60
-
-        # Full decision with AI score
-        combined = (ai_score * 0.5) + (l2_risk * 0.5)
-
-        if l2_severity == "CRITICAL" or combined >= 0.75:
-            decision   = "BLOCK"
-            confidence = min(0.70 + combined * 0.25, 0.99)
-
-        elif combined >= 0.50 or l2_severity == "HIGH":
-            decision   = "BLOCK"
-            confidence = min(0.60 + combined * 0.20, 0.95)
-
-        else:
-            # Anything reaching Layer 2 is at minimum INVESTIGATE
-            decision   = "INVESTIGATE"
-            confidence = min(0.50 + combined * 0.20, 0.90)
-
-        return decision, round(confidence, 4)
-
-    # ── Build reason string ───────────────────────────────────────────────────
-
-    def _build_reason(self, decision: str, ai_details: dict, l2_result: dict) -> str:
-        severity = l2_result.get("severity", "MEDIUM")
-        patterns = l2_result.get("patterns", {})
-        top      = patterns.get("top_threat")
-        phase    = ai_details.get("phase", "detection")
-
-        if phase == "learning":
-            base = f"AI model still learning baseline ({ai_details.get('learning_progress','')}). "
-            base += f"Decision based on Layer 2 severity: {severity}."
-            return base
+        violations = l1_result.get("filter_violations", [])
+        phase      = ai_details.get("phase", "detection")
+        score      = ai_details.get("anomaly_score", 0)
 
         parts = []
-        if top:
-            parts.append(f"Primary threat: {top['name']} (confidence {top['confidence']:.0%})")
-        if patterns.get("threat_count", 0) > 1:
-            parts.append(f"{patterns['threat_count']} attack patterns matched")
-        if ai_details.get("is_anomaly"):
-            parts.append(f"AI anomaly score: {ai_details.get('anomaly_score', 0):.2f}")
+
+        if phase == "learning":
+            parts.append(
+                f"AI model still learning baseline "
+                f"({ai_details.get('learning_progress', '')})"
+            )
+        elif score > 0:
+            parts.append(f"AI anomaly score: {score:.2f}")
+
+        if violations:
+            # Show up to 2 violations to keep it readable
+            for v in violations[:2]:
+                parts.append(v)
 
         if not parts:
-            parts.append(f"Layer 2 severity: {severity}")
+            parts.append("Flagged by Layer 1 — awaiting Layer 2 investigation")
 
         return " | ".join(parts)
 
@@ -444,6 +360,13 @@ class CloudSentinelPipeline:
         reason:      str,
         raw_packet:  dict = None,
     ) -> dict:
+        """
+        Assemble the pipeline result dict.
+
+        raw_packet is included when decision == INVESTIGATE so that
+        api.py can attach it to the alert as _raw_packet for later
+        on-demand Layer 2 investigation.
+        """
         result = {
             "pipeline_id": pipeline_id,
             "timestamp":   timestamp,
@@ -459,7 +382,11 @@ class CloudSentinelPipeline:
             result["raw_packet"] = raw_packet
         return result
 
-# ── Module-level convenience function ─────────────────────────────────────────
+
+# ============================================================================
+# MODULE-LEVEL CONVENIENCE FUNCTION
+# ============================================================================
+
 _pipeline = CloudSentinelPipeline()
 
 def process(packet: dict) -> dict:
