@@ -9,9 +9,9 @@ Detection pipeline:
             ↓
         → Layer1Filter  (hard rule confirmation — runs AFTER scorer)
             ↓ PASS → traffic allowed
-            ↓ FAIL → Layer 2 Scanner (deep forensics)
-                → AI Model (Isolation Forest + Random Forest ensemble)
-                    → Decision: ALLOW / INVESTIGATE / BLOCK
+            ↓ FAIL → alert created, Layer 2 NOT run automatically
+                → Layer 2 runs ONLY when analyst clicks Investigate
+                   POST /api/alerts/{id}/investigate
 
 Run from project root:
     uvicorn backend.api:app --reload --port 8000
@@ -33,6 +33,7 @@ from backend.detection.sarima_forecaster import SARIMAForecaster
 from backend.storage.in_memory_store import AlertStore
 from backend.detection.ai_model import EnsembleAnomalyDetector
 from backend.detection.pipeline import CloudSentinelPipeline
+from backend.detection.layer2_scanner import Layer2Scanner
 from backend.auth_router import router as auth_router
 
 # Layer2Investigator is optional — API starts without it.
@@ -72,10 +73,10 @@ app.add_middleware(
 from backend.detection.pipeline import _sarima as sarima_forecaster
 
 # AI Ensemble: Isolation Forest (unsupervised) + Random Forest (supervised)
-# Phase 1 (first 200 requests): learns normal baseline
-# Phase 2: Isolation Forest scores packets
-# Phase 3: Both models vote — BLOCK only when both agree
 ai_model = EnsembleAnomalyDetector(learning_window=200)
+
+# Layer 2 Scanner singleton — instantiated once, reused per investigate call
+_layer2_scanner = Layer2Scanner()
 
 # Storage
 alert_store = AlertStore()
@@ -88,7 +89,7 @@ log_storage = deque(maxlen=LOG_STORAGE_MAX)
 # Per-function invocation stats for Lambda monitor page
 lambda_metrics = {}
 
-# Detection layers
+# Detection pipeline
 sentinel_pipeline = CloudSentinelPipeline()
 
 
@@ -130,11 +131,24 @@ class LogRequest(BaseModel):
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _build_alert(log_request: LogRequest, decision: str, severity: str,
-                 confidence: float, anomaly_score: float, threat_type: str,
-                 layer2_report: dict = None, ai_result: dict = None,
-                 raw_packet: dict = None, layer1_result: dict = None) -> dict:
-    """Build a frontend-compatible alert record."""
+def _build_alert(
+    log_request:    LogRequest,
+    decision:       str,
+    severity:       str,
+    confidence:     float,
+    anomaly_score:  float,
+    threat_type:    str,
+    ai_result:      dict = None,
+    raw_packet:     dict = None,
+    layer1_result:  dict = None,
+) -> dict:
+    """
+    Build a frontend-compatible alert record.
+
+    raw_packet and layer1_result are stored privately (prefixed with _)
+    so they are available for on-demand Layer 2 investigation but are
+    not sent to the frontend in normal alert listings.
+    """
 
     # Map backend severity to frontend contract (CRITICAL / WARNING / INFO)
     frontend_severity = severity
@@ -144,15 +158,15 @@ def _build_alert(log_request: LogRequest, decision: str, severity: str,
         frontend_severity = "INFO"
 
     alert = {
-        "id":             f"ALERT-{uuid.uuid4().hex[:6].upper()}",
-        "timestamp":      datetime.datetime.utcnow().isoformat() + "Z",
-        "function":       log_request.function_name,
-        "severity":       frontend_severity,
-        "status":         "OPEN",
-        "anomaly_score":  round(anomaly_score, 3),
-        "confidence":     round(confidence, 3),
-        "threat_type":    threat_type or "Unknown",
-        "decision":       decision,
+        "id":            f"ALERT-{uuid.uuid4().hex[:6].upper()}",
+        "timestamp":     datetime.datetime.utcnow().isoformat() + "Z",
+        "function":      log_request.function_name,
+        "severity":      frontend_severity,
+        "status":        "OPEN",
+        "anomaly_score": round(anomaly_score, 3),
+        "confidence":    round(confidence, 3),
+        "threat_type":   threat_type or "Unknown",
+        "decision":      decision,
         "features": {
             "duration_ms":         log_request.duration,
             "memory_used_mb":      log_request.memory_used,
@@ -161,13 +175,10 @@ def _build_alert(log_request: LogRequest, decision: str, severity: str,
             "error_count":         log_request.error_count,
             "ip_address":          log_request.ip_address,
             "ttl":                 log_request.ttl,
-            "raw_packet":    layer2_report.get("raw_packet") if layer2_report else None,
-            "layer1_result": layer2_report.get("layer1") if layer2_report else None,
         },
+        # Layer 2 report — None until analyst triggers investigation
+        "layer2_report": None,
     }
-
-    if layer2_report:
-        alert["layer2_report"] = layer2_report
 
     if ai_result:
         alert["ai_details"] = {
@@ -176,6 +187,11 @@ def _build_alert(log_request: LogRequest, decision: str, severity: str,
             "attack_type":     ai_result.get("attack_type"),
             "components":      ai_result.get("components", {}),
         }
+
+    # Private fields — stored for on-demand Layer 2, never sent to frontend
+    # in normal list/get responses (filtered out in get_alerts)
+    alert["_raw_packet"]    = raw_packet
+    alert["_layer1_result"] = layer1_result
 
     return alert
 
@@ -210,6 +226,14 @@ def _build_log_entry(log_request: LogRequest, result: dict) -> dict:
     }
 
 
+def _strip_private_fields(alert: dict) -> dict:
+    """
+    Return alert dict without private _ fields.
+    Used in list/get endpoints so raw packet data is not exposed.
+    """
+    return {k: v for k, v in alert.items() if not k.startswith("_")}
+
+
 def _update_lambda_metrics(log_request: LogRequest, is_anomaly: bool):
     """Track per-function invocation stats for the Lambda monitor page."""
     fn = log_request.function_name
@@ -240,13 +264,11 @@ def process_log(request: LogRequest):
 
     Flow:
         1. SARIMA        — dynamic thresholds + temporal context
-        2. Layer1Scorer  — AI scoring, Z-scores, Welford baseline  (runs FIRST)
-        3. Layer1Filter  — hard rule confirmation gate              (runs AFTER scorer)
+        2. Layer1Scorer  — AI scoring, Z-scores, Welford baseline
+        3. Layer1Filter  — hard rule confirmation gate
             PASS → normal traffic allowed
-            FAIL → escalate to Layer 2
-        4. Layer 2 Scanner — deep forensic analysis
-        5. AI Model — ensemble decision (IF + RF)
-        6. Create alert if INVESTIGATE or BLOCK
+            FAIL → alert created, returned as INVESTIGATE
+                   Layer 2 runs ONLY when analyst clicks Investigate button
     """
 
     # Build full packet dict for all detection layers
@@ -274,34 +296,36 @@ def process_log(request: LogRequest):
     }
 
     # ── Run the unified pipeline ─────────────────────────────────────
-    # Internally: SARIMA → Layer1Scorer → Layer1Filter → Layer2 → AI Model
+    # Internally: SARIMA → Layer1Scorer → Layer1Filter
+    # Layer 2 is NO LONGER run here — it runs on-demand via /investigate
     pipeline_result = sentinel_pipeline.process(packet)
 
-    # ── Feed SARIMA forecaster ────────────────────────────────────
+    # ── Feed SARIMA forecaster ────────────────────────────────────────
     sarima_forecaster.add_data_point(request.duration)
     if (not sarima_forecaster._trained
             and len(sarima_forecaster.training_data) >= sarima_forecaster.MIN_TRAINING_POINTS):
         sarima_forecaster.train()
-        
-    decision      = pipeline_result["decision"]          # ALLOW / INVESTIGATE / BLOCK
-    confidence    = pipeline_result["confidence"]
-    severity      = pipeline_result["severity"]
-    is_anomaly    = decision in ("INVESTIGATE", "BLOCK")
 
-    # Extract layer details from pipeline stages for the response
+    decision   = pipeline_result["decision"]       # ALLOW or INVESTIGATE
+    confidence = pipeline_result["confidence"]
+    severity   = pipeline_result["severity"]
+    is_anomaly = decision == "INVESTIGATE"
+
+    # Extract layer details from pipeline stages
     stages        = pipeline_result.get("stages", {})
     l1_result     = stages.get("layer1", {})
-    l2_result     = stages.get("layer2", {})
-    ai_stage      = stages.get("ai_model", {})
     scorer_result = stages.get("layer1_scorer", {})
+    ai_details    = scorer_result.get("details", {}) if scorer_result else {}
 
     anomaly_score = scorer_result.get("score", 0.0)
-    attack_type   = (
-        (l2_result.get("patterns", {}).get("top_threat") or {}).get("name")
-        if l2_result else None
+
+    # Derive attack type from Layer 1 scorer behavioral analysis
+    attack_type = (
+        ai_details.get("attack_type")
+        if ai_details.get("is_anomaly") else None
     )
 
-    # Early return for clean traffic (pipeline stopped at Layer 1)
+    # ── ALLOW: clean traffic ──────────────────────────────────────────
     if not is_anomaly:
         result = {
             "decision":   "ALLOW",
@@ -310,7 +334,7 @@ def process_log(request: LogRequest):
             "message":    pipeline_result.get("reason", "Passed Layer 1 — normal traffic"),
             "layer1":     l1_result,
             "ai_model": {
-                "phase": scorer_result.get("details", {}).get("phase"),
+                "phase": ai_details.get("phase"),
                 "score": anomaly_score,
             },
         }
@@ -318,8 +342,8 @@ def process_log(request: LogRequest):
         _update_lambda_metrics(request, is_anomaly=False)
         return result
 
-    # ── Create alert (only for INVESTIGATE or BLOCK) ─────────────────
-    ai_details = ai_stage.get("details", {}) if ai_stage else {}
+    # ── INVESTIGATE: flagged by Layer 1, Layer 2 pending ─────────────
+    # Create alert. Store raw_packet privately for on-demand Layer 2.
     alert = _build_alert(
         log_request=request,
         decision=decision,
@@ -327,39 +351,30 @@ def process_log(request: LogRequest):
         confidence=confidence,
         anomaly_score=anomaly_score,
         threat_type=attack_type,
-        layer2_report=l2_result,
         ai_result=ai_details,
+        raw_packet=pipeline_result.get("raw_packet"),
+        layer1_result=l1_result,
     )
     alert_store.add(alert)
 
-    # ── Log and return ───────────────────────────────────────────────
-    risk = l2_result.get("risk", {}) if l2_result else {}
     result = {
-        "decision":       decision,
-        "is_anomaly":     is_anomaly,
-        "anomaly_score":  round(anomaly_score, 3),
-        "confidence":     round(confidence, 4),
-        "severity":       severity,
-        "threat_type":    attack_type if is_anomaly else None,
-        "layer":          2,
-        "layer1":         l1_result,
-        "layer2_summary": {
-            "severity":     l2_result.get("severity") if l2_result else None,
-            "risk_score":   risk.get("adjusted_score", 0),
-            "threat_count": l2_result.get("patterns", {}).get("threat_count", 0) if l2_result else 0,
-            "scan_id":      l2_result.get("scan_id") if l2_result else None,
-            "elapsed_ms":   l2_result.get("elapsed_ms") if l2_result else None,
-        },
+        "decision":      decision,
+        "is_anomaly":    is_anomaly,
+        "anomaly_score": round(anomaly_score, 3),
+        "confidence":    round(confidence, 4),
+        "severity":      severity,
+        "threat_type":   attack_type,
+        "layer":         1,
+        "layer1":        l1_result,
+        "layer2_summary": None,  # populated after analyst clicks Investigate
         "ai_model": {
-            "phase":       ai_details.get("phase"),
-            "score":       ai_details.get("anomaly_score", 0),
-            "is_anomaly":  ai_details.get("is_anomaly", False),
-            "model_votes": ai_details.get("model_votes"),
+            "phase":      ai_details.get("phase"),
+            "score":      ai_details.get("anomaly_score", 0),
+            "is_anomaly": ai_details.get("is_anomaly", False),
         },
         "message": (
-            f"Layer 2 + AI Model complete. Decision: {decision}."
-            if is_anomaly
-            else "Layer 2 + AI Model cleared — traffic allowed."
+            "Flagged by Layer 1 — click Investigate in the dashboard "
+            "to run deep Layer 2 analysis."
         ),
     }
 
@@ -379,8 +394,8 @@ def get_alerts(
     status:   Optional[str] = Query(None),
     limit:    int            = Query(100),
 ):
-    """Return stored alerts with optional filtering."""
-    alerts = alert_store.get_all()
+    """Return stored alerts with optional filtering. Private fields stripped."""
+    alerts = [_strip_private_fields(a) for a in alert_store.get_all()]
 
     if severity:
         alerts = [a for a in alerts if a.get("severity") == severity]
@@ -407,11 +422,11 @@ def get_alerts_summary():
 
 @app.get("/api/alerts/{alert_id}")
 def get_alert(alert_id: str):
-    """Fetch a single alert by ID."""
+    """Fetch a single alert by ID. Private fields stripped."""
     alert = alert_store.get_by_id(alert_id)
     if not alert:
         raise HTTPException(status_code=404, detail=f"Alert '{alert_id}' not found.")
-    return alert
+    return _strip_private_fields(alert)
 
 
 @app.patch("/api/alerts/{alert_id}/close")
@@ -499,56 +514,119 @@ def block_alert(alert_id: str):
 
 
 # ---------------------------------------------------------------------------
-# Investigation endpoint
+# ON-DEMAND Layer 2 Investigation endpoint
 # ---------------------------------------------------------------------------
 
 @app.post("/api/alerts/{alert_id}/investigate")
 def investigate_alert(alert_id: str):
     """
-    Trigger Layer 2 forensic investigation on a flagged alert.
-    Returns existing report if pipeline already produced one.
+    Trigger Layer 2 forensic investigation on demand.
+
+    This is called when the analyst clicks the 'Investigate' button
+    in the Real-Time Alerts page. Layer 2 does NOT run automatically
+    during the detection pipeline — it only runs here.
+
+    Layer 2 includes:
+      - IP Analysis (geolocation, ASN, reputation, spoofing detection)
+      - Packet Analysis (size, fragmentation, latency, exfiltration scoring)
+      - Attack Pattern Matching (DDoS, SQLi, crypto mining, exfil, memory, spoofing)
+      - Network Topology (routing path, hop count, transit providers)
+      - Risk Scoring (composite risk, confidence, severity, recommendations)
+
+    Returns cached report if the alert was already investigated.
     """
     alert = alert_store.get_by_id(alert_id)
     if not alert:
         raise HTTPException(status_code=404, detail=f"Alert '{alert_id}' not found.")
 
-    # Return existing Layer 2 report if available
+    # ── Return cached Layer 2 report if already investigated ─────────
     if alert.get("layer2_report"):
         return {
-            "alert_id":   alert_id,
-            "source":     "pipeline",
-            "report":     alert["layer2_report"],
-            "ai_details": alert.get("ai_details"),
-            "message":    "Layer 2 report from detection pipeline.",
+            "alert_id": alert_id,
+            "source":   "cached",
+            "report":   alert["layer2_report"],
+            "severity": alert.get("severity"),
+            "decision": alert.get("decision"),
+            "message":  "Returning cached Layer 2 report from previous investigation.",
         }
 
-    # Otherwise run a fresh investigation
-    if not _L2_AVAILABLE or layer2 is None:
+    # ── Get the stored raw packet ─────────────────────────────────────
+    raw_packet = alert.get("_raw_packet")
+    if not raw_packet:
         raise HTTPException(
-            status_code=503,
-            detail="Layer 2 Investigator is not available.",
+            status_code=422,
+            detail=(
+                "No packet data stored for this alert. "
+                "This can happen if the alert was created before the on-demand "
+                "Layer 2 update was deployed, or if the packet data was cleared."
+            ),
         )
 
-    log_data = {
-        "duration":      alert.get("features", {}).get("duration_ms", 0),
-        "memory_used":   alert.get("features", {}).get("memory_used_mb", 0),
-        "num_api_calls": alert.get("features", {}).get("outbound_calls", 0),
-        "ip_address":    alert.get("features", {}).get("ip_address", "10.0.0.1"),
-        "function_name": alert.get("function", "unknown"),
-        "timestamp":     alert.get("timestamp"),
-    }
-    alert_metadata = {
-        "severity":      alert.get("severity"),
-        "attack_type":   alert.get("threat_type"),
-        "anomaly_score": alert.get("anomaly_score"),
-        "confidence":    alert.get("confidence"),
-    }
+    # ── Run Layer 2 now ───────────────────────────────────────────────
+    layer1_result = alert.get("_layer1_result") or {}
 
-    return layer2.investigate(
-        alert_id=alert_id,
-        log_data=log_data,
-        alert_metadata=alert_metadata,
-    )
+    try:
+        l2_result = _layer2_scanner.scan(raw_packet, layer1_result)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Layer 2 scan failed: {str(exc)}"
+        )
+
+    # ── Update alert with Layer 2 results ────────────────────────────
+    alert["layer2_report"] = l2_result
+
+    # Update decision from Layer 2 recommendation
+    l2_action = l2_result.get("risk", {}).get("recommendation", {}).get("action")
+    if l2_action in ("BLOCK", "INVESTIGATE"):
+        alert["decision"] = l2_action
+
+    # Update severity from Layer 2 (map to frontend format)
+    l2_severity = l2_result.get("severity", "")
+    if l2_severity == "CRITICAL":
+        alert["severity"] = "CRITICAL"
+    elif l2_severity == "HIGH":
+        alert["severity"] = "WARNING"
+    elif l2_severity == "MEDIUM":
+        alert["severity"] = "WARNING"
+
+    # Update threat type from top matched pattern
+    top_threat = l2_result.get("patterns", {}).get("top_threat")
+    if top_threat:
+        alert["threat_type"] = top_threat.get("name", alert.get("threat_type"))
+
+    # ── Feed labeled data to AI ensemble for future improvement ───────
+    is_anomaly_l2 = alert.get("decision") in ("BLOCK", "INVESTIGATE")
+    attack_type_l2 = (top_threat.get("attack_type", "normal") if top_threat else "normal")
+    try:
+        ai_model.add_labeled_example(
+            raw_packet,
+            is_anomaly=is_anomaly_l2,
+            attack_type=attack_type_l2,
+        )
+    except Exception:
+        pass  # Don't fail the investigation if AI model update fails
+
+    # ── Log the investigation action ──────────────────────────────────
+    log_storage.append({
+        "timestamp":  datetime.datetime.utcnow().isoformat() + "Z",
+        "function":   alert.get("function", "unknown"),
+        "event":      f"Layer 2 investigation run for {alert_id} — {l2_result.get('severity', 'UNKNOWN')} severity",
+        "user":       "analyst",
+        "ip_address": alert.get("features", {}).get("ip_address", "unknown"),
+        "status":     "flagged" if is_anomaly_l2 else "allowed",
+        "duration":   f"{l2_result.get('elapsed_ms', 0)}ms",
+        "decision":   alert.get("decision", "INVESTIGATE"),
+    })
+
+    return {
+        "alert_id": alert_id,
+        "source":   "fresh",
+        "report":   l2_result,
+        "severity": alert.get("severity"),
+        "decision": alert.get("decision"),
+        "message":  f"Layer 2 investigation completed in {l2_result.get('elapsed_ms', 0)}ms.",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -558,7 +636,6 @@ def investigate_alert(alert_id: str):
 @app.get("/api/logs")
 def get_logs(limit: int = Query(100)):
     """Return the most recent audit log entries."""
-    # deque doesn't support slicing directly — convert to list
     all_logs = list(log_storage)
     return all_logs[-limit:]
 
@@ -650,8 +727,9 @@ def get_status():
         "status":           "running",
         "detector_stats":   ai_model.get_status(),
         "sarima_status":    sarima_forecaster.get_status(),
-        "layer2_available": _L2_AVAILABLE,
+        "layer2_available": True,   # always available — Layer2Scanner imported at top
         "pipeline":         "unified",
+        "layer2_mode":      "on-demand",  # Layer 2 only runs when Investigate is clicked
         "timestamp":        datetime.datetime.utcnow().isoformat() + "Z",
     }
 
@@ -662,7 +740,7 @@ def get_status():
 
 @app.get("/sarima/status")
 def get_sarima_status():
-    """Detailed SARIMA forecaster status — data points, training state, current prediction."""
+    """Detailed SARIMA forecaster status."""
     status     = sarima_forecaster.get_status()
     prediction = sarima_forecaster.predict()
 
@@ -697,6 +775,8 @@ def get_sarima_status():
         },
         "timestamp": now.isoformat() + "Z",
     }
+
+
 # ---------------------------------------------------------------------------
 # Packet report endpoint
 # ---------------------------------------------------------------------------
@@ -710,7 +790,13 @@ def get_packet_report(alert_id: str):
 
     report = alert.get("layer2_report")
     if not report:
-        raise HTTPException(status_code=404, detail="No Layer 2 report found for this alert.")
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "No Layer 2 report found for this alert. "
+                "Click 'Investigate' in the dashboard to run Layer 2 analysis first."
+            ),
+        )
 
     return report
 
