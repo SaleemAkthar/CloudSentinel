@@ -442,23 +442,22 @@ class CloudSentinelPipeline:
         elapsed_ms:  float,
         stopped_at:  str,
         reason:      str,
+        raw_packet:  dict = None,
     ) -> dict:
-        return {
+        result = {
             "pipeline_id": pipeline_id,
             "timestamp":   timestamp,
             "elapsed_ms":  elapsed_ms,
             "stopped_at":  stopped_at,
-
-            # Final verdict
-            "decision":    decision,       # ALLOW / INVESTIGATE / BLOCK
+            "decision":    decision,
             "confidence":  confidence,
             "severity":    severity,
             "reason":      reason,
-
-            # Full stage evidence
             "stages":      stages,
         }
-
+        if raw_packet is not None:
+            result["raw_packet"] = raw_packet
+        return result
 
 # ── Module-level convenience function ─────────────────────────────────────────
 _pipeline = CloudSentinelPipeline()
