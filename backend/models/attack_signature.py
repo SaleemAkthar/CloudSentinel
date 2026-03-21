@@ -29,3 +29,12 @@ class AttackSignature(BaseModel):
     details: dict                           # Raw pattern-specific detail fields
  
  
+class AttackSignatureSummary(BaseModel):
+    """
+    Summary of all pattern matches for a single Layer 2 scan.
+    Stored as the 'patterns' block inside a layer2_report.
+    """
+    matched_patterns: List[AttackSignature]         # All patterns that matched (matched=True)
+    top_threat: Optional[AttackSignature] = None    # Highest-confidence matched pattern
+    total_matched: int                              # Number of patterns that fired
+    total_checked: int                              # Total patterns evaluated
