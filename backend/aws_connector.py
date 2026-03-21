@@ -7,7 +7,7 @@ from datetime import datetime
 logs_client = boto3.client('logs')
 
 # CHANGE THIS to your actual Lambda function's name
-LOG_GROUP_NAME = '/aws/lambda/my-test-api'
+LOG_GROUP_NAME = '/aws/lambda/cloud-sentinel-test'
 
 def check_aws_connection():
     print(f"Attempting to connect to AWS CloudWatch: {LOG_GROUP_NAME}...")
