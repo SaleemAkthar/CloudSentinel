@@ -16,3 +16,15 @@ class NetworkHop(BaseModel):
     provider: Optional[str]      # Network provider name, e.g. "Amazon AWS"
     country: Optional[str]       # Country code, e.g. "US"
     latency_ms: Optional[float]  # Estimated latency contribution at this hop
+ 
+ 
+class NetworkAnalysis(BaseModel):
+    """
+    Full network topology analysis for a single Lambda execution event.
+    Produced by network_topology.py and stored inside an alert's layer2_report.
+    """
+    source_ip: str                           # Originating IP address
+    destination_region: str                  # AWS region receiving the request
+    hop_count: int                           # Total number of hops in the path
+    hops: List[NetworkHop]                   # Ordered list of routing hops
+    transit_providers: List[str]             # Distinct ISPs/providers in the path
