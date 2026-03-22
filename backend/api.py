@@ -1,6 +1,5 @@
 """
 Cloud Sentinel — FastAPI Backend
-=================================
 Entry point for the anomaly detection API.
 
 Detection pipeline:
@@ -50,9 +49,8 @@ app = FastAPI(title="Cloud Sentinel API", version="3.0")
 # Mount Auth router
 app.include_router(auth_router)
 
-# ---------------------------------------------------------------------------
+
 # CORS configuration (env-based for flexibility)
-# ---------------------------------------------------------------------------
 
 CORS_ORIGINS = os.environ.get(
     "CORS_ORIGINS",
@@ -67,10 +65,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------------------------
+
 # Singletons — imported from pipeline so there is ONE instance of each.
 # api.py and pipeline.py share the same SARIMA, AI model, etc.
-# ---------------------------------------------------------------------------
+
 
 # SARIMA for temporal anomaly detection
 from backend.detection.pipeline import _sarima as sarima_forecaster
@@ -97,9 +95,9 @@ lambda_metrics = {}
 sentinel_pipeline = CloudSentinelPipeline()
 
 
-# ---------------------------------------------------------------------------
+
 # Request model
-# ---------------------------------------------------------------------------
+
 
 class LogRequest(BaseModel):
     """
@@ -131,9 +129,9 @@ class LogRequest(BaseModel):
     content_type:         str   = "application/json"
 
 
-# ---------------------------------------------------------------------------
+
 # Internal helpers
-# ---------------------------------------------------------------------------
+
 
 def _build_alert(
     log_request:    LogRequest,
@@ -251,9 +249,9 @@ def _update_lambda_metrics(log_request: LogRequest, is_anomaly: bool):
         m["error_count"] += 1
 
 
-# ---------------------------------------------------------------------------
+
 # CORE DETECTION ENDPOINT
-# ---------------------------------------------------------------------------
+
 
 @app.post("/process_log")
 def process_log(request: LogRequest):
@@ -293,12 +291,12 @@ def process_log(request: LogRequest):
         "concurrency":          1,
     }
 
-    # ── Run the unified pipeline ─────────────────────────────────────
+    # Run the unified pipeline 
     # Internally: SARIMA → EnsembleAnomalyDetector → Layer1Filter
     # Layer 2 is NOT run here — it runs on-demand via /investigate
     pipeline_result = sentinel_pipeline.process(packet)
 
-    # ── Feed SARIMA forecaster ────────────────────────────────────────
+    # Feed SARIMA forecaster
     sarima_forecaster.add_data_point(request.duration)
     if (not sarima_forecaster._trained
             and len(sarima_forecaster.training_data) >= sarima_forecaster.MIN_TRAINING_POINTS):
@@ -309,7 +307,7 @@ def process_log(request: LogRequest):
     severity   = pipeline_result["severity"]
     is_anomaly = decision == "INVESTIGATE"
 
-    # ── Extract details from pipeline stages ──────────────────────────
+    # Extract details from pipeline stages
     stages    = pipeline_result.get("stages", {})
     l1_result = stages.get("layer1", {})
 
@@ -322,7 +320,7 @@ def process_log(request: LogRequest):
     if not attack_type and ai_stage.get("is_anomaly"):
         attack_type = "Unknown"
 
-    # ── ALLOW: clean traffic ──────────────────────────────────────────
+    # ALLOW: clean traffic
     if not is_anomaly:
         result = {
             "decision":   "ALLOW",
@@ -340,7 +338,7 @@ def process_log(request: LogRequest):
         _update_lambda_metrics(request, is_anomaly=False)
         return result
 
-    # ── INVESTIGATE: flagged by ensemble and/or filter ────────────────
+    # INVESTIGATE: flagged by ensemble and/or filter
     alert = _build_alert(
         log_request=request,
         decision=decision,
@@ -382,9 +380,9 @@ def process_log(request: LogRequest):
     return result
 
 
-# ---------------------------------------------------------------------------
+
 # Alert endpoints
-# ---------------------------------------------------------------------------
+
 
 @app.get("/api/alerts")
 def get_alerts(
@@ -435,9 +433,8 @@ def close_alert(alert_id: str):
     return {"success": True}
 
 
-# ---------------------------------------------------------------------------
+
 # User action endpoints — ALLOW and BLOCK
-# ---------------------------------------------------------------------------
 
 @app.patch("/api/alerts/{alert_id}/allow")
 def allow_alert(alert_id: str):
@@ -511,9 +508,8 @@ def block_alert(alert_id: str):
     }
 
 
-# ---------------------------------------------------------------------------
+
 # ON-DEMAND Layer 2 Investigation endpoint
-# ---------------------------------------------------------------------------
 
 @app.post("/api/alerts/{alert_id}/investigate")
 def investigate_alert(alert_id: str):
@@ -624,9 +620,7 @@ def investigate_alert(alert_id: str):
     }
 
 
-# ---------------------------------------------------------------------------
 # Audit log endpoint
-# ---------------------------------------------------------------------------
 
 @app.get("/api/logs")
 def get_logs(limit: int = Query(100)):
@@ -635,9 +629,7 @@ def get_logs(limit: int = Query(100)):
     return all_logs[-limit:]
 
 
-# ---------------------------------------------------------------------------
 # Lambda monitor endpoints
-# ---------------------------------------------------------------------------
 
 @app.get("/api/lambda/overview")
 def get_lambda_overview():
@@ -681,9 +673,8 @@ def get_lambda_functions():
     return result
 
 
-# ---------------------------------------------------------------------------
+
 # Model health endpoint
-# ---------------------------------------------------------------------------
 
 @app.get("/api/model/health")
 def get_model_health():
@@ -711,9 +702,7 @@ def get_model_health():
     }
 
 
-# ---------------------------------------------------------------------------
 # System status endpoint
-# ---------------------------------------------------------------------------
 
 @app.get("/status")
 def get_status():
@@ -729,9 +718,8 @@ def get_status():
     }
 
 
-# ---------------------------------------------------------------------------
+
 # SARIMA status endpoint
-# ---------------------------------------------------------------------------
 
 @app.get("/sarima/status")
 def get_sarima_status():
@@ -739,9 +727,8 @@ def get_sarima_status():
     return sarima_forecaster.get_status()
 
 
-# ---------------------------------------------------------------------------
+
 # AWS CloudWatch Live Monitoring
-# ---------------------------------------------------------------------------
 
 _aws_monitor_running = False
 _aws_monitor_thread: threading.Thread | None = None
@@ -848,9 +835,8 @@ def aws_monitor_status():
     return {"running": _aws_monitor_running}
 
 
-# ---------------------------------------------------------------------------
+
 # Entry point
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))

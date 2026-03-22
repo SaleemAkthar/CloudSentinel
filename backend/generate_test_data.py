@@ -1,6 +1,5 @@
 """
 Test Data Generator — Cloud Sentinel (Unified Pipeline)
-=========================================================
 Generates realistic traffic with full packet-level fields so
 the unified pipeline (Layer 1 Filter → Layer 2 → AI Model)
 can be tested end-to-end.
@@ -67,9 +66,8 @@ def _normal_log() -> dict:
     }
 
 
-# ============================================================================
+
 # ATTACK PATTERNS — designed to FAIL Layer 1 Filter
-# ============================================================================
 
 def _crypto_mining_log() -> dict:
     """

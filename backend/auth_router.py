@@ -26,9 +26,9 @@ def _set_auth_cookie(response: Response, user_id: str) -> None:
     response.set_cookie(
         key=COOKIE_NAME,
         value=token,
-        httponly=True,           # JS cannot read this
-        samesite="lax",          # CSRF protection
-        secure=False,            # Set True in production (HTTPS)
+        httponly=True,          # JS cannot read this
+        samesite="none",        # CSRF protection
+        secure=True,            # production (HTTPS)
         max_age=7 * 24 * 3600,  # 7 days in seconds
         path="/",
     )
