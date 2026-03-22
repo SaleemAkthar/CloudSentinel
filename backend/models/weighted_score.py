@@ -1,6 +1,5 @@
 """
 Data Models for Weighted Anomaly Scoring
-=========================================
 
 Pydantic models for type-safe anomaly scoring results.
 
@@ -13,9 +12,8 @@ from typing import Dict, Optional, List
 from datetime import datetime
   
 
-# ============================================================================
+
 # COMPONENT SCORE MODELS
-# ============================================================================
 
 class FeatureScore(BaseModel):
     """
@@ -134,9 +132,8 @@ class BehavioralScore(BaseModel):
             }
         }
 
-# ============================================================================
+
 # COMPOSITE SCORE MODEL
-# ============================================================================
 
 class CompositeScore(BaseModel):
     """
@@ -212,9 +209,8 @@ class CompositeScore(BaseModel):
                 "timestamp": "2026-03-09T10:30:00.000Z"
             }
         }
-# ============================================================================
+
 # DETECTION RESULT MODEL
-# ============================================================================
 
 class DetectionResult(BaseModel):
     """
@@ -286,9 +282,9 @@ class DetectionResult(BaseModel):
                 "anomalies_detected": 3
             }
         }
-# ============================================================================
+
 # LEARNING PHASE RESULT
-# ============================================================================
+
 
 class LearningResult(BaseModel):
     """
@@ -315,9 +311,9 @@ class LearningResult(BaseModel):
             }
         }
 
-# ============================================================================
+
 # BASELINE STATISTICS MODEL
-# ============================================================================
+
 
 class BaselineStats(BaseModel):
     """
@@ -341,9 +337,9 @@ class BaselineStats(BaseModel):
                 "max": 550.0
             }
         }
-# ============================================================================
+
 # THRESHOLD INFO MODEL
-# ============================================================================
+
 
 class ThresholdInfo(BaseModel):
     """
@@ -370,9 +366,8 @@ class ThresholdInfo(BaseModel):
         }
 
 
-# ============================================================================
+
 # ALERT MODEL (for API responses)
-# ============================================================================
 
 class Alert(BaseModel):
     """
@@ -448,9 +443,8 @@ class Alert(BaseModel):
                 "recommendation": "Block IP immediately"
             }
         }
-# ============================================================================
+
 # TESTING
-# ============================================================================
 
 if __name__ == "__main__":
     print("=" * 70)

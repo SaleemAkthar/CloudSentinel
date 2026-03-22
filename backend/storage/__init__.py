@@ -1,6 +1,5 @@
 """
 Storage Package
-===============
 
 In-memory and persistent storage for alerts and logs.
 

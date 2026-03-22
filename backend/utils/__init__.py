@@ -1,6 +1,5 @@
 """
 Utilities Package
-=================
 
 Mathematical functions, weight configurations, and validators.
 
