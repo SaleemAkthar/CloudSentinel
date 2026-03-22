@@ -4,12 +4,6 @@ Layer 1: Weighted Anomaly Scoring
 
 Fast, real-time anomaly scoring using weighted composite formula.
 
-This layer:
-1. Extracts features from log
-2. Calculates weighted anomaly score
-3. Determines severity and confidence
-4. Returns quick decision: NORMAL / SUSPICIOUS / CRITICAL
-
 Author: Raneesha (Backend Team)
 """
 import sys
