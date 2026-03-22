@@ -1,5 +1,6 @@
 // MUI icon imports for UI elements
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
 import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
@@ -7,23 +8,6 @@ import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ShowChartRoundedIcon from "@mui/icons-material/ShowChartRounded";
 import GridViewRoundedIcon from "@mui/icons-material/GridViewRounded";
-
-// default user data
-const initialUser = {
-  name: "Display Name",
-  role: "Display Role",
-  email: "email@cloudsentinel.io",
-  organization: "Cloud Sentinel Security",
-  joined: "January 2025",
-  avatar: "DN",
-  plan: "Team",
-  twoFA: true,
-  notifications: {
-    email: true,
-    critical: true,
-    weekly: false,
-  },
-};
 
 // reusable row component for each info field
 function InfoRow({ icon, label, value, editing, fieldKey, onChange }) {
@@ -64,13 +48,53 @@ function ToggleSwitch({ enabled, onToggle }) {
   );
 }
 
+// Helper: build initials from a name/username string
+function getInitials(name) {
+  if (!name) return "??";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
 // Profile page component
 export default function Profile() {
+  const { user: authUser } = useAuth();
+
+  // Build the profile from the backend auth user
+  const buildUserFromAuth = (auth) => ({
+    name: auth?.username || "Display Name",
+    role: "Security Analyst",
+    email: auth?.email || "email@cloudsentinel.io",
+    organization: "Cloud Sentinel Security",
+    joined: "January 2025",
+    avatar: getInitials(auth?.username),
+    plan: "Team",
+    twoFA: true,
+    notifications: {
+      email: true,
+      critical: true,
+      weekly: false,
+    },
+  });
+
   // state for user data, edit mode, draft changes and save confirmation
-  const [user, setUser] = useState(initialUser);
+  const [user, setUser] = useState(() => buildUserFromAuth(authUser));
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(initialUser);
+  const [draft, setDraft] = useState(() => buildUserFromAuth(authUser));
   const [saved, setSaved] = useState(false);
+
+  // Keep profile in sync when authUser changes (e.g., session restored)
+  useEffect(() => {
+    if (authUser) {
+      setUser((prev) => ({
+        ...prev,
+        name: authUser.username || prev.name,
+        email: authUser.email || prev.email,
+        avatar: getInitials(authUser.username),
+      }));
+    }
+  }, [authUser]);
+
 
   // enter edit mode
   const handleEdit = () => {
