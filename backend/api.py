@@ -5,11 +5,11 @@ Entry point for the anomaly detection API.
 
 Detection pipeline:
     POST /process_log
-        → Layer1Scorer  (AI scoring — runs FIRST)
-            ↓
-        → Layer1Filter  (hard rule confirmation — runs AFTER scorer)
+        → SARIMA           (dynamic thresholds + temporal context)
+        → EnsembleAnomalyDetector (ML scoring — IF + RF ensemble)
+        → Layer1Filter     (hard rule confirmation gate)
             ↓ PASS → traffic allowed
-            ↓ FAIL → alert created, Layer 2 NOT run automatically
+            ↓ FAIL → alert created, returned as INVESTIGATE
                 → Layer 2 runs ONLY when analyst clicks Investigate
                    POST /api/alerts/{id}/investigate
 
@@ -34,7 +34,6 @@ import boto3
 
 from backend.detection.sarima_forecaster import SARIMAForecaster
 from backend.storage.in_memory_store import AlertStore
-from backend.detection.ai_model import EnsembleAnomalyDetector
 from backend.detection.pipeline import CloudSentinelPipeline
 from backend.detection.layer2_scanner import Layer2Scanner
 from backend.auth_router import router as auth_router
@@ -69,16 +68,18 @@ app.add_middleware(
 )
 
 # ---------------------------------------------------------------------------
-# Singletons — created once at startup, shared across all requests
+# Singletons — imported from pipeline so there is ONE instance of each.
+# api.py and pipeline.py share the same SARIMA, AI model, etc.
 # ---------------------------------------------------------------------------
 
 # SARIMA for temporal anomaly detection
 from backend.detection.pipeline import _sarima as sarima_forecaster
 
 # AI Ensemble: Isolation Forest (unsupervised) + Random Forest (supervised)
+# This is the SAME instance that pipeline.process() calls .predict() on.
 from backend.detection.pipeline import _ai_model as ai_model
 
-# Layer 2 Scanner singleton — instantiated once, reused per investigate call
+# Layer 2 Scanner singleton — used for on-demand investigation
 _layer2_scanner = Layer2Scanner()
 
 # Storage
@@ -152,8 +153,6 @@ def _build_alert(
     so they are available for on-demand Layer 2 investigation but are
     not sent to the frontend in normal alert listings.
     """
-
-    # Map backend severity to frontend contract (CRITICAL / WARNING / INFO)
     frontend_severity = severity
     if severity in ("HIGH", "MEDIUM"):
         frontend_severity = "WARNING"
@@ -179,20 +178,19 @@ def _build_alert(
             "ip_address":          log_request.ip_address,
             "ttl":                 log_request.ttl,
         },
-        # Layer 2 report — None until analyst triggers investigation
         "layer2_report": None,
     }
 
     if ai_result:
         alert["ai_details"] = {
-            "composite_score": ai_result.get("anomaly_score", 0),
-            "severity":        ai_result.get("severity"),
-            "attack_type":     ai_result.get("attack_type"),
-            "components":      ai_result.get("components", {}),
+            "phase":        ai_result.get("phase"),
+            "score":        ai_result.get("score", ai_result.get("anomaly_score", 0)),
+            "is_anomaly":   ai_result.get("is_anomaly"),
+            "attack_type":  ai_result.get("attack_type"),
+            "model_votes":  ai_result.get("model_votes"),
         }
 
-    # Private fields — stored for on-demand Layer 2, never sent to frontend
-    # in normal list/get responses (filtered out in get_alerts)
+    # Private fields — stored for on-demand Layer 2
     alert["_raw_packet"]    = raw_packet
     alert["_layer1_result"] = layer1_result
 
@@ -230,10 +228,7 @@ def _build_log_entry(log_request: LogRequest, result: dict) -> dict:
 
 
 def _strip_private_fields(alert: dict) -> dict:
-    """
-    Return alert dict without private _ fields.
-    Used in list/get endpoints so raw packet data is not exposed.
-    """
+    """Return alert dict without private _ fields."""
     return {k: v for k, v in alert.items() if not k.startswith("_")}
 
 
@@ -266,9 +261,9 @@ def process_log(request: LogRequest):
     Main detection pipeline for Lambda execution events.
 
     Flow:
-        1. SARIMA        — dynamic thresholds + temporal context
-        2. Layer1Scorer  — AI scoring, Z-scores, Welford baseline
-        3. Layer1Filter  — hard rule confirmation gate
+        1. SARIMA                  — dynamic thresholds + temporal context
+        2. EnsembleAnomalyDetector — ML scoring (IF + RF ensemble)
+        3. Layer1Filter            — hard rule confirmation gate
             PASS → normal traffic allowed
             FAIL → alert created, returned as INVESTIGATE
                    Layer 2 runs ONLY when analyst clicks Investigate button
@@ -299,8 +294,8 @@ def process_log(request: LogRequest):
     }
 
     # ── Run the unified pipeline ─────────────────────────────────────
-    # Internally: SARIMA → Layer1Scorer → Layer1Filter
-    # Layer 2 is NO LONGER run here — it runs on-demand via /investigate
+    # Internally: SARIMA → EnsembleAnomalyDetector → Layer1Filter
+    # Layer 2 is NOT run here — it runs on-demand via /investigate
     pipeline_result = sentinel_pipeline.process(packet)
 
     # ── Feed SARIMA forecaster ────────────────────────────────────────
@@ -314,19 +309,18 @@ def process_log(request: LogRequest):
     severity   = pipeline_result["severity"]
     is_anomaly = decision == "INVESTIGATE"
 
-    # Extract layer details from pipeline stages
-    stages        = pipeline_result.get("stages", {})
-    l1_result     = stages.get("layer1", {})
-    scorer_result = stages.get("layer1_scorer", {})
-    ai_details    = scorer_result.get("details", {}) if scorer_result else {}
+    # ── Extract details from pipeline stages ──────────────────────────
+    stages    = pipeline_result.get("stages", {})
+    l1_result = stages.get("layer1", {})
 
-    anomaly_score = scorer_result.get("score", 0.0)
+    # Read from the "ai_model" stage (ensemble result)
+    ai_stage      = stages.get("ai_model", {})
+    anomaly_score = ai_stage.get("score", 0.0)
 
-    # Derive attack type from Layer 1 scorer behavioral analysis
-    attack_type = (
-        ai_details.get("attack_type")
-        if ai_details.get("is_anomaly") else None
-    )
+    # Derive attack type from ensemble or filter violations
+    attack_type = ai_stage.get("attack_type")
+    if not attack_type and ai_stage.get("is_anomaly"):
+        attack_type = "Unknown"
 
     # ── ALLOW: clean traffic ──────────────────────────────────────────
     if not is_anomaly:
@@ -334,19 +328,19 @@ def process_log(request: LogRequest):
             "decision":   "ALLOW",
             "layer":      1,
             "is_anomaly": False,
-            "message":    pipeline_result.get("reason", "Passed Layer 1 — normal traffic"),
+            "message":    pipeline_result.get("reason", "Passed ML ensemble and Layer 1 filter — normal traffic"),
             "layer1":     l1_result,
             "ai_model": {
-                "phase": ai_details.get("phase"),
-                "score": anomaly_score,
+                "phase":       ai_stage.get("phase"),
+                "score":       anomaly_score,
+                "model_votes": ai_stage.get("model_votes"),
             },
         }
         log_storage.append(_build_log_entry(request, result))
         _update_lambda_metrics(request, is_anomaly=False)
         return result
 
-    # ── INVESTIGATE: flagged by Layer 1, Layer 2 pending ─────────────
-    # Create alert. Store raw_packet privately for on-demand Layer 2.
+    # ── INVESTIGATE: flagged by ensemble and/or filter ────────────────
     alert = _build_alert(
         log_request=request,
         decision=decision,
@@ -354,7 +348,7 @@ def process_log(request: LogRequest):
         confidence=confidence,
         anomaly_score=anomaly_score,
         threat_type=attack_type,
-        ai_result=ai_details,
+        ai_result=ai_stage,
         raw_packet=pipeline_result.get("raw_packet"),
         layer1_result=l1_result,
     )
@@ -371,13 +365,14 @@ def process_log(request: LogRequest):
         "layer1":        l1_result,
         "layer2_summary": None,  # populated after analyst clicks Investigate
         "ai_model": {
-            "phase":      ai_details.get("phase"),
-            "score":      ai_details.get("anomaly_score", 0),
-            "is_anomaly": ai_details.get("is_anomaly", False),
+            "phase":       ai_stage.get("phase"),
+            "score":       ai_stage.get("score", 0),
+            "is_anomaly":  ai_stage.get("is_anomaly", False),
+            "model_votes": ai_stage.get("model_votes"),
         },
         "message": (
-            "Flagged by Layer 1 — click Investigate in the dashboard "
-            "to run deep Layer 2 analysis."
+            "Flagged by ML ensemble + Layer 1 filter — click Investigate "
+            "in the dashboard to run deep Layer 2 analysis."
         ),
     }
 
@@ -525,9 +520,8 @@ def investigate_alert(alert_id: str):
     """
     Trigger Layer 2 forensic investigation on demand.
 
-    This is called when the analyst clicks the 'Investigate' button
-    in the Real-Time Alerts page. Layer 2 does NOT run automatically
-    during the detection pipeline — it only runs here.
+    Called when the analyst clicks 'Investigate' in the dashboard.
+    Layer 2 does NOT run automatically during detection — only here.
 
     Layer 2 includes:
       - IP Analysis (geolocation, ASN, reputation, spoofing detection)
@@ -542,7 +536,7 @@ def investigate_alert(alert_id: str):
     if not alert:
         raise HTTPException(status_code=404, detail=f"Alert '{alert_id}' not found.")
 
-    # ── Return cached Layer 2 report if already investigated ─────────
+    # Return cached Layer 2 report if already investigated
     if alert.get("layer2_report"):
         return {
             "alert_id": alert_id,
@@ -553,7 +547,7 @@ def investigate_alert(alert_id: str):
             "message":  "Returning cached Layer 2 report from previous investigation.",
         }
 
-    # ── Get the stored raw packet ─────────────────────────────────────
+    # Get the stored raw packet
     raw_packet = alert.get("_raw_packet")
     if not raw_packet:
         raise HTTPException(
@@ -565,7 +559,7 @@ def investigate_alert(alert_id: str):
             ),
         )
 
-    # ── Run Layer 2 now ───────────────────────────────────────────────
+    # Run Layer 2 now
     layer1_result = alert.get("_layer1_result") or {}
 
     try:
@@ -576,7 +570,7 @@ def investigate_alert(alert_id: str):
             detail=f"Layer 2 scan failed: {str(exc)}"
         )
 
-    # ── Update alert with Layer 2 results ────────────────────────────
+    # Update alert with Layer 2 results
     alert["layer2_report"] = l2_result
 
     # Update decision from Layer 2 recommendation
@@ -584,13 +578,11 @@ def investigate_alert(alert_id: str):
     if l2_action in ("BLOCK", "INVESTIGATE"):
         alert["decision"] = l2_action
 
-    # Update severity from Layer 2 (map to frontend format)
+    # Update severity from Layer 2
     l2_severity = l2_result.get("severity", "")
     if l2_severity == "CRITICAL":
         alert["severity"] = "CRITICAL"
-    elif l2_severity == "HIGH":
-        alert["severity"] = "WARNING"
-    elif l2_severity == "MEDIUM":
+    elif l2_severity in ("HIGH", "MEDIUM"):
         alert["severity"] = "WARNING"
 
     # Update threat type from top matched pattern
@@ -598,7 +590,7 @@ def investigate_alert(alert_id: str):
     if top_threat:
         alert["threat_type"] = top_threat.get("name", alert.get("threat_type"))
 
-    # ── Feed labeled data to AI ensemble for future improvement ───────
+    # Feed labeled data to AI ensemble for continuous learning
     is_anomaly_l2 = alert.get("decision") in ("BLOCK", "INVESTIGATE")
     attack_type_l2 = (top_threat.get("attack_type", "normal") if top_threat else "normal")
     try:
@@ -610,7 +602,7 @@ def investigate_alert(alert_id: str):
     except Exception:
         pass  # Don't fail the investigation if AI model update fails
 
-    # ── Log the investigation action ──────────────────────────────────
+    # Log the investigation action
     log_storage.append({
         "timestamp":  datetime.datetime.utcnow().isoformat() + "Z",
         "function":   alert.get("function", "unknown"),
@@ -730,9 +722,9 @@ def get_status():
         "status":           "running",
         "detector_stats":   ai_model.get_status(),
         "sarima_status":    sarima_forecaster.get_status(),
-        "layer2_available": True,   # always available — Layer2Scanner imported at top
+        "layer2_available": True,
         "pipeline":         "unified",
-        "layer2_mode":      "on-demand",  # Layer 2 only runs when Investigate is clicked
+        "layer2_mode":      "on-demand",
         "timestamp":        datetime.datetime.utcnow().isoformat() + "Z",
     }
 
@@ -744,64 +736,7 @@ def get_status():
 @app.get("/sarima/status")
 def get_sarima_status():
     """Detailed SARIMA forecaster status."""
-    status     = sarima_forecaster.get_status()
-    prediction = sarima_forecaster.predict()
-
-    now  = datetime.datetime.utcnow()
-    hour = now.hour
-
-    return {
-        "trained":          status["trained"],
-        "sarima_available": status["sarima_available"],
-        "sarima_fitted":    status["sarima_fitted"],
-        "using_fallback":   status["using_fallback"],
-        "data_points":      status["data_points"],
-        "min_required":     status["min_required"],
-        "progress_pct":     status["progress_pct"],
-        "current_prediction": {
-            "value": prediction["value"],
-            "std":   prediction["std"],
-        },
-        "time_context": {
-            "hour":       hour,
-            "is_peak":    8 <= hour <= 20,
-            "time_window": (
-                "night"          if hour < 6  else
-                "early_morning"  if hour < 8  else
-                "morning_peak"   if hour < 12 else
-                "midday_peak"    if hour < 14 else
-                "afternoon_peak" if hour < 18 else
-                "evening_peak"   if hour < 20 else
-                "evening"        if hour < 22 else
-                "late_night"
-            ),
-        },
-        "timestamp": now.isoformat() + "Z",
-    }
-
-
-# ---------------------------------------------------------------------------
-# Packet report endpoint
-# ---------------------------------------------------------------------------
-
-@app.get("/api/alerts/{alert_id}/packet-report")
-def get_packet_report(alert_id: str):
-    """Retrieve the full Layer 2 scan report attached to an alert."""
-    alert = alert_store.get_by_id(alert_id)
-    if not alert:
-        raise HTTPException(status_code=404, detail=f"Alert '{alert_id}' not found.")
-
-    report = alert.get("layer2_report")
-    if not report:
-        raise HTTPException(
-            status_code=404,
-            detail=(
-                "No Layer 2 report found for this alert. "
-                "Click 'Investigate' in the dashboard to run Layer 2 analysis first."
-            ),
-        )
-
-    return report
+    return sarima_forecaster.get_status()
 
 
 # ---------------------------------------------------------------------------
@@ -813,12 +748,7 @@ _aws_monitor_thread: threading.Thread | None = None
 
 
 def _parse_report_line(message: str) -> dict:
-    """
-    Parse a CloudWatch REPORT line into LogRequest-compatible fields.
-    Example line:
-      REPORT RequestId: abc  Duration: 123.45 ms  Billed Duration: 124 ms
-      Memory Size: 512 MB  Max Memory Used: 78 MB
-    """
+    """Parse a CloudWatch REPORT line into LogRequest-compatible fields."""
     duration    = 100.0
     memory_used = 128.0
 
@@ -840,8 +770,8 @@ def _parse_report_line(message: str) -> dict:
 
 def _aws_monitor_worker(log_group_name: str):
     """
-    Background thread: polls CloudWatch every 10 s and feeds REPORT lines
-    through the existing process_log pipeline so they appear in the dashboard.
+    Background thread: polls CloudWatch every 10s and feeds REPORT lines
+    through the existing process_log pipeline.
     """
     global _aws_monitor_running
 
@@ -888,10 +818,7 @@ def _aws_monitor_worker(log_group_name: str):
 
 @app.post("/api/aws/start")
 def start_aws_monitoring(log_group: str = "/aws/lambda/cloud-sentinel-test"):
-    """
-    Start the background CloudWatch polling thread.
-    The log_group query param lets the frontend pass a specific function name.
-    """
+    """Start the background CloudWatch polling thread."""
     global _aws_monitor_running, _aws_monitor_thread
 
     if _aws_monitor_running:
@@ -919,6 +846,7 @@ def stop_aws_monitoring():
 def aws_monitor_status():
     """Return whether live AWS monitoring is currently active."""
     return {"running": _aws_monitor_running}
+
 
 # ---------------------------------------------------------------------------
 # Entry point
