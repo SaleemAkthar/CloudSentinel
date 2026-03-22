@@ -3,16 +3,16 @@ Cloud Sentinel — Unified Detection Pipeline
 =============================================
 Single entry point that runs every stage in the correct order:
 
-  1. SARIMA        — get dynamic thresholds + temporal context
-  2. Layer 1       — fast gate using SARIMA-adjusted thresholds
-                     (Layer1Scorer AI scoring + Layer1Filter hard rules)
-  3. STOP          — if Layer 1 flags the packet, return INVESTIGATE
-                     with raw_packet stored for on-demand Layer 2
+  1. SARIMA             — get dynamic thresholds + temporal context
+  2. EnsembleAnomalyDetector — ML scoring (Isolation Forest + Random Forest)
+  3. Layer1Filter       — hard rule confirmation gate
+      PASS → ALLOW
+      FAIL → INVESTIGATE (raw_packet stored for on-demand L2)
 
 Layer 2 is NOT run here. It only runs when the analyst clicks
 "Investigate" in the frontend → POST /api/alerts/{id}/investigate
 
-Output:  ALLOW / INVESTIGATE  + full Layer 1 evidence + raw_packet
+Output:  ALLOW / INVESTIGATE  + full evidence + raw_packet
 
 Author: Backend Team
 """
@@ -22,83 +22,55 @@ import uuid
 import datetime
 from typing import Optional, Tuple
 
-from backend.detection.layer1_filter    import Layer1Filter
-from backend.detection.layer2_scanner  import Layer2Scanner
+from backend.detection.layer1_filter     import Layer1Filter
+from backend.detection.layer2_scanner    import Layer2Scanner
 from backend.detection.sarima_forecaster import SARIMAForecaster
-from backend.detection.layer1_scorer   import Layer1Scorer
-from backend.detection.ai_model import EnsembleAnomalyDetector
+from backend.detection.ai_model          import EnsembleAnomalyDetector
 
 
 # ============================================================================
 # SARIMA THRESHOLD ADAPTER
-# Converts SARIMA predictions into dynamic Layer 1 thresholds
 # ============================================================================
 
 class SARIMAThresholdAdapter:
     """
-    Converts SARIMA time-series predictions into dynamic thresholds
-    for Layer 1 and temporal context for Layer 2.
+    Converts SARIMA time-series predictions into dynamic Layer 1 thresholds.
 
     Peak hours  → relaxed thresholds (traffic is naturally higher)
     Off-peak    → tighter thresholds (any spike is more suspicious)
     """
 
-    # Base thresholds (same as Layer1Filter defaults)
-    BASE_DURATION_MAX   = 3000    # ms
-    BASE_SIZE_MAX       = 65535   # bytes
-    BASE_TTL_MIN        = 30
-    BASE_TTL_MAX        = 128
+    BASE_DURATION_MAX     = 3000
+    BASE_SIZE_MAX         = 65535
+    BASE_TTL_MIN          = 30
+    BASE_TTL_MAX          = 128
 
-    # How much to relax thresholds during peak hours (multipliers)
-    PEAK_DURATION_MULT    = 1.8   # allow up to 1.8x longer during peak
+    PEAK_DURATION_MULT    = 1.8
     PEAK_SIZE_MULT        = 1.5
-    OFFPEAK_DURATION_MULT = 0.7   # tighten to 0.7x during off-peak
+    OFFPEAK_DURATION_MULT = 0.7
 
     def get_layer1_thresholds(self, sarima: SARIMAForecaster) -> dict:
-        """
-        Return dynamic Layer 1 thresholds adjusted for current time window.
-        """
-        now          = datetime.datetime.utcnow()
-        hour         = now.hour
-        is_peak      = self._is_peak_hour(hour)
-        prediction   = sarima.predict()
+        now  = datetime.datetime.utcnow()
+        hour = now.hour
+        is_peak = 8 <= hour <= 20
 
-        predicted_duration = prediction["value"]
-        pred_std           = prediction["std"]
-
-        # If SARIMA is trained, use predicted duration to set threshold
-        # threshold = predicted_mean + 3*std (covers 99.7% of normal traffic)
-        if sarima._trained and predicted_duration > 0:
-            dynamic_duration = predicted_duration + (3 * pred_std)
-            # Apply peak/off-peak multiplier on top
-            mult = self.PEAK_DURATION_MULT if is_peak else self.OFFPEAK_DURATION_MULT
-            duration_max = max(dynamic_duration * mult, self.BASE_DURATION_MAX)
+        if is_peak:
+            duration_max = self.BASE_DURATION_MAX * self.PEAK_DURATION_MULT
+            size_max     = int(self.BASE_SIZE_MAX * self.PEAK_SIZE_MULT)
         else:
-            # Not trained yet — use base with peak multiplier only
-            mult = self.PEAK_DURATION_MULT if is_peak else 1.0
-            duration_max = self.BASE_DURATION_MAX * mult
+            duration_max = self.BASE_DURATION_MAX * self.OFFPEAK_DURATION_MULT
+            size_max     = self.BASE_SIZE_MAX
 
         return {
-            "ttl_min":            self.BASE_TTL_MIN,
-            "ttl_max":            self.BASE_TTL_MAX,
-            "size_max":           int(self.BASE_SIZE_MAX * (self.PEAK_SIZE_MULT if is_peak else 1.0)),
-            "duration_max":       round(duration_max, 1),
-            "is_peak_hour":       is_peak,
-            "hour":               hour,
-            "sarima_trained":     sarima._trained,
-            "predicted_duration": round(predicted_duration, 2),
-            "predicted_std":      round(pred_std, 2),
+            "ttl_min":      self.BASE_TTL_MIN,
+            "ttl_max":      self.BASE_TTL_MAX,
+            "size_max":     size_max,
+            "duration_max": duration_max,
+            "is_peak":      is_peak,
+            "hour":         hour,
         }
 
-    def get_temporal_context(
-        self,
-        sarima: SARIMAForecaster,
-        actual_duration: float,
-    ) -> dict:
-        """
-        Return temporal context for later use by Layer 2 risk scorer.
-        Shows how anomalous this packet is relative to the current time window.
-        """
+    def get_temporal_context(self, sarima: SARIMAForecaster, actual_duration: float) -> dict:
         temporal_score = sarima.detect_temporal_anomaly(actual_duration)
         prediction     = sarima.predict()
         now            = datetime.datetime.utcnow()
@@ -107,7 +79,6 @@ class SARIMAThresholdAdapter:
         expected = prediction["value"] if prediction["value"] > 0 else actual_duration
         ratio    = actual_duration / max(expected, 1.0)
 
-        # Off-peak attacks get a risk boost — more suspicious at quiet times
         offpeak_boost = 0.15 if (not is_peak and temporal_score > 0.5) else 0.0
 
         return {
@@ -124,7 +95,6 @@ class SARIMAThresholdAdapter:
         }
 
     def _is_peak_hour(self, hour: int) -> bool:
-        """Peak hours: weekday 8am–8pm UTC."""
         return 8 <= hour <= 20
 
     def _get_time_window(self, hour: int) -> str:
@@ -140,11 +110,12 @@ class SARIMAThresholdAdapter:
 
 # ============================================================================
 # MODULE-LEVEL SINGLETONS
-# Instantiated once at import time, shared across all requests
+# Instantiated once at import time, shared across all requests.
+# api.py imports these directly so there is ONE instance of each.
 # ============================================================================
 
 _layer1_filter     = Layer1Filter()
-_layer2_scanner    = Layer2Scanner()   # kept for reference; pipeline no longer calls it
+_layer2_scanner    = Layer2Scanner()    # used by api.py for on-demand L2
 _sarima            = SARIMAForecaster()
 _ai_model          = EnsembleAnomalyDetector(learning_window=200)
 _threshold_adapter = SARIMAThresholdAdapter()
@@ -170,17 +141,14 @@ class CloudSentinelPipeline:
         Run the detection pipeline on a single packet.
 
         Pipeline stages:
-          1. SARIMA    → dynamic thresholds + temporal context
-          2. Layer1Scorer → AI scoring, Z-scores, Welford baseline
-          3. Layer1Filter → hard rule confirmation gate
-              PASS → ALLOW
-              FAIL → INVESTIGATE (raw_packet stored for on-demand L2)
+          1. SARIMA                  → dynamic thresholds + temporal context
+          2. EnsembleAnomalyDetector → ML scoring (IF + RF ensemble)
+          3. Layer1Filter            → hard rule confirmation gate
+              PASS  → ALLOW
+              FAIL  → INVESTIGATE (raw_packet stored for on-demand L2)
 
         Layer 2 is intentionally NOT run here.
         It runs on-demand via POST /api/alerts/{id}/investigate.
-
-        Args:
-            packet: Lambda execution metadata dict
 
         Returns:
             Full pipeline result with decision + evidence + raw_packet
@@ -206,28 +174,33 @@ class CloudSentinelPipeline:
             "temporal_context": temporal_context,
         }
 
-        # ── STAGE 2A: LAYER 1 SCORER (AI scoring — runs first) ──────────────
-        # Feeds every packet into the AI model to keep baseline updated.
-        # During learning phase: just collects data, no anomaly decision.
-        # After learning:        calculates Z-scores + weighted composite.
-        scorer_features         = self._extract_scorer_features(packet)
-        l1_score, l1_score_details = _ai_model.process_log(scorer_features)
-        stages["layer1_scorer"] = {
-            "score":   round(l1_score, 4),
-            "details": l1_score_details,
+        # ── STAGE 2: ML ENSEMBLE (Isolation Forest + Random Forest) ──────────
+        # .predict() handles all phases internally:
+        #   - Learning: collects features, returns ALLOW
+        #   - Isolation Forest only: scores with single model
+        #   - Full ensemble: both models vote, BLOCK only on consensus
+        ensemble_result = _ai_model.predict(packet)
+
+        stages["ai_model"] = {
+            "phase":        ensemble_result.get("phase"),
+            "score":        ensemble_result.get("anomaly_score", 0),
+            "decision":     ensemble_result.get("decision"),
+            "is_anomaly":   ensemble_result.get("is_anomaly", False),
+            "attack_type":  ensemble_result.get("attack_type"),
+            "model_votes":  ensemble_result.get("model_votes"),
+            "confidence":   ensemble_result.get("confidence", 0),
         }
 
-        scorer_is_anomaly = (
-            l1_score_details.get("phase") != "learning"
-            and l1_score_details.get("is_anomaly", False)
-        )
-        scorer_learning = l1_score_details.get("phase") == "learning"
+        ensemble_is_anomaly = ensemble_result.get("is_anomaly", False)
+        ensemble_phase      = ensemble_result.get("phase", "learning")
 
-        # ── STAGE 2B: LAYER 1 FILTER (hard rules — runs after scorer) ────────
-        # Always runs regardless of scorer result.
-        # Specifically catches DDoS (API call rate), IP spoofing,
-        # data exfiltration (outbound ratio), and fragmentation attacks.
-        # SARIMA provides dynamic duration threshold.
+        # Also feed as labeled data for continuous learning:
+        # Normal traffic that passes → labeled as normal
+        # (Anomaly labels come later from Layer 2 investigate results)
+        if not ensemble_is_anomaly:
+            _ai_model.add_labeled_example(packet, is_anomaly=False, attack_type="normal")
+
+        # ── STAGE 3: LAYER 1 FILTER (hard rules — always runs) ───────────────
         dynamic_l1 = Layer1Filter(
             ttl_min         = sarima_thresholds["ttl_min"],
             ttl_max         = sarima_thresholds["ttl_max"],
@@ -239,24 +212,24 @@ class CloudSentinelPipeline:
 
         filter_has_violations = not l1_filter_result["pass"]
 
-        # Combined Layer 1 result
-        # ALLOW only if: filter clean AND (scorer says normal OR still learning)
-        # FAIL  if:      filter has violations OR scorer found anomaly
-        l1_pass = (not filter_has_violations) and (not scorer_is_anomaly)
+        # ── COMBINED DECISION ─────────────────────────────────────────────────
+        # ALLOW only if: filter clean AND ensemble says normal (or learning)
+        # INVESTIGATE if: filter has violations OR ensemble flagged anomaly
+        l1_pass = (not filter_has_violations) and (not ensemble_is_anomaly)
 
         l1_result = {
             "pass":              l1_pass,
-            "scorer_anomaly":    scorer_is_anomaly,
-            "scorer_learning":   scorer_learning,
+            "ensemble_anomaly":  ensemble_is_anomaly,
+            "ensemble_phase":    ensemble_phase,
             "filter_violations": l1_filter_result["violations"],
             "filter_passed":     l1_filter_result["pass"],
-            "l1_score":          round(l1_score, 4),
+            "ensemble_score":    round(ensemble_result.get("anomaly_score", 0), 4),
             "filter_result":     l1_filter_result,
-            "scorer_result":     l1_score_details,
+            "ensemble_result":   ensemble_result,
         }
         stages["layer1"] = l1_result
 
-        # ── ALLOW: Layer 1 passed ─────────────────────────────────────────────
+        # ── ALLOW: everything clean ───────────────────────────────────────────
         if l1_pass:
             elapsed_ms = round((time.perf_counter() - t0) * 1000, 3)
             return self._build_result(
@@ -268,76 +241,86 @@ class CloudSentinelPipeline:
                 stages      = stages,
                 elapsed_ms  = elapsed_ms,
                 stopped_at  = "layer1",
-                reason      = "Passed Layer 1 scorer and filter — normal traffic",
-                raw_packet  = None,   # not stored for ALLOW decisions
+                reason      = "Passed ML ensemble and Layer 1 filter — normal traffic",
+                raw_packet  = None,
             )
 
-        # ── INVESTIGATE: Layer 1 flagged this packet ──────────────────────────
-        # Layer 2 is NOT run here. It only runs when the analyst clicks
-        # "Investigate" in the frontend → POST /api/alerts/{id}/investigate
-        #
-        # We store raw_packet in the result so api.py can attach it to the
-        # alert. When investigate_alert() is called later, it reads
-        # alert["_raw_packet"] and passes it to Layer2Scanner.scan().
-        elapsed_ms = round((time.perf_counter() - t0) * 1000, 3)
+        # ── INVESTIGATE: flagged by ensemble and/or filter ────────────────────
+        # Determine severity from ensemble + filter evidence
+        severity = self._determine_severity(ensemble_result, l1_filter_result)
 
-        # Determine initial severity from Layer 1 scorer result
-        l1_severity = l1_score_details.get("severity") or "MEDIUM"
+        # Confidence from ensemble if available, otherwise default
+        confidence = ensemble_result.get("confidence", 0.60)
+        if ensemble_phase == "learning":
+            confidence = 0.60  # lower confidence during learning
+
+        elapsed_ms = round((time.perf_counter() - t0) * 1000, 3)
 
         return self._build_result(
             pipeline_id = pipeline_id,
             timestamp   = timestamp,
             decision    = "INVESTIGATE",
-            confidence  = 0.60,
-            severity    = l1_severity,
+            confidence  = confidence,
+            severity    = severity,
             stages      = stages,
             elapsed_ms  = elapsed_ms,
             stopped_at  = "layer1",
-            reason      = self._build_reason_l1_only(l1_score_details, l1_result),
-            raw_packet  = packet,   # stored so Layer 2 can use it on-demand
+            reason      = self._build_reason(ensemble_result, l1_result),
+            raw_packet  = packet,
         )
 
-    # ── Extract features for Layer 1 Scorer ──────────────────────────────────
+    # ── Severity determination ────────────────────────────────────────────────
 
-    def _extract_scorer_features(self, packet: dict) -> dict:
-        """Build feature dict for Layer1Scorer baseline learning and scoring."""
-        return {
-            "duration":        packet.get("duration", 0),
-            "memory_used":     packet.get("memory_used", 0),
-            "num_api_calls":   packet.get("num_api_calls", 0),
-            "error_count":     packet.get("error_count", 0),
-            "concurrency":     1,
-            "packet_size_in":  packet.get("packet_size_in", 512),
-            "packet_size_out": packet.get("packet_size_out", 0),
-            "latency":         packet.get("network_latency", 0),
-            "fragment_count":  packet.get("fragment_count", 0),
-            "ip_address":      packet.get("ip_address", ""),
-            "timestamp":       datetime.datetime.utcnow().isoformat(),
-        }
-
-    # ── Build reason string from Layer 1 data only ───────────────────────────
-
-    def _build_reason_l1_only(self, ai_details: dict, l1_result: dict) -> str:
+    def _determine_severity(self, ensemble_result: dict, filter_result: dict) -> str:
         """
-        Build a human-readable reason string using only Layer 1 data.
-        Layer 2 has not run yet so we cannot reference L2 findings here.
+        Determine alert severity from ensemble score + filter violations.
+
+        CRITICAL: ensemble score >= 0.80 OR 3+ filter violations
+        HIGH:     ensemble score >= 0.60 OR 2+ filter violations
+        MEDIUM:   everything else that reached INVESTIGATE
         """
+        score      = ensemble_result.get("anomaly_score", 0)
+        violations = filter_result.get("violations", [])
+        n_violations = len(violations)
+
+        if score >= 0.80 or n_violations >= 3:
+            return "CRITICAL"
+        elif score >= 0.60 or n_violations >= 2:
+            return "HIGH"
+        else:
+            return "MEDIUM"
+
+    # ── Build reason string ───────────────────────────────────────────────────
+
+    def _build_reason(self, ensemble_result: dict, l1_result: dict) -> str:
+        """Build a human-readable reason string from ensemble + filter data."""
         violations = l1_result.get("filter_violations", [])
-        phase      = ai_details.get("phase", "detection")
-        score      = ai_details.get("anomaly_score", 0)
+        phase      = ensemble_result.get("phase", "learning")
+        score      = ensemble_result.get("anomaly_score", 0)
+        attack     = ensemble_result.get("attack_type")
 
         parts = []
 
         if phase == "learning":
-            parts.append(
-                f"AI model still learning baseline "
-                f"({ai_details.get('learning_progress', '')})"
-            )
+            progress = ensemble_result.get("learning_progress", "")
+            parts.append(f"ML model learning baseline ({progress})")
         elif score > 0:
-            parts.append(f"AI anomaly score: {score:.2f}")
+            parts.append(f"ML ensemble score: {score:.2f}")
+
+        if attack:
+            parts.append(f"Suspected: {attack}")
+
+        # Show model votes if available
+        votes = ensemble_result.get("model_votes", {})
+        if votes:
+            if_vote = votes.get("isolation_forest", {})
+            rf_vote = votes.get("random_forest")
+            if if_vote.get("is_anomaly"):
+                parts.append(f"Isolation Forest: anomaly ({if_vote.get('score', 0):.2f})")
+            if rf_vote and rf_vote.get("is_anomaly"):
+                parts.append(f"Random Forest: anomaly ({rf_vote.get('score', 0):.2f})")
 
         if violations:
-            # Show up to 2 violations to keep it readable
             for v in violations[:2]:
                 parts.append(v)
 
@@ -361,13 +344,6 @@ class CloudSentinelPipeline:
         reason:      str,
         raw_packet:  dict = None,
     ) -> dict:
-        """
-        Assemble the pipeline result dict.
-
-        raw_packet is included when decision == INVESTIGATE so that
-        api.py can attach it to the alert as _raw_packet for later
-        on-demand Layer 2 investigation.
-        """
         result = {
             "pipeline_id": pipeline_id,
             "timestamp":   timestamp,
@@ -385,7 +361,7 @@ class CloudSentinelPipeline:
 
 
 # ============================================================================
-# MODULE-LEVEL CONVENIENCE FUNCTION
+# MODULE-LEVEL CONVENIENCE
 # ============================================================================
 
 _pipeline = CloudSentinelPipeline()
