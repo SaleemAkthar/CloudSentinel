@@ -11,8 +11,8 @@ POST /api/auth/logout    — clear the httpOnly cookie                (Commit 8)
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from backend.auth_models import LoginRequest, RegisterRequest, UserResponse, MessageResponse
-from backend.user_store import create_user, email_exists, get_user_by_email, get_user_by_id
+from backend.auth_models import LoginRequest, RegisterRequest, UserResponse, MessageResponse, ProfileUpdateRequest
+from backend.user_store import create_user, email_exists, get_user_by_email, get_user_by_id, update_user
 from backend.auth_utils import create_access_token, decode_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -100,6 +100,48 @@ def get_me(request: Request):
         raise HTTPException(status_code=401, detail="User not found.")
 
     return UserResponse(id=user["id"], username=user["username"], email=user["email"])
+
+
+# PUT /api/auth/profile
+
+@router.put("/profile", response_model=UserResponse)
+def update_profile(body: ProfileUpdateRequest, request: Request, response: Response):
+    """
+    Update the currently authenticated user's profile (username and/or email).
+    Re-issues the auth cookie after update to keep the session valid.
+    """
+    token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+
+    user_id = decode_access_token(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid or expired session.")
+
+    # Validate inputs
+    if body.username is not None and len(body.username.strip()) < 3:
+        raise HTTPException(status_code=422, detail="Username must be at least 3 characters.")
+    if body.email is not None and not body.email.strip():
+        raise HTTPException(status_code=422, detail="Email is required.")
+
+    # Check if new email is already taken by another user
+    if body.email is not None:
+        existing = get_user_by_email(body.email)
+        if existing and existing["id"] != user_id:
+            raise HTTPException(status_code=409, detail="An account with this email already exists.")
+
+    updated = update_user(
+        user_id=user_id,
+        username=body.username.strip() if body.username else None,
+        email=body.email.strip() if body.email else None,
+    )
+    if not updated:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    # Refresh the auth cookie
+    _set_auth_cookie(response, updated["id"])
+
+    return UserResponse(id=updated["id"], username=updated["username"], email=updated["email"])
 
 
 # POST /api/auth/logout
