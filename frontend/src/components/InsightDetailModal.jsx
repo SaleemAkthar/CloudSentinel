@@ -5,7 +5,7 @@ import ExpandLessRoundedIcon from "@mui/icons-material/ExpandLessRounded";
 import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 import { useNavigate } from "react-router-dom";
 
-// ── Severity colour map ─────────────────────────────────────────────────
+// Severity colour map
 const SEV = {
   CRITICAL: {
     bg: "bg-red-500/15",
@@ -49,7 +49,7 @@ const LEVEL_COLORS = {
   },
 };
 
-// ── Helpers ──────────────────────────────────────────────────────────────
+// Helpers 
 function formatTime(ts) {
   return new Date(ts).toLocaleString("en-US", {
     month: "short",
@@ -119,11 +119,10 @@ function AlertRow({ alert }) {
 
         {/* Status */}
         <span
-          className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-            alert.status === "OPEN"
+          className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${alert.status === "OPEN"
               ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
               : "bg-slate-500/15 text-slate-400 border border-slate-500/30"
-          }`}
+            }`}
         >
           {alert.status}
         </span>
@@ -174,9 +173,9 @@ function AlertRow({ alert }) {
   );
 }
 
-// =========================================================================
+// ==========
 // MAIN MODAL
-// =========================================================================
+// ==========
 export default function InsightDetailModal({ insight, onClose }) {
   const navigate = useNavigate();
   const alerts = insight._alerts || [];
@@ -222,7 +221,7 @@ export default function InsightDetailModal({ insight, onClose }) {
                      shadow-2xl shadow-black/40 overflow-hidden"
           style={{ animation: "modalSlideUp 0.3s ease-out forwards" }}
         >
-          {/* ────── Header ────── */}
+          {/*  Header  */}
           <div className="shrink-0 border-b border-white/10 bg-[#0a1328]/90 backdrop-blur px-6 py-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
@@ -284,7 +283,7 @@ export default function InsightDetailModal({ insight, onClose }) {
             </div>
           </div>
 
-          {/* ────── Body (scrollable) ────── */}
+          {/*  Body (scrollable)  */}
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
             {/* Stats Row */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -371,7 +370,7 @@ export default function InsightDetailModal({ insight, onClose }) {
             </div>
           </div>
 
-          {/* ────── Footer ────── */}
+          {/*  Footer  */}
           <div className="shrink-0 border-t border-white/10 bg-[#0a1328]/90 backdrop-blur px-6 py-4 flex items-center justify-between">
             <span className="text-xs text-slate-500">
               {total} alert{total !== 1 ? "s" : ""} linked • {openCount} open
