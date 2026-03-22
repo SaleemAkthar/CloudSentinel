@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import axios from "axios";
 import InsightStatCard from "../components/InsightStatCard";
 import InsightCard from "../components/InsightCard";
+import InsightDetailModal from "../components/InsightDetailModal";
 
 
 const POLL_INTERVAL = 5000;
@@ -47,6 +48,7 @@ function buildInsights(alerts) {
       confidence: Math.round(avgConf * 100 * 10) / 10,
       action: critCount > 0 ? `${critCount} blocked` : "Monitoring active",
       time: ago,
+      _alerts: topAlerts,
     });
   }
 
@@ -65,6 +67,7 @@ function buildInsights(alerts) {
       confidence: Math.round(avgScore * 100 * 10) / 10,
       action: "Investigation recommended",
       time: timeAgo(latest.timestamp, now),
+      _alerts: criticals,
     });
   }
 
@@ -83,6 +86,7 @@ function buildInsights(alerts) {
       confidence: Math.round(errorRate * 100 * 10) / 10,
       action: errorRate > 0.5 ? "Review function security" : "Continue monitoring",
       time: timeAgo(latest.timestamp, now),
+      _alerts: fnAlerts,
     });
   }
 
@@ -109,6 +113,7 @@ function buildInsights(alerts) {
       confidence: Math.round(avgRisk * 100 * 10) / 10,
       action: `${l2Alerts.filter((a) => a.layer2_report?.decision === "BLOCK").length} blocked by L2`,
       time: timeAgo(latest.timestamp, now),
+      _alerts: l2Alerts,
     });
   }
 
@@ -125,6 +130,7 @@ function buildInsights(alerts) {
       confidence: Math.round((100 - openPct) * 10) / 10,
       action: openPct > 50 ? "Review open alerts" : "On track",
       time: "Current",
+      _alerts: alerts,
     });
   }
 
@@ -163,6 +169,7 @@ export default function AIInsights() {
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedInsight, setSelectedInsight] = useState(null);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -276,10 +283,22 @@ export default function AIInsights() {
           </div>
         ) : (
           insights.map((insight) => (
-            <InsightCard key={insight.id} insight={insight} />
+            <InsightCard
+              key={insight.id}
+              insight={insight}
+              onViewDetails={setSelectedInsight}
+            />
           ))
         )}
       </div>
+
+      {/* Detail Modal */}
+      {selectedInsight && (
+        <InsightDetailModal
+          insight={selectedInsight}
+          onClose={() => setSelectedInsight(null)}
+        />
+      )}
     </div>
   );
 }
