@@ -1,6 +1,5 @@
 """
 Cloud Sentinel — Synthetic Log Generator
-==========================================
 Generates realistic normal and attack traffic for testing the detection pipeline.
 
 Normal traffic variations: standard, quick, heavy, batch, peak, night
