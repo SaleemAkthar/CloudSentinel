@@ -9,21 +9,21 @@ import ShowChartRoundedIcon from "@mui/icons-material/ShowChartRounded";
 import GridViewRoundedIcon from "@mui/icons-material/GridViewRounded";
 
 // default user data
-// const initialUser = {
-//   name: "Display Name",
-//   role: "Display Role",
-//   email: "email@cloudsentinel.io",
-//   organization: "Cloud Sentinel Security",
-//   joined: "January 2025",
-//   avatar: "DN",
-//   plan: "Team",
-//   twoFA: true,
-//   notifications: {
-//     email: true,
-//     critical: true,
-//     weekly: false,
-//   },
-// };
+const initialUser = {
+  name: "Display Name",
+  role: "Display Role",
+  email: "email@cloudsentinel.io",
+  organization: "Cloud Sentinel Security",
+  joined: "January 2025",
+  avatar: "DN",
+  plan: "Team",
+  twoFA: true,
+  notifications: {
+    email: true,
+    critical: true,
+    weekly: false,
+  },
+};
 
 // reusable row component for each info field
 function InfoRow({ icon, label, value, editing, fieldKey, onChange }) {
@@ -308,8 +308,8 @@ export default function Profile() {
 
                 <span
                   className={`px-2.5 py-1 rounded-full text-xs font-semibold ${user.twoFA
-                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                      : "bg-red-500/15 text-red-400 border border-red-500/30"
+                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                    : "bg-red-500/15 text-red-400 border border-red-500/30"
                     }`}
                 >
                   {user.twoFA ? "Enabled" : "Disabled"}
