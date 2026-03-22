@@ -1,6 +1,5 @@
 """
 Auth Pydantic Models
-====================
 Request bodies and response shapes for all /api/auth/* endpoints.
 """
 

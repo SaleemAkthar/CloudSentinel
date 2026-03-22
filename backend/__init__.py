@@ -1,6 +1,5 @@
 """
 Cloud Sentinel Backend
-======================
 
 Serverless security anomaly detection system.
 

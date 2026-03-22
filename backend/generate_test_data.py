@@ -41,9 +41,8 @@ MALICIOUS_IPS = [
 ]
 
 
-# ============================================================================
+
 # NORMAL TRAFFIC — passes Layer 1 Filter
-# ============================================================================
 
 def _normal_log() -> dict:
     """Normal Lambda execution — all fields within safe thresholds."""
@@ -218,9 +217,8 @@ ATTACK_GENERATORS = {
 }
 
 
-# ============================================================================
+
 # PHASE 1 — LEARNING: Normal traffic (builds AI model baseline)
-# ============================================================================
 
 def generate_learning_phase(count: int = 100, verbose: bool = True):
     """Send normal traffic to build the Layer1Scorer baseline."""
@@ -244,9 +242,7 @@ def generate_learning_phase(count: int = 100, verbose: bool = True):
     return True
 
 
-# ============================================================================
 # PHASE 2 — ATTACKS: Traffic that should fail Layer 1 Filter
-# ============================================================================
 
 def generate_attack_data(count_per_type: int = 5, verbose: bool = True):
     """Send attack traffic — each type designed to fail specific Layer 1 checks."""
@@ -281,9 +277,8 @@ def generate_attack_data(count_per_type: int = 5, verbose: bool = True):
     return True
 
 
-# ============================================================================
+
 # PHASE 3 — MIXED: Realistic blend of normal + attack
-# ============================================================================
 
 def generate_mixed_traffic(count: int = 50, attack_rate: float = 0.15, verbose: bool = True):
     """Send mixed traffic to simulate real-world conditions."""
@@ -311,9 +306,8 @@ def generate_mixed_traffic(count: int = 50, attack_rate: float = 0.15, verbose: 
     return True
 
 
-# ============================================================================
+
 # PHASE 4 — SARIMA warm-up
-# ============================================================================
 
 def generate_sarima_warmup(count: int = 200, verbose: bool = True):
     """Send additional normal traffic so SARIMA has enough data points to train."""
@@ -335,9 +329,7 @@ def generate_sarima_warmup(count: int = 200, verbose: bool = True):
     return True
 
 
-# ============================================================================
 # MAIN
-# ============================================================================
 
 def generate_all_test_data(verbose: bool = True):
     """Run all four phases to fully populate the dashboard."""
