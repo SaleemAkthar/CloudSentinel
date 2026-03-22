@@ -8,7 +8,7 @@ import InsightDetailModal from "../components/InsightDetailModal";
 const POLL_INTERVAL = 5000;
 
 
-// ── Generate insights from real alert data ──────────────────────────────
+//  Generate insights from real alert data 
 function buildInsights(alerts) {
   if (!alerts.length) return [];
 
@@ -138,7 +138,7 @@ function buildInsights(alerts) {
 }
 
 
-// ── Helpers ─────────────────────────────────────────────────────────────
+//  Helpers 
 function timeAgo(ts, now) {
   const diff = now - new Date(ts).getTime();
   const mins = Math.floor(diff / 60000);
@@ -160,9 +160,9 @@ function getMostCommon(alerts, field) {
 }
 
 
-// =========================================================================
+// ============
 // COMPONENT
-// =========================================================================
+// ============
 
 export default function AIInsights() {
   const [modelHealth, setModelHealth] = useState(null);
@@ -194,7 +194,7 @@ export default function AIInsights() {
     return () => clearInterval(interval);
   }, [fetchAll]);
 
-  // ── Computed stats ────────────────────────────────────────────────
+  // Computed stats 
   const accuracy = modelHealth?.accuracy ?? 0;
   const trainingActive = modelHealth?.trainingActive ?? false;
   const sarimaProgress = modelHealth?.sarima_progress ?? 0;
@@ -208,7 +208,7 @@ export default function AIInsights() {
     ? ((infoAlerts / alerts.length) * 100).toFixed(1)
     : "0.0";
 
-  // ── Build insights from real data ─────────────────────────────────
+  // Build insights from real data 
   const insights = useMemo(() => buildInsights(alerts), [alerts]);
 
   return (
@@ -224,9 +224,8 @@ export default function AIInsights() {
         </div>
         <div className="flex items-center gap-2">
           <span
-            className={`h-2.5 w-2.5 rounded-full ${
-              error ? "bg-red-400" : "bg-emerald-400 animate-pulse"
-            }`}
+            className={`h-2.5 w-2.5 rounded-full ${error ? "bg-red-400" : "bg-emerald-400 animate-pulse"
+              }`}
           />
           <span className="text-xs text-slate-400">
             {error ? "Disconnected" : "Live"}
