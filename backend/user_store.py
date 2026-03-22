@@ -1,6 +1,5 @@
 """
 In-Memory User Store (Persisted to JSON)
-========================================
 Stores registered users in a local JSON file to survive server reloads.
 Keys are lowercased emails for fast login lookup.
 """
