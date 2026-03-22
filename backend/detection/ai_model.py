@@ -1,6 +1,5 @@
 """
 AI Model — Cloud Sentinel Ensemble Anomaly Detector
-=====================================================
 Two-model ensemble for final anomaly decision with low false positives.
 
 Models:
@@ -46,9 +45,8 @@ from sklearn.preprocessing import StandardScaler
 logger = logging.getLogger("cloud_sentinel.ai_model")
 
 
-# ============================================================================
+
 # FEATURE EXTRACTION
-# ============================================================================
 
 # The 10 features the model uses — order matters, must be consistent
 FEATURE_NAMES = [
@@ -89,9 +87,8 @@ def extract_features(packet: dict) -> np.ndarray:
     ], dtype=np.float64)
 
 
-# ============================================================================
+
 # ENSEMBLE MODEL
-# ============================================================================
 
 class EnsembleAnomalyDetector:
     """
@@ -120,19 +117,19 @@ class EnsembleAnomalyDetector:
         """
         self.learning_window = learning_window
 
-        # ── Phase tracking ────────────────────────────────────────────────
+        # Phase tracking
         self.phase = "learning"       # "learning" → "isolation_only" → "full_ensemble"
         self.n_requests = 0
         self.n_anomalies = 0
 
-        # ── Feature scaling ───────────────────────────────────────────────
+        # Feature scaling
         self.scaler = StandardScaler()
         self._scaler_fitted = False
 
-        # ── Learning phase buffer ─────────────────────────────────────────
+        # Learning phase buffer
         self._learning_buffer: List[np.ndarray] = []
 
-        # ── Model 1: Isolation Forest (unsupervised) ─────────────────────
+        # Model 1: Isolation Forest (unsupervised)
         # contamination=0.02 means "expect ~2% of training data to be anomalous"
         # This is conservative — lower = fewer false positives
         self.isolation_forest = IsolationForest(
@@ -144,7 +141,7 @@ class EnsembleAnomalyDetector:
         )
         self._if_trained = False
 
-        # ── Model 2: Random Forest Classifier (supervised) ───────────────
+        # ── Model 2: Random Forest Classifier (supervised)
         # Trained on labeled data accumulated from Layer 2 decisions.
         # class_weight="balanced" handles the imbalanced dataset
         # (more normal than anomaly examples).
@@ -159,7 +156,7 @@ class EnsembleAnomalyDetector:
         )
         self._rf_trained = False
 
-        # ── Labeled data buffer for supervised training ───────────────────
+        # Labeled data buffer for supervised training
         # Accumulated from Layer 2 decisions over time
         self._labeled_X: List[np.ndarray] = []
         self._labeled_y: List[int] = []           # 0 = normal, 1 = anomaly
@@ -169,7 +166,7 @@ class EnsembleAnomalyDetector:
         self._rf_retrain_interval = 100           # retrain every 100 new labels
         self._labels_since_retrain = 0
 
-        # ── Attack type classifier ────────────────────────────────────────
+        # Attack type classifier
         # Separate RF that classifies attack TYPE (not just anomaly/normal)
         self.attack_classifier = RandomForestClassifier(
             n_estimators=80,
@@ -180,12 +177,11 @@ class EnsembleAnomalyDetector:
         )
         self._attack_clf_trained = False
 
-        # ── Performance tracking ──────────────────────────────────────────
+        # Performance tracking
         self._recent_predictions = deque(maxlen=500)
 
-    # ======================================================================
+   
     # PUBLIC API
-    # ======================================================================
 
     def predict(self, packet: dict, l2_risk_score: float = 0.0) -> dict:
         """
@@ -213,11 +209,11 @@ class EnsembleAnomalyDetector:
         self.n_requests += 1
         features = extract_features(packet)
 
-        # ── LEARNING PHASE ────────────────────────────────────────────────
+        #LEARNING PHASE
         if self.phase == "learning":
             return self._handle_learning(features)
 
-        # ── DETECTION PHASE ───────────────────────────────────────────────
+        # DETECTION PHASE
         return self._handle_detection(features, l2_risk_score)
 
     def add_labeled_example(self, packet: dict, is_anomaly: bool,
@@ -332,9 +328,9 @@ class EnsembleAnomalyDetector:
             "progress_pct":      round(progress * 100, 1),
         }
 
-    # ======================================================================
+    
     # DETECTION PHASE
-    # ======================================================================
+    
 
     def _handle_detection(self, features: np.ndarray, l2_risk: float) -> dict:
         """Run the ensemble and return a decision."""
@@ -417,9 +413,8 @@ class EnsembleAnomalyDetector:
             },
         }
 
-    # ======================================================================
+    
     # ENSEMBLE VOTING — the core logic for low false positives
-    # ======================================================================
 
     def _ensemble_vote(
         self,
@@ -489,7 +484,7 @@ class EnsembleAnomalyDetector:
             confidence = min(0.85 + (1 - combined) * 0.10, 0.99)
             return "ALLOW", combined, confidence
 
-        # ── Isolation Forest only (RF not yet trained) ────────────────────
+        # Isolation Forest only (RF not yet trained)
         else:
             combined = (if_score * 0.6) + (l2_risk * 0.4)
 
@@ -509,9 +504,9 @@ class EnsembleAnomalyDetector:
             confidence = min(0.80 + (1 - combined) * 0.15, 0.99)
             return "ALLOW", combined, confidence
 
-    # ======================================================================
+
     # TRAINING
-    # ======================================================================
+
 
     def _train_isolation_forest(self):
         """Train Isolation Forest on collected normal traffic."""
@@ -573,9 +568,8 @@ class EnsembleAnomalyDetector:
 
         self._labels_since_retrain = 0
 
-    # ======================================================================
+
     # FEEDBACK (for tracking real performance)
-    # ======================================================================
 
     def record_outcome(self, predicted_anomaly: bool, true_anomaly: bool):
         """
@@ -591,9 +585,7 @@ class EnsembleAnomalyDetector:
         })
 
 
-# ============================================================================
 # TESTING
-# ============================================================================
 
 if __name__ == "__main__":
     print("=" * 70)
