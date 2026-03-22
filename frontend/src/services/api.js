@@ -3,7 +3,6 @@ import mockAlerts from "../test/alerts.json";
 
 // Point to AWS backend
 axios.defaults.baseURL = "http://cloud-sentinel-alb-1569061158.us-east-1.elb.amazonaws.com";
-
 axios.defaults.withCredentials = true;
 
 
