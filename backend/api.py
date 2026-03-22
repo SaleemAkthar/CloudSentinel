@@ -307,7 +307,7 @@ def process_log(request: LogRequest):
     severity   = pipeline_result["severity"]
     is_anomaly = decision == "INVESTIGATE"
 
-    # ── Extract details from pipeline stages ──────────────────────────
+    # Extract details from pipeline stages
     stages    = pipeline_result.get("stages", {})
     l1_result = stages.get("layer1", {})
 
@@ -508,9 +508,8 @@ def block_alert(alert_id: str):
     }
 
 
-# ---------------------------------------------------------------------------
+
 # ON-DEMAND Layer 2 Investigation endpoint
-# ---------------------------------------------------------------------------
 
 @app.post("/api/alerts/{alert_id}/investigate")
 def investigate_alert(alert_id: str):
@@ -621,9 +620,7 @@ def investigate_alert(alert_id: str):
     }
 
 
-# ---------------------------------------------------------------------------
 # Audit log endpoint
-# ---------------------------------------------------------------------------
 
 @app.get("/api/logs")
 def get_logs(limit: int = Query(100)):
@@ -632,9 +629,7 @@ def get_logs(limit: int = Query(100)):
     return all_logs[-limit:]
 
 
-# ---------------------------------------------------------------------------
 # Lambda monitor endpoints
-# ---------------------------------------------------------------------------
 
 @app.get("/api/lambda/overview")
 def get_lambda_overview():
@@ -678,9 +673,8 @@ def get_lambda_functions():
     return result
 
 
-# ---------------------------------------------------------------------------
+
 # Model health endpoint
-# ---------------------------------------------------------------------------
 
 @app.get("/api/model/health")
 def get_model_health():
@@ -708,9 +702,7 @@ def get_model_health():
     }
 
 
-# ---------------------------------------------------------------------------
 # System status endpoint
-# ---------------------------------------------------------------------------
 
 @app.get("/status")
 def get_status():
@@ -726,9 +718,8 @@ def get_status():
     }
 
 
-# ---------------------------------------------------------------------------
+
 # SARIMA status endpoint
-# ---------------------------------------------------------------------------
 
 @app.get("/sarima/status")
 def get_sarima_status():
