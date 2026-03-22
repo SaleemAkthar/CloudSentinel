@@ -846,9 +846,8 @@ def aws_monitor_status():
     return {"running": _aws_monitor_running}
 
 
-# ---------------------------------------------------------------------------
+
 # Entry point
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
