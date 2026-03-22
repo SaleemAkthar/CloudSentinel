@@ -32,9 +32,8 @@ DEFAULT_VALUES = {
 }
 
 
-# ============================================================================
+
 # MAIN PARSER CLASS
-# ============================================================================
 
 class LogParser:
     """
@@ -135,9 +134,8 @@ class LogParser:
         
         return parsed_logs
     
-    # ========================================================================
+
     # INTERNAL PARSING METHODS
-    # ========================================================================
     
     def _parse_json_string(self, json_str: str) -> Dict:
         """
@@ -377,9 +375,8 @@ class LogParser:
                 self.warnings.append(f"Invalid timestamp '{value}', using current time")
                 return datetime.now().isoformat()
     
-    # ========================================================================
+
     # UTILITY METHODS
-    # ========================================================================
     
     def get_statistics(self) -> Dict:
         """
@@ -435,9 +432,8 @@ class LogParser:
         self.warnings = []
 
 
-# ============================================================================
+
 # CONVENIENCE FUNCTIONS
-# ============================================================================
 
 def parse_log(raw_log: Any, strict: bool = False) -> Optional[Dict]:
     """
@@ -469,18 +465,17 @@ def parse_logs(raw_logs: List[Any], strict: bool = False) -> List[Dict]:
     return parser.parse_batch(raw_logs)
 
 
-# ============================================================================
+
 # TESTING AND EXAMPLES
-# ============================================================================
 
 if __name__ == "__main__":
     print("=" * 70)
     print("LOG PARSER - COMPREHENSIVE TESTING")
     print("=" * 70)
     
-    # ========================================================================
+
     # TEST 1: Perfect JSON Log
-    # ========================================================================
+
     print("\n📋 TEST 1: Perfect JSON Log")
     print("-" * 70)
     
@@ -506,9 +501,9 @@ if __name__ == "__main__":
     print(f"Memory: {result['memoryUsed']}MB")
     print(f"API Calls: {len(result['apiCalls'])}")
     
-    # ========================================================================
+
     # TEST 2: JSON with Units (e.g., "450ms", "128MB")
-    # ========================================================================
+
     print("\n📋 TEST 2: JSON with Units")
     print("-" * 70)
     
@@ -527,9 +522,7 @@ if __name__ == "__main__":
     print(f"Duration: {result['duration']}ms (converted from '450ms')")
     print(f"Memory: {result['memoryUsed']}MB (converted from '128 MB')")
     
-    # ========================================================================
     # TEST 3: Duration in Seconds
-    # ========================================================================
     print("\n📋 TEST 3: Duration in Seconds")
     print("-" * 70)
     
@@ -547,9 +540,8 @@ if __name__ == "__main__":
     print("✅ Parsed successfully!")
     print(f"Duration: {result['duration']}ms (converted from '1.5s')")
     
-    # ========================================================================
+
     # TEST 4: Missing Optional Fields
-    # ========================================================================
     print("\n📋 TEST 4: Missing Optional Fields")
     print("-" * 70)
     
@@ -569,9 +561,8 @@ if __name__ == "__main__":
     print(f"Status Code: {result['statusCode']} (default)")
     print(f"API Calls: {result['apiCalls']} (default)")
     
-    # ========================================================================
+ 
     # TEST 5: Messy Log from Real System
-    # ========================================================================
     print("\n📋 TEST 5: Messy Real-World Log")
     print("-" * 70)
     
@@ -587,9 +578,8 @@ if __name__ == "__main__":
     print("✅ Extracted JSON from messy log!")
     print(f"Request ID: {result['requestId']}")
     
-    # ========================================================================
+    
     # TEST 6: Invalid Log (Missing Required Field)
-    # ========================================================================
     print("\n📋 TEST 6: Invalid Log (Non-Strict Mode)")
     print("-" * 70)
     
@@ -605,9 +595,8 @@ if __name__ == "__main__":
         print("❌ Failed to parse (as expected in non-strict mode)")
         print(f"Warning: {parser.get_warnings()[-1]}")
     
-    # ========================================================================
+
     # TEST 7: Batch Parsing
-    # ========================================================================
     print("\n📋 TEST 7: Batch Parsing (10 logs, 2 invalid)")
     print("-" * 70)
     
@@ -628,9 +617,8 @@ if __name__ == "__main__":
     print(f"✅ Parsed {len(results)} out of 10 logs")
     parser2.print_statistics()
     
-    # ========================================================================
+
     # TEST 8: Strict Mode (Raises Errors)
-    # ========================================================================
     print("\n📋 TEST 8: Strict Mode")
     print("-" * 70)
     
@@ -643,9 +631,8 @@ if __name__ == "__main__":
         print(f"✅ Correctly raised error in strict mode:")
         print(f"   Error: {e}")
     
-    # ========================================================================
+ 
     # TEST 9: Different Timestamp Formats
-    # ========================================================================
     print("\n📋 TEST 9: Different Timestamp Formats")
     print("-" * 70)
     
@@ -674,9 +661,8 @@ if __name__ == "__main__":
         result = parser3.parse(test["log"])
         print(f"✅ {test['name']:20s}: {result['timestamp'][:19]}")
     
-    # ========================================================================
+
     # TEST 10: Real CloudWatch Log Format
-    # ========================================================================
     print("\n📋 TEST 10: AWS CloudWatch Format")
     print("-" * 70)
     
@@ -705,9 +691,8 @@ if __name__ == "__main__":
     print(f"Duration: {result['duration']}ms")
     print(f"Memory: {result['memoryUsed']}MB")
     
-    # ========================================================================
+
     # FINAL SUMMARY
-    # ========================================================================
     print("\n" + "=" * 70)
     print("✅ ALL TESTS COMPLETE!")
     print("=" * 70)
