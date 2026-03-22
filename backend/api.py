@@ -50,9 +50,8 @@ app = FastAPI(title="Cloud Sentinel API", version="3.0")
 # Mount Auth router
 app.include_router(auth_router)
 
-# ---------------------------------------------------------------------------
+
 # CORS configuration (env-based for flexibility)
-# ---------------------------------------------------------------------------
 
 CORS_ORIGINS = os.environ.get(
     "CORS_ORIGINS",
@@ -67,10 +66,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------------------------
+
 # Singletons — imported from pipeline so there is ONE instance of each.
 # api.py and pipeline.py share the same SARIMA, AI model, etc.
-# ---------------------------------------------------------------------------
+
 
 # SARIMA for temporal anomaly detection
 from backend.detection.pipeline import _sarima as sarima_forecaster
@@ -97,9 +96,9 @@ lambda_metrics = {}
 sentinel_pipeline = CloudSentinelPipeline()
 
 
-# ---------------------------------------------------------------------------
+
 # Request model
-# ---------------------------------------------------------------------------
+
 
 class LogRequest(BaseModel):
     """
@@ -131,9 +130,9 @@ class LogRequest(BaseModel):
     content_type:         str   = "application/json"
 
 
-# ---------------------------------------------------------------------------
+
 # Internal helpers
-# ---------------------------------------------------------------------------
+
 
 def _build_alert(
     log_request:    LogRequest,
@@ -251,9 +250,9 @@ def _update_lambda_metrics(log_request: LogRequest, is_anomaly: bool):
         m["error_count"] += 1
 
 
-# ---------------------------------------------------------------------------
+
 # CORE DETECTION ENDPOINT
-# ---------------------------------------------------------------------------
+
 
 @app.post("/process_log")
 def process_log(request: LogRequest):
@@ -293,12 +292,12 @@ def process_log(request: LogRequest):
         "concurrency":          1,
     }
 
-    # ── Run the unified pipeline ─────────────────────────────────────
+    # Run the unified pipeline 
     # Internally: SARIMA → EnsembleAnomalyDetector → Layer1Filter
     # Layer 2 is NOT run here — it runs on-demand via /investigate
     pipeline_result = sentinel_pipeline.process(packet)
 
-    # ── Feed SARIMA forecaster ────────────────────────────────────────
+    # Feed SARIMA forecaster
     sarima_forecaster.add_data_point(request.duration)
     if (not sarima_forecaster._trained
             and len(sarima_forecaster.training_data) >= sarima_forecaster.MIN_TRAINING_POINTS):
