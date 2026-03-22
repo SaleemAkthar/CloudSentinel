@@ -1,5 +1,7 @@
 // MUI icon imports for UI elements
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import { updateProfile } from "../services/api";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
 import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
@@ -7,23 +9,6 @@ import AutoAwesomeRoundedIcon from "@mui/icons-material/AutoAwesomeRounded";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import ShowChartRoundedIcon from "@mui/icons-material/ShowChartRounded";
 import GridViewRoundedIcon from "@mui/icons-material/GridViewRounded";
-
-// default user data
-const initialUser = {
-  name: "Display Name",
-  role: "Display Role",
-  email: "email@cloudsentinel.io",
-  organization: "Cloud Sentinel Security",
-  joined: "January 2025",
-  avatar: "DN",
-  plan: "Team",
-  twoFA: true,
-  notifications: {
-    email: true,
-    critical: true,
-    weekly: false,
-  },
-};
 
 // reusable row component for each info field
 function InfoRow({ icon, label, value, editing, fieldKey, onChange }) {
@@ -64,26 +49,86 @@ function ToggleSwitch({ enabled, onToggle }) {
   );
 }
 
+// Helper: build initials from a name/username string
+function getInitials(name) {
+  if (!name) return "??";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
 // Profile page component
 export default function Profile() {
+  const { user: authUser, setUser: setAuthUser } = useAuth();
+
+  // Build the profile from the backend auth user
+  const buildUserFromAuth = (auth) => ({
+    name: auth?.username || "Display Name",
+    role: "Security Analyst",
+    email: auth?.email || "email@cloudsentinel.io",
+    organization: "Cloud Sentinel Security",
+    joined: "January 2025",
+    avatar: getInitials(auth?.username),
+    plan: "Team",
+    twoFA: true,
+    notifications: {
+      email: true,
+      critical: true,
+      weekly: false,
+    },
+  });
+
   // state for user data, edit mode, draft changes and save confirmation
-  const [user, setUser] = useState(initialUser);
+  const [user, setUser] = useState(() => buildUserFromAuth(authUser));
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(initialUser);
+  const [draft, setDraft] = useState(() => buildUserFromAuth(authUser));
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+
+  // Keep profile in sync when authUser changes (e.g., session restored)
+  useEffect(() => {
+    if (authUser) {
+      setUser((prev) => ({
+        ...prev,
+        name: authUser.username || prev.name,
+        email: authUser.email || prev.email,
+        avatar: getInitials(authUser.username),
+      }));
+    }
+  }, [authUser]);
+
 
   // enter edit mode
   const handleEdit = () => {
     setDraft(user);
     setEditing(true);
+    setSaveError(null);
   };
 
-  // save changes and show confirmation
-  const handleSave = () => {
-    setUser(draft);
-    setEditing(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+  // save changes to backend and update AuthContext
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const updated = await updateProfile({
+        username: draft.name,
+        email: draft.email,
+      });
+      // Update local profile state
+      setUser({ ...draft, avatar: getInitials(draft.name) });
+      // Update the global auth context so sidebar/header reflect the change
+      setAuthUser(updated);
+      setEditing(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      const msg =
+        err.response?.data?.detail || "Failed to save profile. Please try again.";
+      setSaveError(msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
   // cancel editing without saving
@@ -122,6 +167,13 @@ export default function Profile() {
           </div>
         )}
       </div>
+
+      {/* Error Banner */}
+      {saveError && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {saveError}
+        </div>
+      )}
 
       {/* grid layout - left sticky, right scrollable */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -192,9 +244,10 @@ export default function Profile() {
 
                   <button
                     onClick={handleSave}
-                    className="px-3 py-1.5 text-xs rounded-lg bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/30 transition-colors"
+                    disabled={saving}
+                    className="px-3 py-1.5 text-xs rounded-lg bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/30 transition-colors disabled:opacity-50"
                   >
-                    Save
+                    {saving ? "Saving…" : "Save"}
                   </button>
                 </div>
               )}

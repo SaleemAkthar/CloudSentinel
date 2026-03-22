@@ -1,4 +1,4 @@
-export default function InsightCard({ insight }) {
+export default function InsightCard({ insight, onViewDetails }) {
   const tagColors = {
     high: "border-red-500 text-red-400",
     medium: "border-yellow-400 text-yellow-300",
@@ -49,7 +49,10 @@ export default function InsightCard({ insight }) {
         </div>
 
         {/* Button */}
-        <button className="px-4 py-2 text-sm rounded-lg bg-blue-600/20 border border-blue-500 text-blue-300 hover:bg-blue-600/30">
+        <button
+          onClick={() => onViewDetails && onViewDetails(insight)}
+          className="px-4 py-2 text-sm rounded-lg bg-blue-600/20 border border-blue-500 text-blue-300 hover:bg-blue-600/30 transition-colors"
+        >
           View Details
         </button>
       </div>

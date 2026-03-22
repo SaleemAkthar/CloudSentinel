@@ -35,3 +35,10 @@ class MessageResponse(BaseModel):
     """Generic success / error message."""
     message: str
     success: bool = True
+
+
+class ProfileUpdateRequest(BaseModel):
+    """Body sent by the Profile edit form."""
+    username: str | None = None
+    email: str | None = None
+
