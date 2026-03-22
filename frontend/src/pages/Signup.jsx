@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 export default function Signup() {
   const navigate = useNavigate();
   const { register } = useAuth();
-  
+
   const [form, setForm] = useState({ username: "", email: "", password: "", confirmPassword: "" });
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -16,16 +16,16 @@ export default function Signup() {
 
 
   const validate = () => {
-  const e = {};
-  if (!form.username.trim()) e.username = "Username is required";
-  else if (form.username.length < 3) e.username = "At least 3 characters";
-  if (!form.email.trim()) e.email = "Email is required";
-  else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Invalid email address";
-  if (!form.password) e.password = "Password is required";
-  else if (form.password.length < 8) e.password = "At least 8 characters";
-  if (!form.confirmPassword) e.confirmPassword = "Please confirm your password";
-  else if (form.password !== form.confirmPassword) e.confirmPassword = "Passwords do not match";
-  return e;
+    const e = {};
+    if (!form.username.trim()) e.username = "Username is required";
+    else if (form.username.length < 3) e.username = "At least 3 characters";
+    if (!form.email.trim()) e.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Invalid email address";
+    if (!form.password) e.password = "Password is required";
+    else if (form.password.length < 8) e.password = "At least 8 characters";
+    if (!form.confirmPassword) e.confirmPassword = "Please confirm your password";
+    else if (form.password !== form.confirmPassword) e.confirmPassword = "Passwords do not match";
+    return e;
   };
 
   const handleChange = (field) => (e) => {
@@ -38,7 +38,7 @@ export default function Signup() {
     e.preventDefault();
     const v = validate();
     if (Object.keys(v).length) { setErrors(v); return; }
-    
+
     try {
       setLoading(true);
       await register(form.username, form.email, form.password);
@@ -73,10 +73,9 @@ export default function Signup() {
   );
 
   const inputCls = (field) =>
-    `w-full rounded-xl px-4 py-3 text-white text-[0.95rem] placeholder-white/20 outline-none transition-all ${
-      errors[field]
-        ? "border border-red-500/60 bg-red-500/5 shadow-[0_0_0_3px_rgba(239,68,68,0.1)]"
-        : "border border-white/10 bg-white/5 focus:border-blue-500/60 focus:bg-blue-500/5 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+    `w-full rounded-xl px-4 py-3 text-white text-[0.95rem] placeholder-white/20 outline-none transition-all ${errors[field]
+      ? "border border-red-500/60 bg-red-500/5 shadow-[0_0_0_3px_rgba(239,68,68,0.1)]"
+      : "border border-white/10 bg-white/5 focus:border-blue-500/60 focus:bg-blue-500/5 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
     }`;
 
 
@@ -140,7 +139,7 @@ export default function Signup() {
             {/* Brand row */}
             <div className="flex items-center justify-center">
               <img src={csLogo} alt="Cloud Sentinel" className="w-16 h-16 object-contain flex-shrink-0" />
-              
+
             </div>
             <div className="flex items-center justify-center gap-2.5 mb-7">
               <span className="text-white font-bold text-xl tracking-tight">Cloud Sentinel</span>
@@ -224,9 +223,8 @@ export default function Signup() {
                     {[1, 2, 3, 4].map((i) => (
                       <div
                         key={i}
-                        className={`flex-1 h-[3px] rounded-full transition-all duration-300 ${
-                          i <= strength ? strengthColors[strength] : "bg-white/10"
-                        }`}
+                        className={`flex-1 h-[3px] rounded-full transition-all duration-300 ${i <= strength ? strengthColors[strength] : "bg-white/10"
+                          }`}
                       />
                     ))}
                   </div>
