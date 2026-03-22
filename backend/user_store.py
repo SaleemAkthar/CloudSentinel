@@ -49,3 +49,37 @@ def create_user(username: str, email: str, hashed_password: str) -> dict:
     _users[email.lower()] = user
     _save_users(_users)
     return user
+
+
+def update_user(user_id: str, username: Optional[str] = None, email: Optional[str] = None) -> Optional[dict]:
+    """Update a user's username and/or email by user_id. Persists to JSON."""
+    # Find the user by id
+    old_key = None
+    user = None
+    for key, u in _users.items():
+        if u["id"] == user_id:
+            old_key = key
+            user = u
+            break
+    if not user:
+        return None
+
+    if username is not None:
+        user["username"] = username
+
+    if email is not None:
+        new_email = email.lower()
+        # If email changed, re-key the dict
+        if new_email != old_key:
+            # Check if the new email is already taken by someone else
+            if new_email in _users:
+                return None
+            del _users[old_key]
+            user["email"] = new_email
+            _users[new_email] = user
+        else:
+            user["email"] = new_email
+
+    _save_users(_users)
+    return user
+
