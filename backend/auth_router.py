@@ -1,6 +1,5 @@
 """
 Auth Router
-===========
 FastAPI router for all /api/auth/* endpoints.
 
 POST /api/auth/register  — create account, set httpOnly cookie
