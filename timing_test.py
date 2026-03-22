@@ -16,7 +16,7 @@ import time
 import sys
 import statistics
 
-API_URL     = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000"
+API_URL     = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8080"
 PROCESS_URL = f"{API_URL}/process_log"
 
 NORMAL_PACKET = {

@@ -12,7 +12,7 @@ import requests
 import random
 import time
 
-API_URL = "http://localhost:8080/process_log"
+API_URL = "http://cloud-sentinel-alb-1569061158.us-east-1.elb.amazonaws.com/process_log"
 
 # Normal public AWS IPs to simulate real Lambda traffic
 NORMAL_IPS = [
