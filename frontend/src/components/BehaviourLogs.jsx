@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import axios from "axios";
 
 
-// ── Polling interval ────────────────────────────────────────────────────
+//  Polling interval 
 const POLL_INTERVAL = 2000;
 const PAGE_SIZE = 20;
 
@@ -15,7 +15,7 @@ export default function BehaviourLogs() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
 
-  // ── Fetch logs from backend ─────────────────────────────────────────
+  // Fetch logs from backend 
   const fetchLogs = useCallback(async () => {
     try {
       const res = await axios.get("/api/logs?limit=5000");
@@ -38,7 +38,7 @@ export default function BehaviourLogs() {
     return () => clearInterval(interval);
   }, [fetchLogs]);
 
-  // ── Computed stats from real data ───────────────────────────────────
+  // Computed stats from real data 
   const stats = useMemo(() => {
     const total = allLogs.length;
     const success = allLogs.filter((l) => l.status === "success").length;
@@ -47,7 +47,7 @@ export default function BehaviourLogs() {
     return { total, success, failed, blocked };
   }, [allLogs]);
 
-  // ── Filter + search ─────────────────────────────────────────────────
+  // Filter + search 
   const filtered = useMemo(() => {
     let result = allLogs;
 
@@ -74,7 +74,7 @@ export default function BehaviourLogs() {
     return result;
   }, [allLogs, search, statusFilter]);
 
-  // ── Pagination ──────────────────────────────────────────────────────
+  // Pagination
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const paginated = filtered.slice(
@@ -87,7 +87,7 @@ export default function BehaviourLogs() {
     setPage(1);
   }, [search, statusFilter]);
 
-  // ── Status badge style ──────────────────────────────────────────────
+  // Status badge style 
   const statusStyle = (status) => {
     switch (status) {
       case "success":
@@ -104,7 +104,7 @@ export default function BehaviourLogs() {
     }
   };
 
-  // ── Format timestamp ────────────────────────────────────────────────
+  // Format timestamp
   const formatTs = (ts) => {
     if (!ts) return "—";
     try {
@@ -114,7 +114,7 @@ export default function BehaviourLogs() {
     }
   };
 
-  // ── Export as CSV ───────────────────────────────────────────────────
+  //  Export as CSV
   const handleExport = () => {
     if (filtered.length === 0) return;
 
@@ -135,7 +135,7 @@ export default function BehaviourLogs() {
     URL.revokeObjectURL(url);
   };
 
-  // ── Render ──────────────────────────────────────────────────────────
+  //  Render
   return (
     <div className="space-y-8">
 
