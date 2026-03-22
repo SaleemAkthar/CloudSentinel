@@ -15,7 +15,7 @@ import {
 } from "recharts";
 
 
-// ── Custom tooltips ─────────────────────────────────────────────────────
+//  Custom tooltips 
 
 const InvocationTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
@@ -45,38 +45,38 @@ const ThreatTooltip = ({ active, payload, label }) => {
 };
 
 
-// ── Threat-type color map (matches Layer 2 attack_patterns.py) ──────────
+//  Threat-type color map (matches Layer 2 attack_patterns.py) 
 const THREAT_COLORS = {
-  "DDoS":               "#ef4444",
-  "IP Spoofing":        "#f97316",
-  "SQL Injection":      "#eab308",
-  "Crypto Mining":      "#a855f7",
-  "Data Exfiltration":  "#3b82f6",
-  "Data Exfil":         "#3b82f6",
-  "Memory Exhaustion":  "#06b6d4",
-  "Memory Attack":      "#06b6d4",
-  "Injection Attempt":  "#eab308",
-  "Unknown Anomaly":    "#6b7280",
+  "DDoS": "#ef4444",
+  "IP Spoofing": "#f97316",
+  "SQL Injection": "#eab308",
+  "Crypto Mining": "#a855f7",
+  "Data Exfiltration": "#3b82f6",
+  "Data Exfil": "#3b82f6",
+  "Memory Exhaustion": "#06b6d4",
+  "Memory Attack": "#06b6d4",
+  "Injection Attempt": "#eab308",
+  "Unknown Anomaly": "#6b7280",
 };
 
 // Normalize threat names from alerts to display labels
 const normalizeThreat = (raw) => {
   const map = {
-    "Crypto Mining":      "Crypto Mining",
-    "Data Exfiltration":  "Data Exfil",
-    "Data Exfil":         "Data Exfil",
-    "Memory Exhaustion":  "Memory Attack",
-    "Memory Attack":      "Memory Attack",
-    "Injection Attempt":  "SQL Injection",
-    "SQL Injection":      "SQL Injection",
-    "DDoS":               "DDoS",
-    "IP Spoofing":        "IP Spoofing",
+    "Crypto Mining": "Crypto Mining",
+    "Data Exfiltration": "Data Exfil",
+    "Data Exfil": "Data Exfil",
+    "Memory Exhaustion": "Memory Attack",
+    "Memory Attack": "Memory Attack",
+    "Injection Attempt": "SQL Injection",
+    "SQL Injection": "SQL Injection",
+    "DDoS": "DDoS",
+    "IP Spoofing": "IP Spoofing",
   };
   return map[raw] || "Unknown";
 };
 
 
-// ── Build hourly invocation buckets from log_storage ────────────────────
+// Build hourly invocation buckets from log_storage 
 function buildHourlyBuckets(logs) {
   const now = new Date();
   const buckets = [];
@@ -114,15 +114,15 @@ function buildHourlyBuckets(logs) {
 }
 
 
-// ── Build threat counts from alerts ─────────────────────────────────────
+// Build threat counts from alerts 
 function buildThreatCounts(alerts) {
   const counts = {
-    "DDoS":           0,
-    "IP Spoofing":    0,
-    "SQL Injection":  0,
-    "Crypto Mining":  0,
-    "Data Exfil":     0,
-    "Memory Attack":  0,
+    "DDoS": 0,
+    "IP Spoofing": 0,
+    "SQL Injection": 0,
+    "Crypto Mining": 0,
+    "Data Exfil": 0,
+    "Memory Attack": 0,
   };
 
   for (const alert of alerts) {
@@ -144,12 +144,12 @@ function buildThreatCounts(alerts) {
   }
 
   const colorMap = {
-    "DDoS":          "#ef4444",
-    "IP Spoofing":   "#f97316",
-    "SQL Injection":  "#eab308",
-    "Crypto Mining":  "#a855f7",
-    "Data Exfil":     "#3b82f6",
-    "Memory Attack":  "#06b6d4",
+    "DDoS": "#ef4444",
+    "IP Spoofing": "#f97316",
+    "SQL Injection": "#eab308",
+    "Crypto Mining": "#a855f7",
+    "Data Exfil": "#3b82f6",
+    "Memory Attack": "#06b6d4",
   };
 
   return Object.entries(counts).map(([type, packets]) => ({
@@ -161,38 +161,37 @@ function buildThreatCounts(alerts) {
 
 
 
-// ── Real Lambda functions from LocalStack simulation ────────────────────
+// Real Lambda functions from LocalStack simulation
 
 const FALLBACK_FUNCTIONS = [
-  { name: "api-handler",     status: "active",  invocations: 0, duration: "0ms",  error: "0%",  memory: "128MB" },
-  { name: "file-processor",  status: "active",  invocations: 0, duration: "0ms",  error: "0%",  memory: "128MB" },
-  { name: "db-query",        status: "active",  invocations: 0, duration: "0ms",  error: "0%",  memory: "128MB" },
-  { name: "auth-service",    status: "active",  invocations: 0, duration: "0ms",  error: "0%",  memory: "128MB" },
+  { name: "api-handler", status: "active", invocations: 0, duration: "0ms", error: "0%", memory: "128MB" },
+  { name: "file-processor", status: "active", invocations: 0, duration: "0ms", error: "0%", memory: "128MB" },
+  { name: "db-query", status: "active", invocations: 0, duration: "0ms", error: "0%", memory: "128MB" },
+  { name: "auth-service", status: "active", invocations: 0, duration: "0ms", error: "0%", memory: "128MB" },
 ];
 
 
-// ── Polling interval — refresh every 10s ────────────────────────────────
+// Polling interval — refresh every 10s 
 const POLL_INTERVAL = 10000;
 
 
-// =========================================================================
+// ==========
 // COMPONENT
-// =========================================================================
-
+// ==========
 export default function AWSLambdaMonitorPage() {
 
-  const [overview, setOverview]             = useState(null);
-  const [functions, setFunctions]           = useState(FALLBACK_FUNCTIONS);
+  const [overview, setOverview] = useState(null);
+  const [functions, setFunctions] = useState(FALLBACK_FUNCTIONS);
   const [invocationData, setInvocationData] = useState([]);
-  const [threatData, setThreatData]         = useState([]);
-  const [loading, setLoading]               = useState(true);
-  const [selectedFn, setSelectedFn]         = useState(null);
-  const [fnAlerts, setFnAlerts]             = useState([]);
-  const [fnLogs, setFnLogs]                 = useState([]);
-  const [awsLive, setAwsLive]               = useState(false);
-  const [awsLoading, setAwsLoading]         = useState(false);
+  const [threatData, setThreatData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedFn, setSelectedFn] = useState(null);
+  const [fnAlerts, setFnAlerts] = useState([]);
+  const [fnLogs, setFnLogs] = useState([]);
+  const [awsLive, setAwsLive] = useState(false);
+  const [awsLoading, setAwsLoading] = useState(false);
 
-  // ── Fetch from existing backend endpoints ───────────────────────────
+  // Fetch from existing backend endpoints 
   const fetchAll = useCallback(async () => {
     try {
       const [overviewRes, functionsRes, logsRes, alertsRes] = await Promise.all([
@@ -219,12 +218,12 @@ export default function AWSLambdaMonitorPage() {
         else if (errorPct >= 2) status = "warning";
 
         return {
-          name:        fn.function_name,
+          name: fn.function_name,
           status,
           invocations: fn.invocations,
-          duration:    `${fn.avg_duration_ms}ms`,
-          error:       `${errorPct}%`,
-          memory:      `${fn.avg_memory_mb}MB`,
+          duration: `${fn.avg_duration_ms}ms`,
+          error: `${errorPct}%`,
+          memory: `${fn.avg_memory_mb}MB`,
         };
       });
 
@@ -242,7 +241,7 @@ export default function AWSLambdaMonitorPage() {
     return () => clearInterval(interval);
   }, [fetchAll]);
 
-  // ── Fetch details for a specific function ─────────────────────────
+  //  Fetch details for a specific function 
   const openFnDetails = useCallback(async (fnName) => {
     setSelectedFn(fnName);
     try {
@@ -289,30 +288,30 @@ export default function AWSLambdaMonitorPage() {
     }
   };
 
-  // ── Derived values with fallbacks ───────────────────────────────────
+  // Derived values with fallbacks
   const totalInvocations = overview?.total_invocations ?? 0;
-  const avgResponseTime  = overview?.avg_response_time ?? 0;
-  const errorRate        = overview?.error_rate ?? 0;
-  const activeFunctions  = overview?.active_functions ?? 4;
-  const totalFunctions   = functions.length || 6;
-  const errorFunctions   = functions.filter((f) => f.status === "error").length;
+  const avgResponseTime = overview?.avg_response_time ?? 0;
+  const errorRate = overview?.error_rate ?? 0;
+  const activeFunctions = overview?.active_functions ?? 4;
+  const totalFunctions = functions.length || 6;
+  const errorFunctions = functions.filter((f) => f.status === "error").length;
 
-  // ── Style helpers ───────────────────────────────────────────────────
+  // Style helpers 
   const statusBorder = (s) => {
-    if (s === "active")  return "border-green-500 bg-green-500/10";
+    if (s === "active") return "border-green-500 bg-green-500/10";
     if (s === "warning") return "border-yellow-500 bg-yellow-500/10";
-    if (s === "error")   return "border-red-500 bg-red-500/10";
+    if (s === "error") return "border-red-500 bg-red-500/10";
     return "border-blue-500";
   };
 
   const statusBadge = (s) => {
-    if (s === "active")  return "bg-green-500/20 text-green-400";
+    if (s === "active") return "bg-green-500/20 text-green-400";
     if (s === "warning") return "bg-yellow-500/20 text-yellow-400";
-    if (s === "error")   return "bg-red-500/20 text-red-400";
+    if (s === "error") return "bg-red-500/20 text-red-400";
     return "bg-blue-500/20 text-blue-400";
   };
 
-  // ── Render ──────────────────────────────────────────────────────────
+  // Render
   return (
     <div className="space-y-8">
 
@@ -338,7 +337,7 @@ export default function AWSLambdaMonitorPage() {
 
       <div className="space-y-6">
 
-        {/* ── Stats Cards ────────────────────────────────────────── */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-4 gap-4">
           <div className="bg-[#0f1b3d] p-5 rounded-xl">
             <p className="text-gray-400 text-sm">Total Invocations</p>
@@ -361,7 +360,7 @@ export default function AWSLambdaMonitorPage() {
           </div>
         </div>
 
-        {/* ── Charts ─────────────────────────────────────────────── */}
+        {/*  Charts  */}
         <div className="grid grid-cols-2 gap-6">
 
           {/* Invocations — Last 24 Hours (sarima_forecaster.py) */}
@@ -467,7 +466,7 @@ export default function AWSLambdaMonitorPage() {
 
         </div>
 
-        {/* ── Function Details ───────────────────────────────────── */}
+        {/* Function Details  */}
         <div className="space-y-4">
           <h2 className="text-xl font-semibold">Function Details</h2>
 
@@ -514,7 +513,7 @@ export default function AWSLambdaMonitorPage() {
 
       </div>
 
-      {/* ── Function Detail Modal ──────────────────────────────────── */}
+      {/* Function Detail Modal  */}
       {selectedFn && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-[#0a1628] border border-white/10 rounded-2xl w-full max-w-3xl max-h-[85vh] overflow-y-auto shadow-2xl">
@@ -545,23 +544,21 @@ export default function AWSLambdaMonitorPage() {
                   {fnAlerts.map((a) => (
                     <div
                       key={a.id}
-                      className={`rounded-lg p-3 border-l-4 ${
-                        a.severity === "CRITICAL"
+                      className={`rounded-lg p-3 border-l-4 ${a.severity === "CRITICAL"
                           ? "border-red-500 bg-red-500/10"
                           : a.severity === "WARNING"
-                          ? "border-orange-400 bg-orange-400/10"
-                          : "border-yellow-400 bg-yellow-400/10"
-                      }`}
+                            ? "border-orange-400 bg-orange-400/10"
+                            : "border-yellow-400 bg-yellow-400/10"
+                        }`}
                     >
                       <div className="flex items-center gap-2 mb-1">
                         <span
-                          className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                            a.severity === "CRITICAL"
+                          className={`text-xs px-2 py-0.5 rounded-full font-semibold ${a.severity === "CRITICAL"
                               ? "bg-red-500/20 text-red-400"
                               : a.severity === "WARNING"
-                              ? "bg-orange-500/20 text-orange-400"
-                              : "bg-yellow-500/20 text-yellow-400"
-                          }`}
+                                ? "bg-orange-500/20 text-orange-400"
+                                : "bg-yellow-500/20 text-yellow-400"
+                            }`}
                         >
                           {a.severity}
                         </span>
@@ -617,13 +614,12 @@ export default function AWSLambdaMonitorPage() {
                         <td className="text-slate-400">{log.ip_address}</td>
                         <td>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-xs ${
-                              log.status === "success"
+                            className={`px-2 py-0.5 rounded-full text-xs ${log.status === "success"
                                 ? "bg-green-500/20 text-green-400"
                                 : log.status === "blocked"
-                                ? "bg-yellow-500/20 text-yellow-400"
-                                : "bg-red-500/20 text-red-400"
-                            }`}
+                                  ? "bg-yellow-500/20 text-yellow-400"
+                                  : "bg-red-500/20 text-red-400"
+                              }`}
                           >
                             {log.status}
                           </span>
