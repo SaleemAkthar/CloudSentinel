@@ -31,7 +31,7 @@ export default function Signin() {
     e.preventDefault();
     const v = validate();
     if (Object.keys(v).length) { setErrors(v); return; }
-    
+
     try {
       setLoading(true);
       await login(form.email, form.password);
@@ -55,10 +55,9 @@ export default function Signin() {
   );
 
   const inputCls = (field) =>
-    `w-full rounded-xl px-4 py-3 text-white text-[0.95rem] placeholder-white/20 outline-none transition-all ${
-      errors[field]
-        ? "border border-red-500/60 bg-red-500/5 shadow-[0_0_0_3px_rgba(239,68,68,0.1)]"
-        : "border border-white/10 bg-white/5 focus:border-blue-500/60 focus:bg-blue-500/5 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
+    `w-full rounded-xl px-4 py-3 text-white text-[0.95rem] placeholder-white/20 outline-none transition-all ${errors[field]
+      ? "border border-red-500/60 bg-red-500/5 shadow-[0_0_0_3px_rgba(239,68,68,0.1)]"
+      : "border border-white/10 bg-white/5 focus:border-blue-500/60 focus:bg-blue-500/5 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]"
     }`;
 
 
@@ -122,7 +121,7 @@ export default function Signin() {
             {/* Brand row */}
             <div className="flex items-center justify-center">
               <img src={csLogo} alt="Cloud Sentinel" className="w-16 h-16 object-contain flex-shrink-0" />
-              
+
             </div>
             <div className="flex items-center justify-center gap-2.5 mb-7">
               <span className="text-white font-bold text-xl tracking-tight">Cloud Sentinel</span>
@@ -135,7 +134,7 @@ export default function Signin() {
               Sign in to your account to continue
             </p>
 
-            <form  onSubmit={handleSubmit} noValidate className="space-y-4">
+            <form onSubmit={handleSubmit} noValidate className="space-y-4">
 
               {/* Server Error Banner */}
               {errors.server && (

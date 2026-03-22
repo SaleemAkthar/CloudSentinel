@@ -4,7 +4,7 @@ import AlertItem from "../components/AlertItem";
 import Investigation from "./Investigate";
 
 
-// ── Polling interval — refresh every 10 seconds ────────────────────────
+// Polling interval — refresh every 10 seconds 
 const POLL_INTERVAL = 500;
 
 
@@ -14,7 +14,7 @@ export default function RealTimeAlerts() {
   const [error, setError] = useState(null);
   const [selectedAlertId, setSelectedAlertId] = useState(null);
 
-  // ── Fetch alerts from live backend ──────────────────────────────────
+  // Fetch alerts from live backend 
   const fetchAlerts = useCallback(async () => {
     try {
       const res = await axios.get("/api/alerts?limit=500");
@@ -38,7 +38,7 @@ export default function RealTimeAlerts() {
     return () => clearInterval(interval);
   }, [fetchAlerts]);
 
-  // ── Counts ──────────────────────────────────────────────────────────
+  // Counts
   const critical = alerts.filter((a) => a.severity === "CRITICAL").length;
   const high = alerts.filter((a) => a.severity === "WARNING").length;
   const medium = alerts.filter((a) => a.severity === "INFO").length;
@@ -59,9 +59,8 @@ export default function RealTimeAlerts() {
         {/* Live indicator */}
         <div className="flex items-center gap-2">
           <span
-            className={`h-2.5 w-2.5 rounded-full ${
-              error ? "bg-red-400" : "bg-emerald-400 animate-pulse"
-            }`}
+            className={`h-2.5 w-2.5 rounded-full ${error ? "bg-red-400" : "bg-emerald-400 animate-pulse"
+              }`}
           />
           <span className="text-xs text-slate-400">
             {error ? "Disconnected" : "Live — Layer 1 + Layer 2"}
