@@ -247,18 +247,6 @@ class Layer1Scorer:
             ip_hist
         )
         
-        # FIX B: Dynamic weight renormalization when SARIMA is unavailable.
-        # When A_temporal = 0.0 because SARIMA has not been connected or has
-        # not collected enough data (< 200 samples), passing 0.0 to the
-        # composite formula incorrectly treats it as evidence that timing is
-        # perfectly normal. This silently donates 20% of the scoring budget
-        # to normalcy, capping the maximum achievable composite at ~0.81.
-        # Fix: detect SARIMA absence and renormalise the remaining three
-        # component weights so they still sum to 1.0.
-        # Research basis: Barnett & Lewis (1994) "Outliers in Statistical
-        # Data" §2.5 — missing sensor data in anomaly detectors must be
-        # treated as "unknown" not "normal"; redistributing weight to active
-        # sensors preserves the intended sensitivity of each component.
         sarima_active = (
             self.sarima_forecaster is not None
             and self.n_requests > 200
