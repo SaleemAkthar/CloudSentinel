@@ -1,6 +1,5 @@
 """
 IP Analyzer — Cloud Sentinel Layer 2
-======================================
 Performs deep IP analysis entirely in-memory. No external HTTP calls.
 All lookups use built-in tables loaded at import time (~0ms per lookup).
 
@@ -25,11 +24,10 @@ from typing import Dict, List, Optional, Tuple
 from collections import defaultdict
 
 
-# ============================================================================
+
 # SECTION 1: BUILT-IN GEO + ASN DATABASE
 # Each entry: (cidr, country_code, country_name, region, lat, lon, asn, org)
 # Covers major cloud providers, known bad actors, and geographic regions.
-# ============================================================================
 
 _IP_RANGES: List[Tuple] = [
     # ── Known Malicious / Tor / Botnet ────────────────────────────────────────

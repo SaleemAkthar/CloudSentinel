@@ -1,6 +1,5 @@
 """
 Detection Package
-=================
 
 Multi-layer anomaly detection system.
 

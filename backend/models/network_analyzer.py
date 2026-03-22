@@ -1,6 +1,6 @@
 """
 Network Analyzer Models — Cloud Sentinel
-==========================================
+
 Pydantic models for representing network topology and routing analysis
 returned by the Layer 2 network topology module.
 """

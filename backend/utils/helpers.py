@@ -1,6 +1,5 @@
 """
 General Helper Utilities — Cloud Sentinel
-==========================================
 Shared utility functions used across the backend, primarily by the
 Layer 2 Investigator and Network Analyzer.
 
@@ -14,9 +13,8 @@ from typing import Dict, List, Optional
 from collections import Counter
 
 
-# ============================================================================
+
 # SECTION 1: TIMESTAMP UTILITIES
-# ============================================================================
 
 def format_timestamp(timestamp) -> Optional[datetime]:
     """
@@ -51,9 +49,8 @@ def time_diff_seconds(ts1, ts2) -> float:
     return abs((dt2 - dt1).total_seconds())
 
 
-# ============================================================================
+
 # SECTION 2: GEOLOCATION UTILITIES
-# ============================================================================
 
 def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """
@@ -83,9 +80,8 @@ def is_geolocation_jump_suspicious(distance_km: float, time_diff_sec: float,
     return (distance_km / (time_diff_sec / 3600.0)) > max_speed_kmh
 
 
-# ============================================================================
+
 # SECTION 3: IP ADDRESS UTILITIES
-# ============================================================================
 
 def parse_ip_address(ip_str: str) -> Dict:
     """
@@ -112,9 +108,8 @@ def is_private_ip(ip_str: str) -> bool:
     return parse_ip_address(ip_str).get("is_private", False)
 
 
-# ============================================================================
+
 # SECTION 4: ENTROPY
-# ============================================================================
 
 def calculate_entropy(data: List) -> float:
     """
@@ -130,9 +125,8 @@ def calculate_entropy(data: List) -> float:
     return -sum((c / total) * math.log2(c / total) for c in counts.values() if c > 0)
 
 
-# ============================================================================
+
 # SECTION 5: SAFE ARITHMETIC
-# ============================================================================
 
 def safe_divide(a: float, b: float, default: float = 0.0) -> float:
     """Divide a by b, returning default when b is zero or near-zero."""
@@ -144,9 +138,8 @@ def clamp(value: float, min_val: float = 0.0, max_val: float = 1.0) -> float:
     return max(min_val, min(max_val, value))
 
 
-# ============================================================================
+
 # SECTION 6: MISC
-# ============================================================================
 
 def truncate(text: str, max_len: int = 100) -> str:
     """Truncate a string to max_len characters, appending ellipsis if cut."""

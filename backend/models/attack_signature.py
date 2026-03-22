@@ -1,6 +1,5 @@
 """
 Attack Signature Models — Cloud Sentinel
-==========================================
 Pydantic models for representing matched attack signatures
 returned by the Layer 2 attack pattern matcher.
 """

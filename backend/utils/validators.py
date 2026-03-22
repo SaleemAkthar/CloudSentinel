@@ -1,6 +1,5 @@
 """
 Input Validation Functions
-===========================
 
 Validates and sanitizes input data for Cloud Sentinel detection system.
 
@@ -20,9 +19,8 @@ import ipaddress
 from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
 
-#============================================================================
+
 # LOG ENTRY VALIDATION
-# ============================================================================
 
 def validate_log_entry(log_data: Dict) -> Tuple[bool, Optional[str]]:
     """
@@ -80,9 +78,8 @@ def validate_log_entry(log_data: Dict) -> Tuple[bool, Optional[str]]:
     
     return True, None
 
-    # ============================================================================
+
 # INDIVIDUAL FIELD VALIDATORS
-# ============================================================================
 
 def validate_duration(duration: Any) -> Tuple[bool, Optional[str]]:
     """
@@ -253,9 +250,8 @@ def validate_timestamp(timestamp: str) -> Tuple[bool, Optional[str]]:
     except ValueError:
         return False, "Invalid timestamp format (expected ISO 8601)"
 
-# ============================================================================
+
 # FEATURE VALIDATION
-# ============================================================================
 
 def validate_features(features: Dict) -> Dict:
     """
@@ -326,9 +322,8 @@ def validate_features(features: Dict) -> Dict:
             sanitized[field] = default
     
     return sanitized
-# ============================================================================
+
 # SECURITY VALIDATION
-# ============================================================================
 
 def sanitize_string(text: str, max_length: int = 1000) -> str:
     """
@@ -390,9 +385,8 @@ def validate_alert_id(alert_id: str) -> Tuple[bool, Optional[str]]:
     
     return True, None
 
-# ============================================================================
+
 # BATCH VALIDATION
-# ============================================================================
 
 def validate_log_batch(logs: List[Dict]) -> Tuple[List[Dict], List[str]]:
     """
@@ -430,9 +424,8 @@ def validate_log_batch(logs: List[Dict]) -> Tuple[List[Dict], List[str]]:
     return valid_logs, errors
 
 
-# ============================================================================
+
 # RANGE VALIDATORS
-# ============================================================================
 
 def validate_range(
     value: float, 
@@ -517,9 +510,8 @@ def validate_score(score: float) -> float:
         1.0
     """
     return max(0.0, min(score, 1.0))
-# ============================================================================
+
 # PACKET/NETWORK VALIDATORS
-# ============================================================================
 
 def validate_packet_size(size: float) -> Tuple[bool, Optional[str]]:
     """
@@ -567,9 +559,8 @@ def validate_latency(latency: float) -> Tuple[bool, Optional[str]]:
     return True, None
 
 
-# ============================================================================
+
 # TESTING
-# ============================================================================
 
 if __name__ == "__main__":
     print("=" * 70)

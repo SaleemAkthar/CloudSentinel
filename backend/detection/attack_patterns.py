@@ -1,6 +1,5 @@
 """
 Attack Pattern Matcher — Cloud Sentinel Layer 2
-=================================================
 Matches observed Lambda execution behaviour against known attack signatures.
 
 Patterns (~200 lines each section):
@@ -24,9 +23,8 @@ import time
 from typing import Dict, List, Tuple
 
 
-# ============================================================================
+
 # BASE PATTERN CLASS
-# ============================================================================
 
 class AttackPattern:
     """Base class for all attack patterns."""
@@ -55,9 +53,7 @@ class AttackPattern:
         }
 
 
-# ============================================================================
 # PATTERN 1: DDoS
-# ============================================================================
 
 class DDoSPattern(AttackPattern):
     """
@@ -165,9 +161,9 @@ class DDoSPattern(AttackPattern):
         })
 
 
-# ============================================================================
+
 # PATTERN 2: IP Spoofing
-# ============================================================================
+
 
 class SpoofingPattern(AttackPattern):
     """
@@ -262,9 +258,8 @@ class SpoofingPattern(AttackPattern):
         })
 
 
-# ============================================================================
+
 # PATTERN 3: SQL Injection
-# ============================================================================
 
 class SQLInjectionPattern(AttackPattern):
     """
@@ -374,9 +369,8 @@ class SQLInjectionPattern(AttackPattern):
         })
 
 
-# ============================================================================
+
 # PATTERN 4: Crypto Mining
-# ============================================================================
 
 class CryptoMiningPattern(AttackPattern):
     """
@@ -495,9 +489,8 @@ class CryptoMiningPattern(AttackPattern):
         })
 
 
-# ============================================================================
+
 # PATTERN 5: Data Exfiltration
-# ============================================================================
 
 class DataExfiltrationPattern(AttackPattern):
     """
@@ -596,9 +589,8 @@ class DataExfiltrationPattern(AttackPattern):
         })
 
 
-# ============================================================================
+
 # PATTERN 6: Memory Attack
-# ============================================================================
 
 class MemoryAttackPattern(AttackPattern):
     """
@@ -715,9 +707,8 @@ class MemoryAttackPattern(AttackPattern):
         })
 
 
-# ============================================================================
+
 # PATTERN REGISTRY — Run all patterns
-# ============================================================================
 
 _ALL_PATTERNS: List[AttackPattern] = [
     DDoSPattern(),
