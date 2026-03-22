@@ -146,7 +146,7 @@ class SARIMAThresholdAdapter:
 _layer1_filter     = Layer1Filter()
 _layer2_scanner    = Layer2Scanner()   # kept for reference; pipeline no longer calls it
 _sarima            = SARIMAForecaster()
-_ai_model          = Layer1Scorer(learning_window=100)
+_ai_model          = EnsembleAnomalyDetector(learning_window=200)
 _threshold_adapter = SARIMAThresholdAdapter()
 
 
