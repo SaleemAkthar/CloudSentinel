@@ -31,7 +31,7 @@ export default function AlertItem({ alert, onInvestigate }) {
     : "N/A";
   const colorClass = severityColors[alert.severity] || severityColors.INFO;
 
-  // ── Layer 2 Scanner data ────────────────────────────────────────────
+  // Layer 2 Scanner data 
   const l2 = alert.layer2_report || null;
   const patterns = l2?.patterns?.matched_patterns || [];
   const topThreat = l2?.patterns?.top_threat || null;
@@ -53,17 +53,15 @@ export default function AlertItem({ alert, onInvestigate }) {
           </h3>
 
           <span
-            className={`px-3 py-1 text-xs font-semibold rounded-full ${
-              badgeStyles[alert.severity]
-            }`}
+            className={`px-3 py-1 text-xs font-semibold rounded-full ${badgeStyles[alert.severity]
+              }`}
           >
             {alert.severity}
           </span>
 
           <span
-            className={`text-xs font-semibold whitespace-nowrap ${
-              statusColors[alert.status] || "text-slate-400"
-            }`}
+            className={`text-xs font-semibold whitespace-nowrap ${statusColors[alert.status] || "text-slate-400"
+              }`}
           >
             {alert.status || "N/A"}
           </span>
@@ -71,9 +69,8 @@ export default function AlertItem({ alert, onInvestigate }) {
           {/* L2 Decision badge */}
           {decision && (
             <span
-              className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${
-                decisionStyles[decision] || "bg-slate-500/15 text-slate-400 border-slate-500/40"
-              }`}
+              className={`px-2 py-0.5 text-xs font-semibold rounded-full border ${decisionStyles[decision] || "bg-slate-500/15 text-slate-400 border-slate-500/40"
+                }`}
             >
               {decision}
             </span>
@@ -109,13 +106,12 @@ export default function AlertItem({ alert, onInvestigate }) {
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-white/5 border border-white/10 text-slate-300"
               >
                 <span
-                  className={`h-1.5 w-1.5 rounded-full ${
-                    p.confidence >= 0.7
+                  className={`h-1.5 w-1.5 rounded-full ${p.confidence >= 0.7
                       ? "bg-red-400"
                       : p.confidence >= 0.4
-                      ? "bg-orange-400"
-                      : "bg-yellow-400"
-                  }`}
+                        ? "bg-orange-400"
+                        : "bg-yellow-400"
+                    }`}
                 />
                 {p.name || p.attack_type}
                 <span className="text-slate-500 ml-0.5">
