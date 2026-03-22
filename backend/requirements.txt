@@ -3,7 +3,7 @@ uvicorn
 gunicorn
 pydantic
 requests
-numpy
+numpy<2.0
 pandas
 statsmodels
 scikit-learn
@@ -13,4 +13,4 @@ passlib[bcrypt]
 bcrypt==3.2.2
 matplotlib
 seaborn
-boto3
+boto3
