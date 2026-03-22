@@ -16,10 +16,10 @@ import {
   CartesianGrid,
 } from "recharts";
 
-// ── Polling interval — refresh every 500ms (Matches RealTimeAlerts) ─────────
+// Polling interval — refresh every 500ms (Matches RealTimeAlerts) 
 const POLL_INTERVAL = 5000;
 
-// ── Static Chart Data (Historical Context) ─────────────────────────────
+//  Static Chart Data (Historical Context) 
 const chartData = [
   { day: "Mon", notifications: 3 },
   { day: "Tue", notifications: 7 },
@@ -30,7 +30,7 @@ const chartData = [
   { day: "Sun", notifications: 4 },
 ];
 
-// ── Styles for each notification type ──────────────────────────────────
+//  Styles for each notification type 
 const typeStyles = {
   CRITICAL: {
     icon: <WarningAmberRoundedIcon fontSize="small" />,
@@ -52,7 +52,7 @@ const typeStyles = {
   },
 };
 
-// ── Helper Functions ─────────────────────────────────────────────────
+//  Helper Functions 
 function timeAgo(iso) {
   const t = new Date(iso).getTime();
   const now = Date.now();
@@ -109,7 +109,7 @@ function buildTitleFromAlert(a) {
 
 function alertsToNotifications(alerts) {
   if (!Array.isArray(alerts)) return [];
-  
+
   // Sort newest first
   const sorted = alerts
     .slice()
@@ -128,20 +128,20 @@ function alertsToNotifications(alerts) {
 }
 
 export default function Notifications() {
-  // ── Local State (UI Preferences & Transformations) ────────────────────
+  //  Local State (UI Preferences & Transformations) 
   const [notifications, setNotifications] = useState([]);
   const [filter, setFilter] = useState("ALL");
-  
-  // ── Backend Connection States ─────────────────────────────────────────
+
+  //  Backend Connection States 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // ── Fetch Alerts from Live Backend ────────────────────────────────────
+  //  Fetch Alerts from Live Backend 
   const fetchNotifications = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const res = await axios.get("/api/alerts?limit=500");
       const data = Array.isArray(res.data) ? res.data : [];
 
@@ -159,15 +159,15 @@ export default function Notifications() {
     }
   }, []);
 
-  // ── Initial Fetch + Polling Loop ──────────────────────────────────────
+  //  Initial Fetch + Polling Loop 
   useEffect(() => {
     fetchNotifications();
-    
+
     const interval = setInterval(fetchNotifications, POLL_INTERVAL);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
-  // ── UI Interaction Handlers ───────────────────────────────────────────
+  //  UI Interaction Handlers 
   const markAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
@@ -184,7 +184,7 @@ export default function Notifications() {
     );
   };
 
-  // ── Derived Values ────────────────────────────────────────────────────
+  //  Derived Values 
   const unreadCount = notifications.filter((n) => !n.read).length;
   const pinnedNotifications = notifications.filter((n) => n.pinned);
   const filtered = notifications.filter((n) =>
@@ -205,9 +205,8 @@ export default function Notifications() {
         {/* Live Status Indicator (Mirroring RealTimeAlerts) */}
         <div className="flex items-center gap-2">
           <span
-            className={`h-2.5 w-2.5 rounded-full ${
-              error ? "bg-red-400" : "bg-emerald-400 animate-pulse"
-            }`}
+            className={`h-2.5 w-2.5 rounded-full ${error ? "bg-red-400" : "bg-emerald-400 animate-pulse"
+              }`}
           />
           <span className="text-xs text-slate-400">
             {error ? "Disconnected" : `Live • Polling ${POLL_INTERVAL / 1000}s`}
@@ -307,10 +306,10 @@ export default function Notifications() {
 
       {/* Main Content Grid: Chart (Static) + Notifications List (Dynamic) */}
       <div className="grid grid-cols-1 lg:grid-cols-1 gap-6 items-start">
-        
+
         {/* Notification List Container */}
         <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden h-[70vh] flex flex-col">
-          
+
           {/* Filter Tabs Header */}
           <div className="sticky top-0 z-10 border-b border-white/10 bg-[#0a1328]/90 backdrop-blur">
             <div className="flex items-center gap-3 px-5 py-3">
@@ -354,100 +353,98 @@ export default function Notifications() {
               </div>
             </div>
           </div>
-          
+
           {/* Notification Items Area */}
           <div className="flex-1 overflow-y-auto relative">
-             {/* Top Action Button for Unreads */}
-             {unreadCount > 0 && (
-                <div className="absolute top-0 right-0 z-20 px-4 pt-2 hidden lg:block">
-                   <button
-                    onClick={markAllRead}
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 transition-colors"
-                  >
-                    <CheckCircleOutlineRoundedIcon fontSize="small" />
-                    Mark all as read
-                  </button>
-                </div>
-             )}
+            {/* Top Action Button for Unreads */}
+            {unreadCount > 0 && (
+              <div className="absolute top-0 right-0 z-20 px-4 pt-2 hidden lg:block">
+                <button
+                  onClick={markAllRead}
+                  className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 transition-colors"
+                >
+                  <CheckCircleOutlineRoundedIcon fontSize="small" />
+                  Mark all as read
+                </button>
+              </div>
+            )}
 
-             {!loading ? (
-                <div className="divide-y divide-white/5 h-full">
-                  {filtered.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-3">
-                        <NotificationsNoneRoundedIcon fontSize="large" className="opacity-20"/>
-                        <span>No notifications found</span>
-                    </div>
-                  ) : (
-                    filtered.map((n) => {
-                      const style = typeStyles[n.type];
-                      return (
-                        <div
-                          key={n.id}
-                          onClick={() => markRead(n.id)}
-                          className={`flex items-start gap-4 px-5 py-4 border-l-4 ${style.border} cursor-pointer transition-colors ${
-                            n.read
-                              ? "opacity-60 hover:opacity-80"
-                              : "bg-white/3 hover:bg-white/5"
+            {!loading ? (
+              <div className="divide-y divide-white/5 h-full">
+                {filtered.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-3">
+                    <NotificationsNoneRoundedIcon fontSize="large" className="opacity-20" />
+                    <span>No notifications found</span>
+                  </div>
+                ) : (
+                  filtered.map((n) => {
+                    const style = typeStyles[n.type];
+                    return (
+                      <div
+                        key={n.id}
+                        onClick={() => markRead(n.id)}
+                        className={`flex items-start gap-4 px-5 py-4 border-l-4 ${style.border} cursor-pointer transition-colors ${n.read
+                            ? "opacity-60 hover:opacity-80"
+                            : "bg-white/3 hover:bg-white/5"
                           }`}
-                        >
-                          {/* Dot Indicator */}
-                          <div className="mt-1 shrink-0">
-                            {!n.read ? (
-                              <span
-                                className={`block w-2 h-2 rounded-full ${style.dot}`}
-                              />
-                            ) : (
-                              <span className="block w-2 h-2 rounded-full bg-transparent" />
-                            )}
-                          </div>
-
-                          {/* Content */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap mb-1">
-                              <span className="text-sm font-semibold text-white">
-                                {n.title}
-                              </span>
-                              <span
-                                className={`px-2 py-0.5 text-xs rounded-full font-medium ${style.badge}`}
-                              >
-                                {n.type}
-                              </span>
-                            </div>
-                            <p className="text-sm text-slate-400">{n.message}</p>
-                            <p className="text-xs text-slate-500 mt-1">{n.time}</p>
-                          </div>
-
-                          {/* Pin Button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              togglePin(n.id);
-                            }}
-                            className={`shrink-0 mt-1 transition-colors ${
-                              n.pinned
-                                ? "text-yellow-400"
-                                : "text-slate-600 hover:text-slate-300"
-                            }`}
-                            title={n.pinned ? "Unpin" : "Pin"}
-                          >
-                            {n.pinned ? (
-                              <PushPinRoundedIcon fontSize="small" />
-                            ) : (
-                              <PushPinOutlinedIcon fontSize="small" />
-                            )}
-                          </button>
+                      >
+                        {/* Dot Indicator */}
+                        <div className="mt-1 shrink-0">
+                          {!n.read ? (
+                            <span
+                              className={`block w-2 h-2 rounded-full ${style.dot}`}
+                            />
+                          ) : (
+                            <span className="block w-2 h-2 rounded-full bg-transparent" />
+                          )}
                         </div>
-                      );
-                    })
-                  )}
-                </div>
-              ) : (
-                // Loading Skeleton
-                <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-2">
-                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-400"></div>
-                    <span>Loading notifications...</span>
-                </div>
-              )}
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="text-sm font-semibold text-white">
+                              {n.title}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 text-xs rounded-full font-medium ${style.badge}`}
+                            >
+                              {n.type}
+                            </span>
+                          </div>
+                          <p className="text-sm text-slate-400">{n.message}</p>
+                          <p className="text-xs text-slate-500 mt-1">{n.time}</p>
+                        </div>
+
+                        {/* Pin Button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            togglePin(n.id);
+                          }}
+                          className={`shrink-0 mt-1 transition-colors ${n.pinned
+                              ? "text-yellow-400"
+                              : "text-slate-600 hover:text-slate-300"
+                            }`}
+                          title={n.pinned ? "Unpin" : "Pin"}
+                        >
+                          {n.pinned ? (
+                            <PushPinRoundedIcon fontSize="small" />
+                          ) : (
+                            <PushPinOutlinedIcon fontSize="small" />
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            ) : (
+              // Loading Skeleton
+              <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-2">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-400"></div>
+                <span>Loading notifications...</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
