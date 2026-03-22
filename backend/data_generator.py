@@ -14,9 +14,8 @@ import numpy as np
 from typing import Dict, List
 
 
-# ---------------------------------------------------------------------------
+
 # Normal traffic baseline ranges
-# ---------------------------------------------------------------------------
 
 NORMAL_RANGES = {
     'duration':       {'mean': 500, 'std': 80, 'min': 300, 'max': 800},
@@ -37,9 +36,8 @@ BUSY_HOURS  = range(9, 18)
 NIGHT_HOURS = list(range(0, 6)) + list(range(22, 24))
 
 
-# ---------------------------------------------------------------------------
+
 # Utility functions
-# ---------------------------------------------------------------------------
 
 def clamp(value: float, min_val: float, max_val: float) -> float:
     """Keep value within min/max range."""
@@ -60,9 +58,8 @@ def is_night_time(timestamp: datetime) -> bool:
     return timestamp.hour in NIGHT_HOURS
 
 
-# ---------------------------------------------------------------------------
+
 # Normal log generation
-# ---------------------------------------------------------------------------
 
 def generate_normal_log(timestamp: datetime, variation: str = 'standard') -> Dict:
     """Generate a normal Lambda execution log with realistic variation."""
@@ -114,9 +111,8 @@ def generate_normal_log(timestamp: datetime, variation: str = 'standard') -> Dic
     }
 
 
-# ---------------------------------------------------------------------------
+
 # Attack generators — one function per attack type
-# ---------------------------------------------------------------------------
 
 def generate_crypto_mining_attack(timestamp: datetime) -> Dict:
     """Crypto mining: extreme duration + high memory, minimal API calls."""
@@ -262,9 +258,8 @@ def generate_ip_spoofing_attack(timestamp: datetime) -> Dict:
     }
 
 
-# ---------------------------------------------------------------------------
+
 # Main generator class
-# ---------------------------------------------------------------------------
 
 class EnhancedLogGenerator:
     """Generates mixed normal + attack traffic with configurable attack rate."""
@@ -410,9 +405,8 @@ class EnhancedLogGenerator:
         print("=" * 60)
 
 
-# ---------------------------------------------------------------------------
+
 # Backwards-compatible convenience function
-# ---------------------------------------------------------------------------
 
 def generate_test_data(num_logs: int = 100, attack_rate: float = 0.08) -> List[Dict]:
     """Generate test logs (drop-in replacement for old code)."""
@@ -420,9 +414,8 @@ def generate_test_data(num_logs: int = 100, attack_rate: float = 0.08) -> List[D
     return generator.generate_batch(num_logs)
 
 
-# ---------------------------------------------------------------------------
+
 # Self-test
-# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     print("=" * 70)
