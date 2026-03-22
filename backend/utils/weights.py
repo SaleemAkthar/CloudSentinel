@@ -1,6 +1,5 @@
 """
 Weight Configurations for Cloud Sentinel Anomaly Detection
-===========================================================
 
 These weights are based on:
 1. Academic research (IEEE, ACM, MIT studies)
@@ -11,9 +10,8 @@ These weights are based on:
 Last Updated: 2026-03-09
 Author: Raneesha (Backend Team)
 """
-# ============================================================================
+
 # FEATURE WEIGHTS
-# ============================================================================
 # Determines importance of each performance metric in anomaly scoring
 # Must sum to 1.0
 
@@ -55,9 +53,8 @@ FEATURE_WEIGHTS = {
 # Validate weights sum to 1.0
 assert abs(sum(FEATURE_WEIGHTS.values()) - 1.0) < 0.001, "Feature weights must sum to 1.0"
 
-# ============================================================================
+
 # COMPONENT WEIGHTS
-# ============================================================================
 # Determines importance of each detection layer
 # Must sum to 1.0
 
@@ -94,9 +91,8 @@ COMPONENT_WEIGHTS = {
 # Validate weights sum to 1.0
 assert abs(sum(COMPONENT_WEIGHTS.values()) - 1.0) < 0.001, "Component weights must sum to 1.0"
 
-# ============================================================================
+
 # DETECTION THRESHOLDS (TIERED ALERTING SYSTEM)
-# ============================================================================
 
 # RC2 FIX: medium threshold lowered from 0.40 to 0.30.
 # This shifts the operating point to higher recall, consistent with NIST
@@ -133,9 +129,8 @@ ANOMALY_THRESHOLD = DETECTION_THRESHOLDS['medium']  # 0.30
 # Backward compatibility alias
 SEVERITY_THRESHOLDS = DETECTION_THRESHOLDS
 
-# ============================================================================
+
 # ATTACK-SPECIFIC THRESHOLDS
-# ============================================================================
 # Multipliers for baseline to detect specific attacks
 
 ATTACK_THRESHOLDS = {
@@ -175,9 +170,8 @@ ATTACK_THRESHOLDS = {
         'entropy_threshold': 0.3  # Low diversity = DDoS
     }
 }
-# ============================================================================
+
 # NORMALIZATION PARAMETERS
-# ============================================================================
 
 # Hyperbolic tangent normalization factor
 # Used in composite score calculation
@@ -188,9 +182,8 @@ TANH_SCALE_FACTOR = 1.0
 Z_SCORE_NORMALIZER = 3.0
 
 
-# ============================================================================
+
 # CONFIDENCE THRESHOLDS
-# ============================================================================
 
 # Minimum confidence for auto-response (Phase 2)
 AUTO_RESPONSE_CONFIDENCE = 0.95
@@ -202,9 +195,8 @@ HIGH_CONFIDENCE_THRESHOLD = 0.85
 LOW_CONFIDENCE_THRESHOLD = 0.50
 
 
-# ============================================================================
+
 # TEMPORAL (SARIMA) PARAMETERS
-# ============================================================================
 
 # Minimum data points needed to train SARIMA
 SARIMA_MIN_DATA_POINTS = 200  # ~2 weeks at 1 sample/hour
@@ -217,9 +209,8 @@ SARIMA_SEASONAL_ORDER = (1, 1, 1, 24)  # Seasonal: (AR, I, MA, period)
 # Period = 24 assumes hourly data with daily seasonality
 # Adjust if sampling frequency changes
 
-# ============================================================================
+
 # PACKET ANALYSIS THRESHOLDS
-# ============================================================================
 
 # Packet size ratio threshold (outbound/inbound)
 # Ratios > 10 indicate data exfiltration
@@ -234,9 +225,8 @@ FRAGMENT_COUNT_THRESHOLD = 10
 NETWORK_LATENCY_THRESHOLD = 1000
 
 
-# ============================================================================
+
 # LEARNING PARAMETERS
-# ============================================================================
 
 # Number of requests for initial baseline learning
 LEARNING_WINDOW = 100
@@ -247,9 +237,8 @@ MIN_SAMPLES_FOR_DETECTION = 50
 # Update rate for exponential moving average
 EMA_ALPHA = 0.1  # 10% weight to new values
 
-# ============================================================================
+
 # ENVIRONMENT-SPECIFIC OVERRIDES
-# ============================================================================
 # These can be adjusted based on deployment environment
 
 # High-security environments (banks, healthcare)
@@ -272,9 +261,8 @@ PRODUCTION_CONFIG = {
 }
 
 
-# ============================================================================
+
 # HELPER FUNCTIONS
-# ============================================================================
 
 def is_anomaly(score: float) -> bool:
     """
@@ -329,9 +317,8 @@ def get_severity_from_score(score: float) -> str | None:
         return None
 
 
-# ============================================================================
+
 # VALIDATION & TESTING
-# ============================================================================
 
 def validate_weights():
     """
@@ -426,9 +413,8 @@ def calculate_theoretical_fp_rate(threshold: float) -> float | None:
         return None
 
 
-# ============================================================================
+
 # TESTING
-# ============================================================================
 
 if __name__ == "__main__":
     print("=" * 70)
