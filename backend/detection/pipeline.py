@@ -26,6 +26,7 @@ from backend.detection.layer1_filter    import Layer1Filter
 from backend.detection.layer2_scanner  import Layer2Scanner
 from backend.detection.sarima_forecaster import SARIMAForecaster
 from backend.detection.layer1_scorer   import Layer1Scorer
+from backend.detection.ai_model import EnsembleAnomalyDetector
 
 
 # ============================================================================
