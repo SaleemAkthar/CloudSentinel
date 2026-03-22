@@ -4,11 +4,11 @@ import GlassCard from "../components/GlassCard";
 import StatusDot from "../components/StatusDot";
 
 export default function Investigation({ alertId, onClose }) {
-  const [alert, setAlert]           = useState(null);
-  const [l2Report, setL2Report]     = useState(null);
+  const [alert, setAlert] = useState(null);
+  const [l2Report, setL2Report] = useState(null);
   const [loadingAlert, setLoadingAlert] = useState(true);
   const [investigating, setInvestigating] = useState(false);
-  const [error, setError]           = useState(null);
+  const [error, setError] = useState(null);
 
   // Fetch the real alert from backend
   useEffect(() => {
@@ -59,17 +59,17 @@ export default function Investigation({ alertId, onClose }) {
 
   if (!alert) return null;
 
-  const runtime  = alert.features || {};
-  const timeStr  = new Date(alert.timestamp).toLocaleString();
-  const tone     = alert.severity === "CRITICAL" ? "err"
-                 : alert.severity === "WARNING"  ? "warn" : "ok";
+  const runtime = alert.features || {};
+  const timeStr = new Date(alert.timestamp).toLocaleString();
+  const tone = alert.severity === "CRITICAL" ? "err"
+    : alert.severity === "WARNING" ? "warn" : "ok";
 
   // Layer 2 data
-  const ip        = l2Report?.ip;
-  const pkt       = l2Report?.packet;
-  const patterns  = l2Report?.patterns;
-  const topology  = l2Report?.topology;
-  const risk      = l2Report?.risk;
+  const ip = l2Report?.ip;
+  const pkt = l2Report?.packet;
+  const patterns = l2Report?.patterns;
+  const topology = l2Report?.topology;
+  const risk = l2Report?.risk;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur">
@@ -144,7 +144,7 @@ export default function Investigation({ alertId, onClose }) {
                   <div><span className="text-white font-semibold">Reputation:</span>{" "}
                     <span className={
                       ip.reputation?.label === "MALICIOUS" ? "text-red-400" :
-                      ip.reputation?.label === "SUSPICIOUS" ? "text-orange-400" : "text-emerald-400"
+                        ip.reputation?.label === "SUSPICIOUS" ? "text-orange-400" : "text-emerald-400"
                     }>
                       {ip.reputation?.label || "—"}
                     </span>
@@ -179,11 +179,10 @@ export default function Investigation({ alertId, onClose }) {
                     <div key={i} className="rounded-lg border border-white/10 bg-white/5 p-3">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-semibold text-white">{p.name}</span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${
-                          p.confidence >= 0.7 ? "bg-red-500/20 text-red-400" :
-                          p.confidence >= 0.4 ? "bg-orange-500/20 text-orange-400" :
-                          "bg-yellow-500/20 text-yellow-400"
-                        }`}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${p.confidence >= 0.7 ? "bg-red-500/20 text-red-400" :
+                            p.confidence >= 0.4 ? "bg-orange-500/20 text-orange-400" :
+                              "bg-yellow-500/20 text-yellow-400"
+                          }`}>
                           {(p.confidence * 100).toFixed(0)}% confidence
                         </span>
                       </div>
