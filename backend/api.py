@@ -76,7 +76,7 @@ app.add_middleware(
 from backend.detection.pipeline import _sarima as sarima_forecaster
 
 # AI Ensemble: Isolation Forest (unsupervised) + Random Forest (supervised)
-ai_model = EnsembleAnomalyDetector(learning_window=200)
+from backend.detection.pipeline import _ai_model as ai_model
 
 # Layer 2 Scanner singleton — instantiated once, reused per investigate call
 _layer2_scanner = Layer2Scanner()
