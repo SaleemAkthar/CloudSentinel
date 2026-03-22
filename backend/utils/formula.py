@@ -20,19 +20,6 @@ from datetime import datetime
 import math
 
 class WelfordStatistics:
-    """
-    Welford's algorithm for computing mean and variance incrementally.
-    
-    Advantage: O(1) space complexity - doesn't store all data points
-    
-    Mathematical formulas:
-        δ = x - μ
-        μ_new = μ_old + δ/n
-        δ2 = x - μ_new
-        M2 = M2 + δ × δ2
-        σ² = M2/(n-1)
-        σ = √(σ²)
-    """
     
     def __init__(self):
         self.n = 0          # Count
@@ -393,9 +380,10 @@ def calculate_behavioral_anomaly(
     Checks for:
     1. Crypto-mining (high duration + high memory)
     2. Data exfiltration (excessive API calls)
-    3. DDoS (high request rate, low entropy)
-    4. SQL injection (high DB queries + errors)
-    5. Memory attack (memory near limit)
+    3. SQL injection (high DB queries + errors)
+    4. Memory attack(memory near Lambda limit)
+    5. DDoS (high APi call volumn , sngle request )
+    6. IP spoofing 
     
     Args:
         features: Current request features
@@ -430,7 +418,7 @@ def calculate_behavioral_anomaly(
     # Excessive API calls (>10) — S3 PutObject burst pattern
     # Research: IBM X-Force 2024 — 87% of Lambda exfil events show >50x
     # API call asymmetry vs normal baseline.
-    if api_calls > 10:
+    if api_calls > 25:
         S_exfil = min(api_calls / 30, 1.0)
         attack_scores['data_exfiltration'] = S_exfil
 
@@ -751,51 +739,7 @@ def classify_severity(
     attack_type: str,
     confidence: float
 ) -> Optional[str]:
-    """
-    Classify severity level based on score, attack type, and confidence
     
-    Uses tiered alerting system with 3 severity levels.
-    Returns None if score is below minimum detection threshold.
-    
-    Classification Rules:
-    ┌────────────────────────────────────────────────────────────────┐
-    │ Score  │ Attack Type   │ Result   │ Reasoning                │
-    ├────────────────────────────────────────────────────────────────┤
-    │ ≥ 0.8  │ Any           │ CRITICAL │ Very high anomaly        │
-    │ ≥ 0.6  │ Dangerous     │ CRITICAL │ Known attack pattern     │
-    │ ≥ 0.6  │ Other         │ HIGH     │ Suspicious activity      │
-    │ ≥ 0.4  │ Dangerous     │ HIGH     │ Potential attack         │
-    │ ≥ 0.4  │ Other         │ MEDIUM   │ Minor anomaly            │
-    │ < 0.4  │ Any           │ None     │ Not anomalous            │
-    └────────────────────────────────────────────────────────────────┘
-    
-    Dangerous attacks: crypto_mining, data_exfiltration, ddos, 
-                       ransomware, sql_injection, memory_attack
-    
-    Args:
-        anomaly_score: Composite anomaly score (0-1)
-        attack_type: Detected attack type or 'unknown'
-        confidence: Confidence in detection (0-1)
-    
-    Returns:
-        'CRITICAL', 'HIGH', 'MEDIUM', or None if below threshold
-    
-    Examples:
-        >>> classify_severity(0.95, 'crypto_mining', 0.98)
-        'CRITICAL'
-        
-        >>> classify_severity(0.65, 'unknown', 0.80)
-        'HIGH'
-        
-        >>> classify_severity(0.45, 'sql_injection', 0.85)
-        'HIGH'  (dangerous attack)
-        
-        >>> classify_severity(0.45, 'unknown', 0.70)
-        'MEDIUM'  (not dangerous)
-        
-        >>> classify_severity(0.35, 'unknown', 0.70)
-        None  (below minimum threshold)
-    """
     # Known dangerous attack types
     dangerous_attacks = [
         'crypto_mining',
