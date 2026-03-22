@@ -19,7 +19,7 @@
 
 services:
 
-  # ── Backend Node 1 ──────────────────────────────────────────────────
+  # Backend Node 1 
   backend-1:
     build:
       context: .
@@ -37,7 +37,7 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # ── Backend Node 2 ──────────────────────────────────────────────────
+  # Backend Node 2 
   backend-2:
     build:
       context: .
@@ -55,7 +55,7 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # ── Backend Node 3 ──────────────────────────────────────────────────
+  # Backend Node 3 
   backend-3:
     build:
       context: .
@@ -73,7 +73,7 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # ── Load Balancer (nginx) ───────────────────────────────────────────
+  # Load Balancer (nginx)
   backend-lb:
     image: nginx:alpine
     container_name: cs-load-balancer
@@ -90,7 +90,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # ── Frontend (React + nginx) ────────────────────────────────────────
+  # Frontend (React + nginx)
   frontend:
     build:
       context: .
@@ -102,7 +102,7 @@ services:
       - backend-lb
     restart: unless-stopped
     
-# ── ModSecurity WAF ─────────────────────────────────────────────────
+# ModSecurity WAF
   # Rules-based WAF. Blocks known attack signatures.
   # Sits in front of your backend load balancer.
   # Traffic comes in on port 8081 → WAF inspects → forwards to backend-lb
@@ -121,7 +121,7 @@ services:
       - ./nginx-modsecurity.conf:/etc/nginx/templates/conf.d/default.conf.template:ro
       - ./modsec-main.conf:/etc/modsecurity.d/modsec-override.conf:ro
 
-  # ── OpenAppsec WAF ───────────────────────────────────────────────────
+  #  OpenAppsec WAF 
   # ML-based WAF. Learns your traffic and blocks anomalies.
   # Sits in front of ModSecurity.
   # Traffic comes in on port 8082 → OpenAppsec → ModSecurity → backend-lb
