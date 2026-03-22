@@ -321,7 +321,7 @@ def process_log(request: LogRequest):
     if not attack_type and ai_stage.get("is_anomaly"):
         attack_type = "Unknown"
 
-    # ── ALLOW: clean traffic ──────────────────────────────────────────
+    # ALLOW: clean traffic
     if not is_anomaly:
         result = {
             "decision":   "ALLOW",
@@ -339,7 +339,7 @@ def process_log(request: LogRequest):
         _update_lambda_metrics(request, is_anomaly=False)
         return result
 
-    # ── INVESTIGATE: flagged by ensemble and/or filter ────────────────
+    # INVESTIGATE: flagged by ensemble and/or filter
     alert = _build_alert(
         log_request=request,
         decision=decision,
@@ -381,9 +381,9 @@ def process_log(request: LogRequest):
     return result
 
 
-# ---------------------------------------------------------------------------
+
 # Alert endpoints
-# ---------------------------------------------------------------------------
+
 
 @app.get("/api/alerts")
 def get_alerts(
@@ -434,9 +434,8 @@ def close_alert(alert_id: str):
     return {"success": True}
 
 
-# ---------------------------------------------------------------------------
+
 # User action endpoints — ALLOW and BLOCK
-# ---------------------------------------------------------------------------
 
 @app.patch("/api/alerts/{alert_id}/allow")
 def allow_alert(alert_id: str):
