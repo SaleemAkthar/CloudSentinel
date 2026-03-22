@@ -45,6 +45,11 @@ export async function getModelHealth() {
   return res.data;
 }
 
+export async function updateProfile({ username, email }) {
+  const res = await axios.put("/api/auth/profile", { username, email });
+  return res.data;
+}
+
 // Auth Endpoints
 
 
