@@ -1,6 +1,5 @@
 """
 Mathematical Formulas for Cloud Sentinel Anomaly Detection
-===========================================================
 
 This module contains ALL mathematical formulas used in the detection system:
 1. Statistical calculations (Z-scores, variance, etc.)
@@ -186,9 +185,8 @@ def calculate_multi_feature_z_scores(
             z_scores[feature_name] = 0.0
 
     return z_scores
-    # ============================================================================
+
 # SECTION 3: WEIGHTED FEATURE ANOMALY SCORING
-# ============================================================================
 
 def calculate_feature_anomaly(
     features: Dict[str, float],
@@ -256,9 +254,8 @@ def calculate_feature_anomaly(
     
     return normalized_score, details
 
-# ============================================================================
+
 # SECTION 4: PACKET-BASED ANOMALY SCORING
-# ============================================================================
 
 def calculate_packet_anomaly(
     features: Dict[str, float],
@@ -333,9 +330,8 @@ def calculate_packet_anomaly(
     }
     
     return A_packet, details
-# ============================================================================
+
 # SECTION 5: TEMPORAL ANOMALY (SARIMA-based)
-# ============================================================================
 
 def calculate_temporal_anomaly(
     actual_value: float,
@@ -383,9 +379,8 @@ def calculate_temporal_anomaly(
     temporal_anomaly = min(temporal_z / 3.0, 1.0)
     
     return temporal_anomaly
-# ============================================================================
+
 # SECTION 6: BEHAVIORAL ANOMALY (Attack Signatures)
-# ============================================================================
 
 def calculate_behavioral_anomaly(
     features: Dict[str, float],
@@ -513,9 +508,8 @@ def calculate_behavioral_anomaly(
         behavioral_score = 0.0
 
     return behavioral_score, attack_type
-# ============================================================================
+
 # SECTION 7: COMPOSITE ANOMALY SCORE
-# ============================================================================
 
 def calculate_composite_anomaly_score(
     A_feature: float,
@@ -586,9 +580,8 @@ def calculate_composite_anomaly_score(
     S_composite = max(0.0, min(S_composite, 1.0))
 
     return S_composite
-# ============================================================================
+
 # SECTION 8: CONFIDENCE CALCULATION
-# ============================================================================
 
 def calculate_confidence_score(
     A_feature: float,
@@ -641,9 +634,8 @@ def calculate_confidence_score(
         confidence *= 1.1
     
     return min(confidence, 1.0)
-# ============================================================================
+
 # SECTION 9: NORMALIZATION FUNCTIONS
-# ============================================================================
 
 def sigmoid(x: float, k: float = 1.0) -> float:
     """
@@ -696,9 +688,8 @@ def clip_normalize(x: float, threshold: float = 3.0) -> float:
     return min(x / threshold, 1.0)
 
 
-# ============================================================================
+
 # SECTION 10: DISTANCE METRICS
-# ============================================================================
 
 def euclidean_distance(point1: List[float], point2: List[float]) -> float:
     """
@@ -752,9 +743,8 @@ def mahalanobis_distance(
     except np.linalg.LinAlgError:
         # Covariance matrix is singular, fall back to Euclidean
         return euclidean_distance(point, mean)
-# ============================================================================
+
 # SECTION 11: SEVERITY CLASSIFICATION
-# ============================================================================
 
 def classify_severity(
     anomaly_score: float,
@@ -839,9 +829,8 @@ def classify_severity(
         # Below minimum detection threshold
         return None
     
-# ============================================================================
+
 # SECTION 12: HELPER FUNCTIONS
-# ============================================================================
 
 def safe_divide(numerator: float, denominator: float, default: float = 0.0) -> float:
     """Safe division (prevents division by zero)"""
@@ -872,9 +861,8 @@ def exponential_moving_average(
     return alpha * new_value + (1 - alpha) * current_avg
 
 
-# ============================================================================
+
 # SECTION 13: VALIDATION FUNCTIONS
-# ============================================================================
 
 def validate_probability(p: float) -> bool:
     """Check if value is valid probability (0-1)"""
@@ -886,9 +874,8 @@ def validate_score(score: float) -> float:
     return max(0.0, min(score, 1.0))
 
 
-# ============================================================================
+
 # TESTING / EXAMPLES
-# ============================================================================
 
 if __name__ == "__main__":
     print("=" * 70)
