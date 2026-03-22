@@ -1,6 +1,6 @@
 """
 Auth Utilities
-==============
+
 JWT creation / verification and bcrypt password helpers.
 
 JWT payload: { "sub": "<user_id>", "exp": <unix_timestamp> }
