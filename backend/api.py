@@ -1,6 +1,5 @@
 """
 Cloud Sentinel — FastAPI Backend
-=================================
 Entry point for the anomaly detection API.
 
 Detection pipeline:
@@ -737,9 +736,8 @@ def get_sarima_status():
     return sarima_forecaster.get_status()
 
 
-# ---------------------------------------------------------------------------
+
 # AWS CloudWatch Live Monitoring
-# ---------------------------------------------------------------------------
 
 _aws_monitor_running = False
 _aws_monitor_thread: threading.Thread | None = None
