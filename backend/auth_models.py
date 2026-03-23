@@ -28,6 +28,7 @@ class UserResponse(BaseModel):
     id: str
     username: str
     email: str
+    created_at: str | None = None
 
 
 class MessageResponse(BaseModel):

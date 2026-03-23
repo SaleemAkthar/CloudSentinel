@@ -7,6 +7,7 @@ Keys are lowercased emails for fast login lookup.
 import os
 import json
 import uuid
+from datetime import datetime, timezone
 from typing import Optional, Dict
 
 DB_FILE = os.path.join(os.path.dirname(__file__), "users.json")
@@ -44,6 +45,7 @@ def create_user(username: str, email: str, hashed_password: str) -> dict:
         "username":        username,
         "email":           email.lower(),
         "hashed_password": hashed_password,
+        "created_at":      datetime.now(timezone.utc).isoformat(),
     }
     _users[email.lower()] = user
     _save_users(_users)

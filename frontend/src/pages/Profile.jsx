@@ -62,21 +62,32 @@ export default function Profile() {
   const { user: authUser, setUser: setAuthUser } = useAuth();
 
   // Build the profile from the backend auth user
-  const buildUserFromAuth = (auth) => ({
-    name: auth?.username || "Display Name",
-    role: "Security Analyst",
-    email: auth?.email || "email@cloudsentinel.io",
-    organization: "Cloud Sentinel Security",
-    joined: "January 2025",
-    avatar: getInitials(auth?.username),
-    plan: "Team",
-    twoFA: true,
-    notifications: {
-      email: true,
-      critical: true,
-      weekly: false,
-    },
-  });
+  const buildUserFromAuth = (auth) => {
+    let joinedStr = "Recently Joined";
+    if (auth?.created_at) {
+      joinedStr = new Date(auth.created_at).toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+        day: "numeric",
+      });
+    }
+
+    return {
+      name: auth?.username || "Display Name",
+      role: "Security Analyst",
+      email: auth?.email || "email@cloudsentinel.io",
+      organization: "Cloud Sentinel Security",
+      joined: joinedStr,
+      avatar: getInitials(auth?.username),
+      plan: "Team",
+      twoFA: true,
+      notifications: {
+        email: true,
+        critical: true,
+        weekly: false,
+      },
+    };
+  };
 
   // state for user data, edit mode, draft changes and save confirmation
   const [user, setUser] = useState(() => buildUserFromAuth(authUser));
