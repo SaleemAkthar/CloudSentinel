@@ -78,7 +78,7 @@ export default function Profile() {
       organization: "Cloud Sentinel Security",
       joined: joinedStr,
       avatar: getInitials(auth?.username),
-      plan: "Team",
+      plan: "Free",
       twoFA: true,
       notifications: {
         email: true,
