@@ -168,9 +168,9 @@ export default function Signin() {
                   <label className="block text-[0.72rem] font-medium text-white/50 uppercase tracking-widest">
                     Password
                   </label>
-                  <a href="#" className="text-[0.78rem] text-blue-400 hover:text-blue-300 hover:underline transition-colors">
+                  {/* <a href="#" className="text-[0.78rem] text-blue-400 hover:text-blue-300 hover:underline transition-colors">
                     Forgot password?
-                  </a>
+                  </a> */}
                 </div>
                 <div className="relative">
                   <input
