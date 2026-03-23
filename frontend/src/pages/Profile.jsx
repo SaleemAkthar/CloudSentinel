@@ -63,14 +63,13 @@ export default function Profile() {
 
   // Build the profile from the backend auth user
   const buildUserFromAuth = (auth) => {
-    let joinedStr = "Recently Joined";
-    if (auth?.created_at) {
-      joinedStr = new Date(auth.created_at).toLocaleDateString("en-US", {
-        month: "long",
-        year: "numeric",
-        day: "numeric",
-      });
-    }
+    // Use the backend created_at date, or default to right now if it's an older account missing the field
+    const dateToUse = auth?.created_at ? new Date(auth.created_at) : new Date();
+    const joinedStr = dateToUse.toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+      day: "numeric",
+    });
 
     return {
       name: auth?.username || "Display Name",
