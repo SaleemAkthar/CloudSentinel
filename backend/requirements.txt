@@ -3,7 +3,7 @@ uvicorn>=0.30.0
 gunicorn>=22.0.0
 pydantic>=2.7.0
 requests>=2.32.0
-numpy<2.0
+numpy
 pandas>=2.2.0
 statsmodels>=0.14.0
 scikit-learn>=1.4.0

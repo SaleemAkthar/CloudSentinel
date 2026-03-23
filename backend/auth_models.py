@@ -28,6 +28,7 @@ class UserResponse(BaseModel):
     id: str
     username: str
     email: str
+    created_at: str | None = None
 
 
 class MessageResponse(BaseModel):
@@ -40,4 +41,9 @@ class ProfileUpdateRequest(BaseModel):
     """Body sent by the Profile edit form."""
     username: str | None = None
     email: str | None = None
+
+class ChangePasswordRequest(BaseModel):
+    """Body sent by the Change Password form."""
+    current_password: str
+    new_password: str
 

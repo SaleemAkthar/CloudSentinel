@@ -4,5 +4,11 @@
     "username": "rushen",
     "email": "rushen.20240407@iit.ac.lk",
     "hashed_password": "$2b$12$V44c7gBM0XPIskVWvoot3uwxy68Ukdf8t.BwZsnzmjW1Rw5SoIdgW"
+  },
+  "ashanbandara407@gmail.com": {
+    "id": "b81b17ba-14ae-4be0-9b09-dd6fd657fc0e",
+    "username": "ashan",
+    "email": "ashanbandara407@gmail.com",
+    "hashed_password": "$2b$12$jZBamxykfirTvbkjWO.zROYEsaW97FhvAQ5euBfB/oKJdUJrWN8dW"
   }
 }

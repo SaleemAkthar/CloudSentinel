@@ -7,6 +7,7 @@ Keys are lowercased emails for fast login lookup.
 import os
 import json
 import uuid
+from datetime import datetime, timezone
 from typing import Optional, Dict
 
 DB_FILE = os.path.join(os.path.dirname(__file__), "users.json")
@@ -44,6 +45,7 @@ def create_user(username: str, email: str, hashed_password: str) -> dict:
         "username":        username,
         "email":           email.lower(),
         "hashed_password": hashed_password,
+        "created_at":      datetime.now(timezone.utc).isoformat(),
     }
     _users[email.lower()] = user
     _save_users(_users)
@@ -81,4 +83,13 @@ def update_user(user_id: str, username: Optional[str] = None, email: Optional[st
 
     _save_users(_users)
     return user
+
+def update_user_password(user_id: str, new_hashed_password: str) -> Optional[dict]:
+    """Update a user's password by user_id. Persists to JSON."""
+    for u in _users.values():
+        if u["id"] == user_id:
+            u["hashed_password"] = new_hashed_password
+            _save_users(_users)
+            return u
+    return None
 

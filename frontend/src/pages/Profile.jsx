@@ -1,7 +1,7 @@
 // MUI icon imports for UI elements
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { updateProfile } from "../services/api";
+import { updateProfile, changePassword } from "../services/api";
 import PersonOutlineRoundedIcon from "@mui/icons-material/PersonOutlineRounded";
 import NotificationsNoneRoundedIcon from "@mui/icons-material/NotificationsNoneRounded";
 import WarningAmberRoundedIcon from "@mui/icons-material/WarningAmberRounded";
@@ -62,21 +62,30 @@ export default function Profile() {
   const { user: authUser, setUser: setAuthUser } = useAuth();
 
   // Build the profile from the backend auth user
-  const buildUserFromAuth = (auth) => ({
-    name: auth?.username || "Display Name",
-    role: "Security Analyst",
-    email: auth?.email || "email@cloudsentinel.io",
-    organization: "Cloud Sentinel Security",
-    joined: "January 2025",
-    avatar: getInitials(auth?.username),
-    plan: "Team",
-    twoFA: true,
-    notifications: {
-      email: true,
-      critical: true,
-      weekly: false,
-    },
-  });
+  const buildUserFromAuth = (auth) => {
+    // Use the backend created_at date, or default to right now if it's an older account missing the field
+    const dateToUse = auth?.created_at ? new Date(auth.created_at) : new Date();
+    const joinedStr = dateToUse.toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+      day: "numeric",
+    });
+
+    return {
+      name: auth?.username || "Display Name",
+      role: "Security Analyst",
+      email: auth?.email || "email@cloudsentinel.io",
+      organization: "Cloud Sentinel Security",
+      joined: joinedStr,
+      avatar: getInitials(auth?.username),
+      plan: "Free",
+      notifications: {
+        email: true,
+        critical: true,
+        weekly: false,
+      },
+    };
+  };
 
   // state for user data, edit mode, draft changes and save confirmation
   const [user, setUser] = useState(() => buildUserFromAuth(authUser));
@@ -85,6 +94,13 @@ export default function Profile() {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+
+  // password change state
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordData, setPasswordData] = useState({ current: "", new: "", confirm: "" });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState(null);
+  const [passwordSuccess, setPasswordSuccess] = useState(null);
 
   // Keep profile in sync when authUser changes (e.g., session restored)
   useEffect(() => {
@@ -128,6 +144,37 @@ export default function Profile() {
       setSaveError(msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // submit password change
+  const handlePasswordSubmit = async (e) => {
+    e.preventDefault();
+    setPasswordError(null);
+    setPasswordSuccess(null);
+
+    if (passwordData.new !== passwordData.confirm) {
+      return setPasswordError("New passwords do not match.");
+    }
+    if (passwordData.new.length < 8) {
+      return setPasswordError("New password must be at least 8 characters.");
+    }
+
+    setPasswordLoading(true);
+    try {
+      await changePassword(passwordData.current, passwordData.new);
+      setPasswordSuccess("Password updated successfully!");
+      setPasswordData({ current: "", new: "", confirm: "" });
+      setTimeout(() => {
+        setIsChangingPassword(false);
+        setPasswordSuccess(null);
+      }, 2500);
+    } catch (err) {
+      setPasswordError(
+        err.response?.data?.detail || "Failed to update password. Please check your current password."
+      );
+    } finally {
+      setPasswordLoading(false);
     }
   };
 
@@ -202,15 +249,6 @@ export default function Profile() {
               <div className="flex items-center justify-between">
                 <span>Member since</span>
                 <span className="text-slate-200">{user.joined}</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span>2FA Security</span>
-                <span
-                  className={user.twoFA ? "text-emerald-400" : "text-red-400"}
-                >
-                  {user.twoFA ? "Enabled" : "Disabled"}
-                </span>
               </div>
             </div>
           </div>
@@ -349,37 +387,88 @@ export default function Profile() {
             </div>
 
             <div className="p-5 space-y-3">
-              <div className="flex items-center justify-between py-2 border-b border-white/5">
-                <div>
-                  <div className="text-sm text-slate-200">
-                    Two-Factor Authentication
+
+              <div className="py-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-slate-200">Password</div>
+                    <div className="text-xs text-slate-500">
+                      Update your login credentials
+                    </div>
                   </div>
-                  <div className="text-xs text-slate-500">
-                    Extra layer of security on your account
-                  </div>
+
+                  {!isChangingPassword && (
+                    <button 
+                      onClick={() => setIsChangingPassword(true)}
+                      className="px-3 py-1.5 text-xs rounded-lg bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 transition-colors"
+                    >
+                      Change
+                    </button>
+                  )}
                 </div>
 
-                <span
-                  className={`px-2.5 py-1 rounded-full text-xs font-semibold ${user.twoFA
-                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                    : "bg-red-500/15 text-red-400 border border-red-500/30"
-                    }`}
-                >
-                  {user.twoFA ? "Enabled" : "Disabled"}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-2">
-                <div>
-                  <div className="text-sm text-slate-200">Password</div>
-                  <div className="text-xs text-slate-500">
-                    Last changed 30 days ago
-                  </div>
-                </div>
-
-                <button className="px-3 py-1.5 text-xs rounded-lg bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 transition-colors">
-                  Change
-                </button>
+                {isChangingPassword && (
+                  <form onSubmit={handlePasswordSubmit} className="mt-4 p-4 rounded-xl bg-black/20 border border-white/5 space-y-3">
+                    {passwordError && (
+                      <div className="text-red-400 text-[0.75rem] bg-red-500/10 px-3 py-2 rounded-lg border border-red-500/20">
+                        {passwordError}
+                      </div>
+                    )}
+                    {passwordSuccess && (
+                      <div className="text-emerald-400 text-[0.75rem] bg-emerald-500/10 px-3 py-2 rounded-lg border border-emerald-500/20">
+                        {passwordSuccess}
+                      </div>
+                    )}
+                    
+                    <input 
+                      type="password"
+                      placeholder="Current Password"
+                      required
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-500/60 transition-colors"
+                      value={passwordData.current}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, current: e.target.value }))}
+                    />
+                    
+                    <input 
+                      type="password"
+                      placeholder="New Password (min. 8 chars)"
+                      required
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-500/60 transition-colors"
+                      value={passwordData.new}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, new: e.target.value }))}
+                    />
+                    
+                    <input 
+                      type="password"
+                      placeholder="Confirm New Password"
+                      required
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-blue-500/60 transition-colors"
+                      value={passwordData.confirm}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, confirm: e.target.value }))}
+                    />
+                    
+                    <div className="flex gap-2 pt-1">
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setIsChangingPassword(false);
+                          setPasswordError(null);
+                          setPasswordSuccess(null);
+                        }}
+                        className="flex-1 px-3 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="submit"
+                        disabled={passwordLoading}
+                        className="flex-1 px-3 py-1.5 text-xs rounded-lg bg-blue-600/20 border border-blue-500/40 text-blue-300 hover:bg-blue-600/30 transition-colors disabled:opacity-50"
+                      >
+                        {passwordLoading ? "Saving..." : "Update Password"}
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             </div>
           </div>
