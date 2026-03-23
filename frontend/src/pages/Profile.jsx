@@ -79,7 +79,6 @@ export default function Profile() {
       joined: joinedStr,
       avatar: getInitials(auth?.username),
       plan: "Free",
-      twoFA: true,
       notifications: {
         email: true,
         critical: true,
@@ -212,15 +211,6 @@ export default function Profile() {
               <div className="flex items-center justify-between">
                 <span>Member since</span>
                 <span className="text-slate-200">{user.joined}</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span>2FA Security</span>
-                <span
-                  className={user.twoFA ? "text-emerald-400" : "text-red-400"}
-                >
-                  {user.twoFA ? "Enabled" : "Disabled"}
-                </span>
               </div>
             </div>
           </div>
@@ -359,25 +349,6 @@ export default function Profile() {
             </div>
 
             <div className="p-5 space-y-3">
-              <div className="flex items-center justify-between py-2 border-b border-white/5">
-                <div>
-                  <div className="text-sm text-slate-200">
-                    Two-Factor Authentication
-                  </div>
-                  <div className="text-xs text-slate-500">
-                    Extra layer of security on your account
-                  </div>
-                </div>
-
-                <span
-                  className={`px-2.5 py-1 rounded-full text-xs font-semibold ${user.twoFA
-                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
-                    : "bg-red-500/15 text-red-400 border border-red-500/30"
-                    }`}
-                >
-                  {user.twoFA ? "Enabled" : "Disabled"}
-                </span>
-              </div>
 
               <div className="flex items-center justify-between py-2">
                 <div>
