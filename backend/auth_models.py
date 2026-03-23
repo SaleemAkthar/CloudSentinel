@@ -42,3 +42,8 @@ class ProfileUpdateRequest(BaseModel):
     username: str | None = None
     email: str | None = None
 
+class ChangePasswordRequest(BaseModel):
+    """Body sent by the Change Password form."""
+    current_password: str
+    new_password: str
+

@@ -84,3 +84,12 @@ def update_user(user_id: str, username: Optional[str] = None, email: Optional[st
     _save_users(_users)
     return user
 
+def update_user_password(user_id: str, new_hashed_password: str) -> Optional[dict]:
+    """Update a user's password by user_id. Persists to JSON."""
+    for u in _users.values():
+        if u["id"] == user_id:
+            u["hashed_password"] = new_hashed_password
+            _save_users(_users)
+            return u
+    return None
+
