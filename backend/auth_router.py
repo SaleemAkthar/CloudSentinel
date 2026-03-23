@@ -10,8 +10,8 @@ POST /api/auth/logout    — clear the httpOnly cookie                (Commit 8)
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from backend.auth_models import LoginRequest, RegisterRequest, UserResponse, MessageResponse, ProfileUpdateRequest
-from backend.user_store import create_user, email_exists, get_user_by_email, get_user_by_id, update_user
+from backend.auth_models import LoginRequest, RegisterRequest, UserResponse, MessageResponse, ProfileUpdateRequest, ChangePasswordRequest
+from backend.user_store import create_user, email_exists, get_user_by_email, get_user_by_id, update_user, update_user_password
 from backend.auth_utils import create_access_token, decode_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -154,3 +154,42 @@ def logout(response: Response):
     """
     response.delete_cookie(key=COOKIE_NAME, path="/", samesite="lax")
     return MessageResponse(message="Signed out successfully.", success=True)
+
+
+# PUT /api/auth/change-password
+
+@router.put("/change-password", response_model=MessageResponse)
+def change_password(body: ChangePasswordRequest, request: Request, response: Response):
+    """
+    Allow authenticated users to change their password.
+    Requires current password for verification.
+    """
+    token = request.cookies.get(COOKIE_NAME)
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated.")
+
+    user_id = decode_access_token(token)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid or expired session.")
+
+    user = get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    if not verify_password(body.current_password, user["hashed_password"]):
+        raise HTTPException(status_code=401, detail="Incorrect current password.")
+
+    if not body.new_password or len(body.new_password) < 8:
+        raise HTTPException(status_code=422, detail="New password must be at least 8 characters.")
+
+    if body.new_password == body.current_password:
+        raise HTTPException(status_code=400, detail="New password cannot be the same as the current password.")
+
+    updated = update_user_password(user_id, hash_password(body.new_password))
+    if not updated:
+        raise HTTPException(status_code=500, detail="Failed to update password.")
+
+    # Re-issue auth cookie
+    _set_auth_cookie(response, user_id)
+
+    return MessageResponse(message="Password updated successfully.", success=True)
