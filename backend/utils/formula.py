@@ -405,51 +405,28 @@ def calculate_behavioral_anomaly(
     # Initialize attack scores
     attack_scores = {}
     
-    # 1. CRYPTO MINING SIGNATURE
-    # High duration (>5x normal) + high memory (>2x normal)
-    # Research: Palo Alto Unit 42 (2023) — duration >8s is single strongest
-    # crypto-jacking predictor (AUC=0.94). AWS re:Invent 2023 security track
-    # reports 10–40x duration and 85–98% memory utilisation in confirmed events.
+    
     if duration > mean_duration * 5 and memory > mean_memory * 2:
         S_crypto = min((duration / mean_duration) / 20, 1.0)
         attack_scores['crypto_mining'] = S_crypto
 
-    # 2. DATA EXFILTRATION SIGNATURE
-    # Excessive API calls (>10) — S3 PutObject burst pattern
-    # Research: IBM X-Force 2024 — 87% of Lambda exfil events show >50x
-    # API call asymmetry vs normal baseline.
+    
     if api_calls > 25:
         S_exfil = min(api_calls / 30, 1.0)
         attack_scores['data_exfiltration'] = S_exfil
 
-    # 3. SQL INJECTION SIGNATURE — RC4 FIX
-    # Previously checked 'db_queries' key which was never present in the
-    # feature dict (data_generator uses apiCalls list → num_api_calls).
-    # Fix: use num_api_calls as the DB hammering proxy, combined with
-    # error_count which SQL injection reliably produces (OWASP TG v4.2).
-    # Research: SANS 2023 Cloud Report — 78% of Lambda SQL injection attempts
-    # produce ≥1 error. DB call rate 10–100x normal is the primary fingerprint
-    # (OWASP Testing Guide v4.2 §4.7.5).
+    
     if api_calls > 10 and errors > 0:
         S_injection = min((api_calls * errors) / 50, 1.0)
         attack_scores['sql_injection'] = S_injection
 
-    # 4. MEMORY ATTACK SIGNATURE
-    # Memory near Lambda limit (>90% of 512MB cap)
-    # Research: OWASP Serverless Top 10 (2023) — memory exhaustion attacks
-    # consistently reach 93–100% of the configured limit.
+    
     memory_limit = features.get('memory_limit', 512)
     if memory > memory_limit * 0.9:
         S_memory = memory / memory_limit
         attack_scores['memory_attack'] = S_memory
 
-    # 5. DDoS SIGNATURE — RC5 FIX
-    # Previously required concurrency > 10, which is always hardcoded to 1
-    # in the evaluation pipeline (Lambda concurrency is external, not per-log).
-    # Fix: use high api_calls volume alone as the DDoS single-packet indicator,
-    # consistent with Mousavi & St-Hilaire (2015, IEEE TDSC) who identify
-    # repeated-call volume collapse as the primary Lambda DDoS fingerprint.
-    # History-based detection (request rate) is preserved when available.
+    
     fragment_count = features.get('fragment_count', 0)
     if ip_history:
         request_rate = ip_history.get('request_rate', 0)
@@ -467,14 +444,7 @@ def calculate_behavioral_anomaly(
             S_ddos_instant = min(S_ddos_instant + 0.15, 1.0)
         attack_scores['ddos'] = max(attack_scores.get('ddos', 0), S_ddos_instant)
 
-    # 6. IP SPOOFING SIGNATURE — RC6 FIX (entirely new)
-    # No behavioral check existed for IP spoofing previously. The attack
-    # produces impossible TTL values and low privileged source ports, both of
-    # which are defined as primary spoofing indicators by RFC 1700 and IETF
-    # BCP 38. CAIDA Spoofer Project (MIT/CAIDA 2023) shows TTL < 5 or
-    # 200 < TTL < 255 appears in 94% of confirmed spoofed packets. RFC 6056
-    # mandates ephemeral ports 49152–65535; source ports 1–1023 from external
-    # hosts indicate spoofing with precision = 0.98 (IETF BCP 38).
+    
     ttl         = features.get('ttl', 64)
     source_port = features.get('source_port', 49152)
     impossible_ttl = (ttl < 5) or (200 < ttl < 255)   # RFC 1700 anomaly
@@ -510,18 +480,18 @@ def calculate_composite_anomaly_score(
     Calculate final composite anomaly score
     
     Formula:
-        S_composite = α·tanh(A_feature) + β·tanh(A_packet) + 
-                      γ·tanh(A_temporal) + δ·A_behavioral
+        S_composite = alpha·tanh(A_feature) + beta·tanh(A_packet) + 
+                      gamma·tanh(A_temporal) + delta·A_behavioral
     
     Where:
-        α + β + γ + δ = 1 (weights sum to 1)
+        alpha + beta + gamma + delta = 1 (weights sum to 1)
         tanh() = hyperbolic tangent (smooth normalization)
     
     Default weights:
-        α = 0.35 (feature)
-        β = 0.25 (packet)
-        γ = 0.20 (temporal)
-        δ = 0.20 (behavioral)
+        alpha = 0.35 (feature)
+        beta = 0.25 (packet)
+        gamma = 0.20 (temporal)
+        delta = 0.20 (behavioral)
     
     Args:
         A_feature: Feature-based anomaly score
@@ -548,15 +518,7 @@ def calculate_composite_anomaly_score(
     gamma = weights.get('temporal', 0.20)
     delta = weights.get('behavioral', 0.20)
 
-    # RC3 FIX: Remove tanh() from already-normalised [0,1] scores.
-    # Previously, tanh() was applied to scores that are already bounded [0,1].
-    # Since tanh(x) < x for all x in (0,1), this systematically reduced every
-    # component's maximum contribution (tanh(1.0)=0.762, not 1.0), making it
-    # impossible to reach the detection threshold even for extreme attacks.
-    # Research basis: ISO/IEC 27001:2022 Annex A recommends linear weighted
-    # aggregation for interpretable security scores. Aggarwal (2017) "Outlier
-    # Analysis" §2.4 notes that double-normalisation (normalise then squash)
-    # collapses sensitivity and is a common implementation error.
+    
     S_composite = (
         alpha * A_feature    +
         beta  * A_packet     +
