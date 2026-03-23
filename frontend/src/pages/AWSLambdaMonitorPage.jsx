@@ -13,6 +13,7 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
+import LambdaDetailModal from "../components/LambdaDetailModal";
 
 
 //  Custom tooltips 
@@ -515,134 +516,14 @@ export default function AWSLambdaMonitorPage() {
 
       {/* Function Detail Modal  */}
       {selectedFn && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#0a1628] border border-white/10 rounded-2xl w-full max-w-3xl max-h-[85vh] overflow-y-auto shadow-2xl">
-
-            {/* Modal header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-              <div>
-                <h2 className="text-xl font-bold text-white">{selectedFn}</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Function activity from Layer 1 + Layer 2</p>
-              </div>
-              <button
-                onClick={() => setSelectedFn(null)}
-                className="text-slate-400 hover:text-white text-2xl leading-none px-2"
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Alerts section */}
-            <div className="px-6 py-4">
-              <h3 className="text-sm font-semibold text-slate-300 mb-3">
-                Recent Alerts ({fnAlerts.length})
-              </h3>
-              {fnAlerts.length === 0 ? (
-                <p className="text-sm text-slate-500">No alerts for this function</p>
-              ) : (
-                <div className="space-y-2">
-                  {fnAlerts.map((a) => (
-                    <div
-                      key={a.id}
-                      className={`rounded-lg p-3 border-l-4 ${a.severity === "CRITICAL"
-                          ? "border-red-500 bg-red-500/10"
-                          : a.severity === "WARNING"
-                            ? "border-orange-400 bg-orange-400/10"
-                            : "border-yellow-400 bg-yellow-400/10"
-                        }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full font-semibold ${a.severity === "CRITICAL"
-                              ? "bg-red-500/20 text-red-400"
-                              : a.severity === "WARNING"
-                                ? "bg-orange-500/20 text-orange-400"
-                                : "bg-yellow-500/20 text-yellow-400"
-                            }`}
-                        >
-                          {a.severity}
-                        </span>
-                        <span className={`text-xs font-semibold ${a.status === "OPEN" ? "text-red-400" : "text-emerald-400"}`}>
-                          {a.status}
-                        </span>
-                        {a.threat_type && (
-                          <span className="text-xs text-slate-400">• {a.threat_type}</span>
-                        )}
-                      </div>
-                      <div className="text-sm text-slate-300">
-                        Score: <span className="font-semibold">{((a.anomaly_score || 0) * 100).toFixed(1)}%</span>
-                        {a.features?.duration_ms != null && (
-                          <> • Duration: <span className="font-semibold">{a.features.duration_ms}ms</span></>
-                        )}
-                        {a.confidence != null && (
-                          <> • Confidence: <span className="font-semibold">{(a.confidence * 100).toFixed(0)}%</span></>
-                        )}
-                      </div>
-                      <div className="text-xs text-slate-500 mt-1">
-                        {new Date(a.timestamp).toLocaleString()}
-                        {a.features?.ip_address && <> • IP: {a.features.ip_address}</>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Logs section */}
-            <div className="px-6 py-4 border-t border-white/10">
-              <h3 className="text-sm font-semibold text-slate-300 mb-3">
-                Recent Logs ({fnLogs.length})
-              </h3>
-              {fnLogs.length === 0 ? (
-                <p className="text-sm text-slate-500">No logs for this function</p>
-              ) : (
-                <table className="w-full text-sm text-left">
-                  <thead className="text-gray-500 text-xs">
-                    <tr>
-                      <th className="py-1.5">Timestamp</th>
-                      <th>Event</th>
-                      <th>IP Address</th>
-                      <th>Status</th>
-                      <th>Duration</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {fnLogs.map((log, i) => (
-                      <tr key={i} className="border-t border-white/5">
-                        <td className="py-2 text-slate-400 text-xs">{new Date(log.timestamp).toLocaleString()}</td>
-                        <td className="text-slate-300">{log.event}</td>
-                        <td className="text-slate-400">{log.ip_address}</td>
-                        <td>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-xs ${log.status === "success"
-                                ? "bg-green-500/20 text-green-400"
-                                : log.status === "blocked"
-                                  ? "bg-yellow-500/20 text-yellow-400"
-                                  : "bg-red-500/20 text-red-400"
-                              }`}
-                          >
-                            {log.status}
-                          </span>
-                        </td>
-                        <td className="text-slate-300">{log.duration}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-
-            {/* Close button */}
-            <div className="px-6 py-4 border-t border-white/10 flex justify-end">
-              <button
-                onClick={() => setSelectedFn(null)}
-                className="bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-lg text-sm text-slate-300"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <LambdaDetailModal
+          fnName={selectedFn}
+          fnStatus={functions.find((f) => f.name === selectedFn)?.status || "active"}
+          fnStats={functions.find((f) => f.name === selectedFn)}
+          alerts={fnAlerts}
+          logs={fnLogs}
+          onClose={() => setSelectedFn(null)}
+        />
       )}
 
     </div>
