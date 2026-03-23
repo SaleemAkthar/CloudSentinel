@@ -97,3 +97,15 @@ export async function changePassword(currentPassword, newPassword) {
   });
   return res.data;
 }
+
+// Allow/Block analyst decisions — feed result back to AI model
+
+export async function allowAlert(alertId) {
+  const res = await axios.patch(`/api/alerts/${alertId}/allow`);
+  return res.data;
+}
+
+export async function blockAlert(alertId) {
+  const res = await axios.patch(`/api/alerts/${alertId}/block`);
+  return res.data;
+}
