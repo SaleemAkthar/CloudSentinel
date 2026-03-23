@@ -39,16 +39,7 @@ from backend.utils.weights import (
 )
 
 class Layer1Scorer:
-    """
-    Real-time weighted anomaly scoring
     
-    Uses composite formula:
-        S = α·A_feature + β·A_packet + γ·A_temporal + δ·A_behavioral
-    
-    Where:
-        α, β, γ, δ = component weights (from weights.py)
-        A_* = anomaly scores for each component
-    """
     
     def __init__(self, learning_window: int = 100):
         """
