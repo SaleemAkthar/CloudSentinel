@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { allowAlert, blockAlert } from "../services/api";
 import GlassCard from "../components/GlassCard";
 import StatusDot from "../components/StatusDot";
 
@@ -10,6 +11,11 @@ export default function Investigation({ alertId, onClose }) {
   const [investigating, setInvestigating] = useState(false);
   const [error, setError] = useState(null);
 
+  // Allow / Block action state
+  const [actionLoading, setActionLoading] = useState(null); // null | 'allow' | 'block'
+  const [actionError, setActionError] = useState(null);
+  const [actionDone, setActionDone] = useState(null);       // null | 'ALLOWED' | 'BLOCKED'
+
   // Fetch the real alert from backend
   useEffect(() => {
     if (!alertId) return;
@@ -17,6 +23,10 @@ export default function Investigation({ alertId, onClose }) {
     axios.get(`/api/alerts/${alertId}`)
       .then(r => {
         setAlert(r.data);
+        // If already resolved, show the badge immediately
+        if (r.data.resolution) {
+          setActionDone(r.data.resolution);
+        }
         // If already investigated, show cached report
         if (r.data.layer2_report) {
           setL2Report(r.data.layer2_report);
@@ -46,6 +56,29 @@ export default function Investigation({ alertId, onClose }) {
       );
     } finally {
       setInvestigating(false);
+    }
+  };
+
+  // Handle Allow / Block analyst decision
+  const handleDecision = async (type) => {
+    setActionLoading(type);
+    setActionError(null);
+    try {
+      if (type === 'allow') {
+        await allowAlert(alertId);
+        setActionDone('ALLOWED');
+      } else {
+        await blockAlert(alertId);
+        setActionDone('BLOCKED');
+      }
+      // Auto-close the modal after 2 seconds
+      setTimeout(() => onClose(), 2000);
+    } catch (err) {
+      setActionError(
+        err.response?.data?.detail || `Failed to ${type} alert. Please try again.`
+      );
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -263,15 +296,36 @@ export default function Investigation({ alertId, onClose }) {
 
         </div>
 
-        {/* Footer — Investigate / Block buttons */}
-        <div className="flex justify-between items-center p-4 border-t border-white/10">
-          <div className="text-xs text-slate-500">
-            {l2Report
-              ? `Layer 2 scan completed in ${l2Report.elapsed_ms}ms`
-              : "Layer 2 analysis not yet run"}
+        {/* Footer — Investigate / Allow / Block buttons */}
+        <div className="flex justify-between items-center p-4 border-t border-white/10 gap-3">
+          <div className="flex-1">
+            {/* Action error banner */}
+            {actionError && (
+              <div className="text-red-400 text-xs bg-red-500/10 px-3 py-2 rounded-lg border border-red-500/20">
+                {actionError}
+              </div>
+            )}
+            {/* Success banner */}
+            {actionDone && (
+              <div className={`text-xs px-3 py-2 rounded-lg font-semibold ${
+                actionDone === 'ALLOWED'
+                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-red-500/15 text-red-400 border border-red-500/30'
+              }`}>
+                {actionDone === 'ALLOWED' ? '✓ Marked as Allowed — closing…' : '⛔ IP Blocked — closing…'}
+              </div>
+            )}
+            {!actionError && !actionDone && (
+              <span className="text-xs text-slate-500">
+                {l2Report
+                  ? `Layer 2 scan completed in ${l2Report.elapsed_ms}ms`
+                  : "Layer 2 analysis not yet run"}
+              </span>
+            )}
           </div>
-          <div className="flex gap-2">
-            {!l2Report && (
+
+          <div className="flex gap-2 shrink-0">
+            {!l2Report && !actionDone && (
               <button
                 onClick={runInvestigation}
                 disabled={investigating}
@@ -281,10 +335,36 @@ export default function Investigation({ alertId, onClose }) {
                 {investigating ? "Investigating…" : "🔍 Run Layer 2 Investigation"}
               </button>
             )}
-            <button className="px-4 py-2 text-sm rounded-lg bg-red-600/20 border border-red-500
-                               text-red-400 hover:bg-red-600/30">
-              Block IP
-            </button>
+
+            {/* Resolved badge — shown if already actioned */}
+            {actionDone ? (
+              <span className={`px-4 py-2 text-sm rounded-lg font-semibold ${
+                actionDone === 'ALLOWED'
+                  ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-red-500/15 text-red-400 border border-red-500/30'
+              }`}>
+                {actionDone === 'ALLOWED' ? '✓ ALLOWED' : '⛔ BLOCKED'}
+              </span>
+            ) : (
+              <>
+                <button
+                  onClick={() => handleDecision('allow')}
+                  disabled={!!actionLoading}
+                  className="px-4 py-2 text-sm rounded-lg bg-emerald-600/20 border border-emerald-500
+                             text-emerald-400 hover:bg-emerald-600/30 disabled:opacity-50"
+                >
+                  {actionLoading === 'allow' ? 'Allowing…' : '✓ Allow'}
+                </button>
+                <button
+                  onClick={() => handleDecision('block')}
+                  disabled={!!actionLoading}
+                  className="px-4 py-2 text-sm rounded-lg bg-red-600/20 border border-red-500
+                             text-red-400 hover:bg-red-600/30 disabled:opacity-50"
+                >
+                  {actionLoading === 'block' ? 'Blocking…' : '⛔ Block IP'}
+                </button>
+              </>
+            )}
           </div>
         </div>
 
