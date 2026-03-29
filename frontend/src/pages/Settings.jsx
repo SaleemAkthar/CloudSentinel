@@ -170,7 +170,7 @@ export default function Settings() {
           className="bg-gradient-to-b from-white/5 to-white/0"
         >
           <div className="space-y-5">
-            {/* Monitoring enabled */}
+            {/* Monitoring enabled
             <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/0 px-4 py-3">
               <div>
                 <div className="text-sm font-semibold text-slate-100">Monitoring enabled</div>
@@ -183,7 +183,7 @@ export default function Settings() {
                 checked={settings.monitoringEnabled}
                 onChange={(e) => setField("monitoringEnabled", e.target.checked)}
               />
-            </div>
+            </div> */}
 
 
             {/* Notifications */}
