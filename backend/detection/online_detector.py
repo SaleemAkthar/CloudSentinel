@@ -1,9 +1,6 @@
 """
 Cloud Sentinel:Learning Anomaly Detector
 Welford's Algorithm, Multi-feature Z-scoring, and Severity Classification
-
-   DEPRECATED — replaced by Layer1Scorer (backend/detection/layer1_scorer.py)
-   Kept for reference only. Do not use in new code.
 """
 
 from datetime import datetime
@@ -40,9 +37,6 @@ class OnlineStats:
         return {"n": self.n, "mean": self.mean, "std": self.get_std()}
 
 class SeverityClassifier:
-    """
-    Saleem's Component: Logic to classify anomalies into threat types.
-    """
     def classify(self, features: Dict, z_scores: Dict) -> Dict:
         dur_z = abs(z_scores.get('duration', 0))
         mem_z = abs(z_scores.get('memory_used', 0))
