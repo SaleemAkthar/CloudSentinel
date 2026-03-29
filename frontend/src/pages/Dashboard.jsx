@@ -164,10 +164,6 @@ export default function Dashboard() {
               </div>
               <div className="text-2xl font-semibold text-yellow-200">{stats.medium}</div>
             </div>
-
-            <div className="pt-2 text-xs text-emerald-300">
-              need to add comparison with previous period
-            </div>
           </div>
         </GlassCard>
 

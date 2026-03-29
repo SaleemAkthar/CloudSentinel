@@ -185,38 +185,6 @@ export default function Settings() {
               />
             </div>
 
-            {/* Anomaly threshold
-            <div className="rounded-xl border border-white/10 bg-white/0 px-4 py-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-slate-100">Anomaly threshold</div>
-                  <div className="text-xs text-slate-300">
-                    Higher = fewer alerts (stricter). Lower = more sensitive detection.
-                  </div>
-                </div>
-                <div className="text-sm font-semibold text-slate-100">
-                  {settings.anomalyThreshold.toFixed(2)}
-                </div>
-              </div>
-
-              <div className="mt-3">
-                <Slider
-                  value={settings.anomalyThreshold}
-                  min={0.5}
-                  max={0.95}
-                  step={0.01}
-                  onChange={(_, v) => setField("anomalyThreshold", Number(v))}
-                  sx={{
-                    color: "#22D3EE",
-                    "& .MuiSlider-rail": { opacity: 0.25 },
-                  }}
-                />
-                <div className="mt-1 flex justify-between text-[11px] text-slate-400">
-                  <span>0.50 (Sensitive)</span>
-                  <span>0.95 (Strict)</span>
-                </div>
-              </div>
-            </div> */}
 
             {/* Notifications */}
             <div className="rounded-xl border border-white/10 bg-white/0 px-4 py-4">
@@ -225,9 +193,6 @@ export default function Settings() {
                   <div className="flex items-center gap-2">
                     <NotificationsNoneRoundedIcon fontSize="small" className="text-slate-300" />
                     <div className="text-sm font-semibold text-slate-100">Notifications</div>
-                  </div>
-                  <div className="text-xs text-slate-300">
-                    Enable alerts to be delivered to operators (email/SNS/webhooks later).
                   </div>
                 </div>
 

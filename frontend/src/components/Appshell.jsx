@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import csLogo from "../assets/CS LOGO.png";
 import { useAuth } from "../context/AuthContext";
+import NotificationToasts from "./NotificationToasts";
 
 // MUI Icons
 import GridViewRoundedIcon from "@mui/icons-material/GridViewRounded";
@@ -134,6 +135,9 @@ export default function AppShell() {
           </main>
         </div>
       </div>
+
+      {/* Global alert notification popups */}
+      <NotificationToasts />
     </div>
   );
 }

@@ -10,5 +10,12 @@
     "username": "ashan",
     "email": "ashanbandara407@gmail.com",
     "hashed_password": "$2b$12$jZBamxykfirTvbkjWO.zROYEsaW97FhvAQ5euBfB/oKJdUJrWN8dW"
+  },
+  "isuru.20240328@iit.ac.lk": {
+    "id": "20c3fe8d-a0d6-47ac-a9f9-7af856df5dd5",
+    "username": "isuru",
+    "email": "isuru.20240328@iit.ac.lk",
+    "hashed_password": "$2b$12$3ErWj4KLRTVz.xv8LG9rMuNoMPtXHC1Ox1dET2w28Iel1koAv20Yu",
+    "created_at": "2026-03-29T14:18:50.000403+00:00"
   }
 }
