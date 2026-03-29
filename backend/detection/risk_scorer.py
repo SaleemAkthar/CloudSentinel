@@ -9,7 +9,7 @@ Covers:
   - Severity classification with adjustment
   - Final AI recommendation generation
 
-Author: Backend Team
+Author: Saleem Akthar
 """
 
 import math
@@ -67,7 +67,7 @@ class RiskScorer:
             layer1_result:     Layer1Filter output
 
         Returns:
-            Complete risk assessment dict
+            Complete risk assessment report
         """
         t0 = time.perf_counter()
 
@@ -136,13 +136,6 @@ class RiskScorer:
     # ── Composite Score ───────────────────────────────────────────────────────
 
     def _calculate_composite(self, components: Dict[str, float]) -> float:
-        """
-        Weighted composite risk score.
-
-        Formula:
-            S = Σ (weight_i × tanh(score_i × 2))
-            tanh provides smooth S-curve normalisation
-        """
         composite = 0.0
         for key, weight in COMPONENT_WEIGHTS.items():
             raw = components.get(key, 0.0)
@@ -216,17 +209,6 @@ class RiskScorer:
     def _calculate_confidence(
         self, components: Dict[str, float], pattern_results: dict
     ) -> float:
-        """
-        Estimate confidence in the risk assessment.
-
-        High confidence when:
-          - Multiple components agree (low variance)
-          - Attack patterns match with high confidence
-          - Multiple patterns matched
-
-        Formula:
-            confidence = (1 / (1 + σ)) × agreement_factor
-        """
         values = list(components.values())
 
         if not values:
@@ -294,8 +276,6 @@ class RiskScorer:
         topology_analysis: dict,
     ) -> dict:
         """
-        Build a structured AI recommendation based on all evidence.
-
         Returns action (BLOCK / MONITOR / INVESTIGATE / PASS),
         reasoning list, and mitigation steps.
         """
