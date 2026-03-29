@@ -27,7 +27,6 @@ from collections import defaultdict
 
 # SECTION 1: BUILT-IN GEO + ASN DATABASE
 # Each entry: (cidr, country_code, country_name, region, lat, lon, asn, org)
-# Covers major cloud providers, known bad actors, and geographic regions.
 
 _IP_RANGES: List[Tuple] = [
     # ── Known Malicious / Tor / Botnet ────────────────────────────────────────
@@ -162,16 +161,6 @@ class IPAnalyzer:
     """
 
     def analyze(self, ip_str: str, ttl: int = 64) -> dict:
-        """
-        Main entry point. Returns complete IP analysis in < 1ms.
-
-        Args:
-            ip_str: IP address string
-            ttl:    TTL value from the packet
-
-        Returns:
-            Full analysis dict
-        """
         t0 = time.perf_counter()
 
         validation  = self._validate(ip_str)
