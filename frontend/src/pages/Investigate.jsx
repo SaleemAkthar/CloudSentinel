@@ -273,7 +273,7 @@ export default function Investigation({ alertId, onClose }) {
               {topology.anomalies?.anomalies?.length > 0 && (
                 <div className="mt-2 space-y-1">
                   {topology.anomalies.anomalies.map((a, i) => (
-                    <div key={i} className="text-xs text-orange-300">⚠ {a}</div>
+                    <div key={i} className="text-xs text-orange-300"> {a}</div>
                   ))}
                 </div>
               )}
@@ -312,7 +312,7 @@ export default function Investigation({ alertId, onClose }) {
                   ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                   : 'bg-red-500/15 text-red-400 border border-red-500/30'
               }`}>
-                {actionDone === 'ALLOWED' ? '✓ Marked as Allowed — closing…' : '⛔ IP Blocked — closing…'}
+                {actionDone === 'ALLOWED' ? '✓ Marked as Allowed — closing…' : ' IP Blocked — closing…'}
               </div>
             )}
             {!actionError && !actionDone && (
@@ -332,7 +332,7 @@ export default function Investigation({ alertId, onClose }) {
                 className="px-4 py-2 text-sm rounded-lg bg-blue-600/20 border border-blue-500
                            text-blue-300 hover:bg-blue-600/30 disabled:opacity-50"
               >
-                {investigating ? "Investigating…" : "🔍 Run Layer 2 Investigation"}
+                {investigating ? "Investigating…" : "Run Layer 2 Investigation"}
               </button>
             )}
 
@@ -343,7 +343,7 @@ export default function Investigation({ alertId, onClose }) {
                   ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
                   : 'bg-red-500/15 text-red-400 border border-red-500/30'
               }`}>
-                {actionDone === 'ALLOWED' ? '✓ ALLOWED' : '⛔ BLOCKED'}
+                {actionDone === 'ALLOWED' ? ' ALLOWED' : ' BLOCKED'}
               </span>
             ) : (
               <>
@@ -353,7 +353,7 @@ export default function Investigation({ alertId, onClose }) {
                   className="px-4 py-2 text-sm rounded-lg bg-emerald-600/20 border border-emerald-500
                              text-emerald-400 hover:bg-emerald-600/30 disabled:opacity-50"
                 >
-                  {actionLoading === 'allow' ? 'Allowing…' : '✓ Allow'}
+                  {actionLoading === 'allow' ? 'Allowing…' : 'Allow'}
                 </button>
                 <button
                   onClick={() => handleDecision('block')}
@@ -361,7 +361,7 @@ export default function Investigation({ alertId, onClose }) {
                   className="px-4 py-2 text-sm rounded-lg bg-red-600/20 border border-red-500
                              text-red-400 hover:bg-red-600/30 disabled:opacity-50"
                 >
-                  {actionLoading === 'block' ? 'Blocking…' : '⛔ Block IP'}
+                  {actionLoading === 'block' ? 'Blocking…' : 'Block IP'}
                 </button>
               </>
             )}

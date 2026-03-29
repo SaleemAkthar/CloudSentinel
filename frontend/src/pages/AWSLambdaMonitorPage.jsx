@@ -165,10 +165,10 @@ function buildThreatCounts(alerts) {
 // Real Lambda functions from LocalStack simulation
 
 const FALLBACK_FUNCTIONS = [
-  { name: "api-handler", status: "active", invocations: 0, duration: "0ms", error: "0%", memory: "128MB" },
-  { name: "file-processor", status: "active", invocations: 0, duration: "0ms", error: "0%", memory: "128MB" },
-  { name: "db-query", status: "active", invocations: 0, duration: "0ms", error: "0%", memory: "128MB" },
-  { name: "auth-service", status: "active", invocations: 0, duration: "0ms", error: "0%", memory: "128MB" },
+  // { name: "api-handler", status: "active", invocations: 0, duration: "0ms", error: "0%", memory: "128MB" },
+  // { name: "file-processor", status: "active", invocations: 0, duration: "0ms", error: "0%", memory: "128MB" },
+  // { name: "db-query", status: "active", invocations: 0, duration: "0ms", error: "0%", memory: "128MB" },
+  // { name: "auth-service", status: "active", invocations: 0, duration: "0ms", error: "0%", memory: "128MB" },
 ];
 
 

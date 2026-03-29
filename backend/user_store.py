@@ -4,13 +4,12 @@ Stores registered users in a local JSON file to survive server reloads.
 Keys are lowercased emails for fast login lookup.
 """
 
-import os
-import json
-import uuid
+import os, json, uuid
 from datetime import datetime, timezone
 from typing import Optional, Dict
 
-DB_FILE = "/tmp/users.json"
+# Store users alongside this file (backend/users.json) — works on Windows & Linux
+DB_FILE = os.path.join(os.path.dirname(__file__), "users.json")
 
 def _load_users() -> Dict[str, dict]:
     if not os.path.exists(DB_FILE):

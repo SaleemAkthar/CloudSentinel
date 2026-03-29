@@ -95,7 +95,7 @@ export default function RealTimeAlerts() {
         {loading ? (
           <div className="p-6 text-slate-400">Loading alerts…</div>
         ) : alerts.length === 0 ? (
-          <div className="p-6 text-emerald-400">No active threats 🎉</div>
+          <div className="p-6 text-emerald-400">No active threats</div>
         ) : (
           <div className="divide-y divide-white/10">
             {alerts.map((alert) => (

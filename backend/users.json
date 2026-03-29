@@ -11,14 +11,13 @@
     "email": "ashanbandara407@gmail.com",
     "hashed_password": "$2b$12$jZBamxykfirTvbkjWO.zROYEsaW97FhvAQ5euBfB/oKJdUJrWN8dW"
   },
-<<<<<<< HEAD
   "isuru.20240328@iit.ac.lk": {
     "id": "20c3fe8d-a0d6-47ac-a9f9-7af856df5dd5",
     "username": "isuru",
     "email": "isuru.20240328@iit.ac.lk",
     "hashed_password": "$2b$12$3ErWj4KLRTVz.xv8LG9rMuNoMPtXHC1Ox1dET2w28Iel1koAv20Yu",
     "created_at": "2026-03-29T14:18:50.000403+00:00"
-=======
+  },
   "test@test.com": {
     "id": "413e48b7-2f93-4098-bf6d-19b5705d0d04",
     "username": "TestUser",
@@ -31,7 +30,6 @@
     "username": "SaleemAkthar",
     "email": "saa282005@gmail.com",
     "hashed_password": "$2b$12$WxTmT2Ckiw7gSrNSmG4q5u0.SGZklUmsatmb8AQEHLdFybC0rzaJu",
-    "created_at": "2026-03-29T13:37:09.391181+00:00"
->>>>>>> 155650ce7c94dd01bb000127eb7d384ea9ec6a1b
+    "created_at": "2026-03-29T13:37:09.391180+00:00"
   }
 }
