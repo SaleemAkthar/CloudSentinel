@@ -13,7 +13,7 @@ Covers:
 
 All in-memory. Zero I/O. Target: < 1ms per call.
 
-Author: Backend Team
+Author: Saleem Akthar
 """
 
 import math
@@ -429,7 +429,7 @@ class PacketAnalyzer:
         Weighted composite packet risk score.
 
         Weights reflect real-world importance for Lambda security:
-          exfiltration > latency > fragmentation > protocol > size
+        exfiltration > latency > fragmentation > protocol > size
         """
         weights = {
             "exfiltration":  0.35,
