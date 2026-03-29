@@ -8,7 +8,7 @@ Orchestrates all Layer 2 deep analysis modules:
   4. Network Topology   — routing path, hop count, transit providers
   5. Risk Scorer        — composite risk, confidence, severity, recommendation
 
-Author: Backend Team
+Author: Saleem Akthar
 """
 
 import time
@@ -40,16 +40,6 @@ class Layer2Scanner:
     """
 
     def scan(self, packet: dict, layer1_result: Optional[dict] = None) -> dict:
-        """
-        Run the full Layer 2 scan pipeline.
-
-        Args:
-            packet:        dict containing Lambda execution metadata
-            layer1_result: output from Layer1Filter (optional but recommended)
-
-        Returns:
-            Full scan report dict
-        """
         t0       = time.perf_counter()
         scan_id  = f"L2-{uuid.uuid4().hex[:12].upper()}"
         ts       = datetime.utcnow().isoformat() + "Z"

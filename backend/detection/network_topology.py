@@ -2,7 +2,7 @@
 Network Topology Analyzer — Cloud Sentinel Layer 2
 ====================================================
 Analyses routing path, hop count, and transit providers
-using TTL simulation (no live traceroute — fully in-memory).
+using TTL simulation ( in-memory).
 
 Covers:
   - Routing path simulation from TTL

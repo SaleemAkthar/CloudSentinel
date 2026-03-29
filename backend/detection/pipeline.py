@@ -14,7 +14,7 @@ Layer 2 is NOT run here. It only runs when the analyst clicks
 
 Output:  ALLOW / INVESTIGATE  + full evidence + raw_packet
 
-Author: Backend Team
+Author: Saleem Akthar
 """
 
 import time

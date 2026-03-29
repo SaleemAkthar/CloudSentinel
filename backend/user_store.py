@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional, Dict
 
-DB_FILE = os.path.join(os.path.dirname(__file__), "users.json")
+DB_FILE = "/tmp/users.json"
 
 def _load_users() -> Dict[str, dict]:
     if not os.path.exists(DB_FILE):

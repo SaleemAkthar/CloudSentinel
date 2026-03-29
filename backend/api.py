@@ -474,10 +474,6 @@ def allow_alert(alert_id: str):
 
 @app.patch("/api/alerts/{alert_id}/block")
 def block_alert(alert_id: str):
-    """
-    Analyst confirmed the alert is a real threat.
-    Marks as BLOCKED + CLOSED. Feeds true-positive outcome to AI model.
-    """
     alert = alert_store.get_by_id(alert_id)
     if not alert:
         raise HTTPException(status_code=404, detail=f"Alert '{alert_id}' not found.")
@@ -513,21 +509,6 @@ def block_alert(alert_id: str):
 
 @app.post("/api/alerts/{alert_id}/investigate")
 def investigate_alert(alert_id: str):
-    """
-    Trigger Layer 2 forensic investigation on demand.
-
-    Called when the analyst clicks 'Investigate' in the dashboard.
-    Layer 2 does NOT run automatically during detection — only here.
-
-    Layer 2 includes:
-      - IP Analysis (geolocation, ASN, reputation, spoofing detection)
-      - Packet Analysis (size, fragmentation, latency, exfiltration scoring)
-      - Attack Pattern Matching (DDoS, SQLi, crypto mining, exfil, memory, spoofing)
-      - Network Topology (routing path, hop count, transit providers)
-      - Risk Scoring (composite risk, confidence, severity, recommendations)
-
-    Returns cached report if the alert was already investigated.
-    """
     alert = alert_store.get_by_id(alert_id)
     if not alert:
         raise HTTPException(status_code=404, detail=f"Alert '{alert_id}' not found.")
