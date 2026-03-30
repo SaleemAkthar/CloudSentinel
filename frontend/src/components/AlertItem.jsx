@@ -168,10 +168,6 @@ export default function AlertItem({ alert, onInvestigate }) {
         >
           Investigate
         </button>
-
-        <button className="px-3 py-2 text-xs rounded-lg bg-red-600/20 border border-red-500 text-red-400 hover:bg-red-600/30 whitespace-nowrap">
-          Block
-        </button>
       </div>
     </div>
   );
